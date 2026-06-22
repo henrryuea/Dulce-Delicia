@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dulce Encanto - Postres Artesanales</title>
+
+  <!-- Bootstrap 5 CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- CSS personalizado -->
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+  <!-- Encabezado -->
+  <header class="hero-header text-white text-center">
+    <div class="container">
+      <h1>Dulce Encanto</h1>
+      <p>Postres artesanales que endulzan tus momentos.</p>
+    </div>
+  </header>
+
+  <!-- Menú de navegación -->
+  <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+    <div class="container">
+      <a class="navbar-brand fw-bold" href="#inicio">🍰 Dulce Encanto</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menuNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="menuNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item"><a class="nav-link" href="#inicio">Inicio</a></li>
+          <li class="nav-item"><a class="nav-link" href="#quienes">Quiénes Somos</a></li>
+          <li class="nav-item"><a class="nav-link" href="#productos">Productos</a></li>
+          <li class="nav-item"><a class="nav-link" href="#video">Video</a></li>
+          <li class="nav-item"><a class="nav-link" href="#contacto">Contacto</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <!-- Sección Inicio -->
+    <section id="inicio" class="inicio text-center text-white">
+      <div class="container">
+        <h2 class="display-4 fw-bold">Endulzamos tu día con arte</h2>
+        <p class="lead mt-3 mx-auto">
+          Cheesecakes, tartas, mousses y postres artesanales preparados con dedicación y amor.
+        </p>
+        <div class="mt-4 d-flex gap-3 justify-content-center flex-wrap">
+          <a href="#productos" class="btn btn-verde btn-lg">Ver catálogo</a>
+          <a href="#contacto" class="btn btn-outline-light btn-lg">Haz tu pedido</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sección Quiénes Somos -->
+    <section id="quienes" class="py-5">
+      <div class="container">
+        <div class="row align-items-center g-4">
+          <div class="col-lg-5 col-md-6">
+            <img src="img/DULCEDELICIA.png" alt="Cheesecake artesanal" class="img-fluid rounded shadow">
+          </div>
+          <article class="col-lg-7 col-md-6">
+            <h2>Quiénes Somos</h2>
+            <p>
+              Dulce Encanto nació del sueño de compartir momentos especiales a través de la magia de los postres. 
+              Lo que comenzó como una pequeña idea en la cocina familiar se transformó en un emprendimiento dedicado 
+              a crear experiencias dulces que alegran el corazón.
+            </p>
+            <p>
+              Nuestra pasión por lo artesanal nos inspira a combinar recetas tradicionales con un toque moderno, 
+              logrando postres únicos que reflejan calidad, frescura y creatividad.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sección Productos -->
+    <section id="productos" class="py-5 bg-light">
+      <div class="container">
+        <h2 class="text-center mb-4">Nuestros Productos</h2>
+        <div class="row g-4">
+          <!-- Producto 1 -->
+          <article class="col-md-4">
+            <div class="card h-100 shadow-sm border-0 text-center">
+              <img src="img\CHEESCAKE.png" class="card-img-top" alt="Cheesecake clásico">
+              <div class="card-body">
+                <h3>Cheesecake Clásico</h3>
+                <p>Cremoso y delicioso, con base de galleta.</p>
+                <a href="#contacto" class="btn btn-verde">Ordenar</a>
+              </div>
+            </div>
+          </article>
+          <!-- Producto 2 -->
+          <article class="col-md-4">
+            <div class="card h-100 shadow-sm border-0 text-center">
+              <img src="img\TARTADEFRUTA.png" class="card-img-top" alt="Tarta de frutas">
+              <div class="card-body">
+                <h3>Tarta de Frutas</h3>
+                <p>Fresca y colorida, perfecta para compartir.</p>
+                <a href="#contacto" class="btn btn-verde">Ordenar</a>
+              </div>
+            </div>
+          </article>
+          <!-- Producto 3 -->
+          <article class="col-md-4">
+            <div class="card h-100 shadow-sm border-0 text-center">
+              <img src="img\MOUSSE.png" class="card-img-top" alt="Mousse de chocolate">
+              <div class="card-body">
+                <h3>Mousse de Chocolate</h3>
+                <p>Ligero y suave, con sabor intenso.</p>
+                <a href="#contacto" class="btn btn-verde">Ordenar</a>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sección Video -->
+    <section id="video" class="py-5 text-center bg-dark text-white">
+      <div class="container">
+        <h2 class="mb-4">Conoce más sobre Dulce Encanto</h2>
+        <div class="ratio ratio-16x9 shadow rounded">
+          <iframe width="560" height="315" src="https://www.youtube.com/embed/iGQPAGuocsM?si=rbNyfZeYBrIZaskm" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sección Contacto -->
+    <section id="contacto" class="py-5">
+      <div class="container">
+        <h2 class="text-center mb-4">Contáctanos</h2>
+        <form class="row g-3">
+          <div class="col-md-6">
+            <input type="text" class="form-control" placeholder="Nombre" required>
+          </div>
+          <div class="col-md-6">
+            <input type="email" class="form-control" placeholder="Correo electrónico" required>
+          </div>
+          <div class="col-12">
+            <input type="text" class="form-control" placeholder="Asunto" required>
+          </div>
+          <div class="col-12">
+            <textarea class="form-control" rows="4" placeholder="Mensaje" required></textarea>
+          </div>
+          <div class="col-12 text-center">
+            <button type="submit" class="btn btn-success">Enviar</button>
+          </div>
+        </form>
+        <div class="text-center mt-4">
+          <a href="mailto:contacto@dulceencanto.com" class="btn btn-outline-primary m-2">Correo</a>
+          <a href="https://instagram.com/dulceencanto" class="btn btn-outline-danger m-2">Instagram</a>
+          <a href="https://maps.google.com" class="btn btn-outline-dark m-2">Ubicación</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Aside Promoción -->
+    <aside class="bg-warning text-center p-3">
+      <h4>Promoción Especial</h4>
+      <p>2x1 en Cheesecake los fines de semana 🎉</p>
+    </aside>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-dark text-white text-center p-3 mt-4">
+    <p>© 2026 Dulce Encanto - Aracely Maribel Quintanilla Rumipamba</p>
+    <p>Asignatura: Desarrollo de Aplicaciones Web</p>
+    <p>Universidad Estatal Amazónica - Cuarto Semestre</p>
+  </footer>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

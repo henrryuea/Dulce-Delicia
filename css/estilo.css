@@ -1,0 +1,171 @@
+/* ===== Estilos generales ===== */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: #f4faff; /* Fondo celeste muy suave */
+  color: #222;
+  line-height: 1.6;
+}
+
+/* ===== Encabezado principal ===== */
+.hero-header {
+  background: linear-gradient(135deg, #0a2540, #1d6fa5, #3ba9e0); /* degradado azul */
+  padding: 60px 20px;
+}
+.hero-header h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #ffffff;
+}
+.hero-header p {
+  font-size: 1.2rem;
+  color: #eaf9ff; /* texto claro sobre fondo azul */
+}
+
+/* ===== Navegación ===== */
+.navbar {
+  background-color: #0a2540; /* azul oscuro */
+}
+.navbar-brand {
+  color: #3ba9e0 !important; /* celeste */
+}
+.nav-link {
+  color: #e0f7ff !important;
+  font-weight: 500;
+}
+.nav-link:hover {
+  color: #3ba9e0 !important;
+}
+
+/* ===== Sección Inicio ===== */
+.inicio {
+  background: linear-gradient(135deg, #0a2540, #1d6fa5, #3ba9e0);
+  padding: 100px 20px;
+}
+.inicio h2 {
+  color: #ffffff;
+}
+.inicio p {
+  max-width: 700px;
+  color: #eaf9ff;
+}
+
+/* ===== Botón personalizado ===== */
+.btn-verde {
+  background-color: #3ba9e0; /* celeste medio */
+  color: white;
+  border-radius: 50px;
+  border: none;
+}
+.btn-verde:hover {
+  background-color: #1d6fa5; /* azul más fuerte */
+  color: white;
+}
+
+/* ===== Títulos ===== */
+h2 {
+  color: #3ba9e0;
+  font-weight: 700;
+}
+h3, h5 {
+  color: #0a2540;
+}
+
+/* ===== Tarjetas de productos ===== */
+.card {
+  border-radius: 14px;
+  border-top: 4px solid #3ba9e0 !important;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.15) !important;
+}
+.card-body h3 {
+  color: #1d6fa5;
+}
+
+/* ===== Imágenes ===== */
+img {
+  max-width: 100%;
+  border-radius: 10px;
+}
+
+/* ===== Video ===== */
+iframe {
+  border-radius: 12px;
+}
+
+/* ===== Aside Promoción ===== */
+aside {
+  border-left: 6px solid #3ba9e0;
+  background-color: #eaf9ff;
+  font-weight: 600;
+  color: #0a2540;
+}
+
+/* ===== Formularios ===== */
+.form-control {
+  border-radius: 10px;
+}
+.form-control:focus {
+  border-color: #3ba9e0;
+  box-shadow: 0 0 0 0.2rem rgba(59, 169, 224, 0.25);
+}
+button[type="submit"] {
+  background-color: #3ba9e0;
+  border: none;
+}
+button[type="submit"]:hover {
+  background-color: #1d6fa5;
+}
+
+/* ===== Footer ===== */
+footer {
+  background-color: #0a2540;
+  color: white;
+}
+footer p {
+  margin: 5px;
+}
+
+/* ===== Media Queries ===== */
+/* Tabletas */
+@media (max-width: 768px) {
+  .hero-header h1 {
+    font-size: 2rem;
+  }
+  .inicio {
+    padding: 70px 15px;
+  }
+  .inicio h2 {
+    font-size: 2rem;
+  }
+  .btn {
+    margin-bottom: 8px;
+  }
+}
+
+/* Celulares */
+@media (max-width: 480px) {
+  .hero-header h1 {
+    font-size: 1.6rem;
+  }
+  .hero-header p {
+    font-size: 1rem;
+  }
+  .inicio h2 {
+    font-size: 1.7rem;
+  }
+  section, aside {
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+  }
+  .btn {
+    width: 100%;
+  }
+  footer {
+    font-size: 14px;
+  }
+}
