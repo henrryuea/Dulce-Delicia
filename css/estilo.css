@@ -86,6 +86,24 @@ h3, h5 {
   color: #1d6fa5;
 }
 
+.contenedor-postres {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.postre {
+  width: 100%;
+  max-width: 300px;
+  height: 200px;
+  object-fit: cover;
+  display: block;       /* asegura que se comporte como bloque */
+  margin: 10px auto;    /* centra horizontalmente */
+  margin-left: 10px auto;    /* centra horizontalmente */
+  margin-right: 10 px auto;   /* centra horizontalmente */
+}
+
 /* ===== Imágenes ===== */
 img {
   max-width: 100%;
