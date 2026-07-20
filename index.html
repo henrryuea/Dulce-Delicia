@@ -211,6 +211,17 @@ TECNOLOGÍAS USADAS:
             <div class="invalid-feedback">Ingrese un correo válido. Ejemplo: usuario@dominio.com</div>
           </div>
 
+          <div class="col-md-6">
+            <label for="categoriaContacto" class="form-label">Categoría</label>
+            <select id="categoriaContacto" name="categoria" class="form-control" required>
+              <option value="">Seleccione una opción</option>
+              <option value="pedido">Pedido</option>
+              <option value="consulta">Consulta</option>
+              <option value="otro">Otro</option>
+            </select>
+            <div class="invalid-feedback">Debe seleccionar una categoría.</div>
+          </div>
+
           <div class="col-12">
             <label for="asuntoContacto" class="form-label">Asunto</label>
             <input type="text" id="asuntoContacto" name="asunto" class="form-control" placeholder="¿En qué podemos ayudarte?" required>
@@ -227,6 +238,12 @@ TECNOLOGÍAS USADAS:
             <button type="submit" class="btn btn-success">📨 Enviar Mensaje</button>
           </div>
         </form>
+
+        <div id="registrosContainer" class="mt-5">
+          <h3>📋 Registros enviados</h3>
+           <p>Total: <span id="contadorRegistros">0</span></p>
+           <ul id="listaRegistros" class="list-group"></ul>
+        </div>
 
         <!-- Modal de Éxito -->
         <div id="modalExito" class="modal-overlay">

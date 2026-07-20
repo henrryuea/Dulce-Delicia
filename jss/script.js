@@ -29,15 +29,40 @@
  * ========================================
  */
 
+// ===== EFECTO DE SCROLL EN NAVBAR =====
+const navbar = document.querySelector(".navbar");
+window.addEventListener("scroll", () => {
+  if (window.scrollY > 50) {
+    navbar.classList.add("scrolled");
+  } else {
+    navbar.classList.remove("scrolled");
+  }
+});
+
+// ===== RESALTAR SECCIÓN ACTIVA =====
+const links = document.querySelectorAll(".nav-link");
+window.addEventListener("scroll", () => {
+  let fromTop = window.scrollY + 100;
+  links.forEach(link => {
+    const section = document.querySelector(link.hash);
+    if (section && section.offsetTop <= fromTop && section.offsetTop + section.offsetHeight > fromTop) {
+      link.classList.add("active");
+    } else {
+      link.classList.remove("active");
+    }
+  });
+});
+
+
 // ===== PASO 1: SELECCIONAR ELEMENTOS DEL HTML =====
-// Elementos del formulario
 const formularioContacto = document.getElementById("formContacto");
 const nombreContacto = document.getElementById("nombreContacto");
 const correoContacto = document.getElementById("correoContacto");
+const categoriaContacto = document.getElementById("categoriaContacto");
 const asuntoContacto = document.getElementById("asuntoContacto");
 const mensajeContacto = document.getElementById("mensajeContacto");
 
-// Elementos de los modales (ventanas emergentes)
+
 const modalExito = document.getElementById("modalExito");
 const mensajeExito = document.getElementById("mensajeExito");
 const btnAceptarExito = document.getElementById("btnAceptarExito");
@@ -46,216 +71,264 @@ const modalError = document.getElementById("modalError");
 const mensajeError = document.getElementById("mensajeError");
 const btnAceptarError = document.getElementById("btnAceptarError");
 
-// ===== PASO 2: CREAR FUNCIONES DE VALIDACIÓN =====
-// Cada función valida un campo específico del formulario
-// Retorna un objeto con { valido: boolean, error: string }
-
-/**
- * Valida el campo de NOMBRE
- * Requisitos: Mínimo 3 caracteres, no vacío
- * CAMBIAR: valor.length < 3 (el número 3 es el mínimo requerido)
- */
+// ===== PASO 2: FUNCIONES DE VALIDACIÓN =====
 function validarNombre() {
   const valor = nombreContacto.value.trim();
-  
+  const feedback = nombreContacto.nextElementSibling;
+  const patronNombre = /^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/;
+
   if (valor.length === 0) {
     nombreContacto.classList.add("is-invalid");
     nombreContacto.classList.remove("is-valid");
-    return { valido: false, error: "El nombre es requerido." };
+    feedback.textContent = "El nombre es requerido.";
+    return { valido: false };
   }
-  
+
+  if (!patronNombre.test(valor)) {
+    nombreContacto.classList.add("is-invalid");
+    nombreContacto.classList.remove("is-valid");
+    feedback.textContent = "El nombre solo debe contener letras.";
+    return { valido: false };
+  }
+
   if (valor.length < 3) {
     nombreContacto.classList.add("is-invalid");
     nombreContacto.classList.remove("is-valid");
-    return { valido: false, error: "El nombre debe tener al menos 3 caracteres." };
+    feedback.textContent = "El nombre debe tener al menos 3 caracteres.";
+    return { valido: false };
   }
-  
+
   nombreContacto.classList.add("is-valid");
   nombreContacto.classList.remove("is-invalid");
+  feedback.textContent = "";
   return { valido: true };
 }
 
 function validarCorreo() {
   const valor = correoContacto.value.trim();
-  const patron = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // CAMBIAR: Esta es la expresión para validar email
+  const feedback = correoContacto.nextElementSibling;
+  const patron = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   if (valor.length === 0) {
     correoContacto.classList.add("is-invalid");
-    correoContacto.classList.remove("is-valid", "is-warning");
-    return { valido: false, error: "El correo electrónico es requerido." };
+    correoContacto.classList.remove("is-valid");
+    feedback.textContent = "El correo electrónico es requerido.";
+    return { valido: false };
   }
 
   if (!patron.test(valor)) {
     correoContacto.classList.add("is-invalid");
-    correoContacto.classList.remove("is-valid", "is-warning");
-    return { valido: false, error: "Ingrese un correo electrónico válido. Ejemplo: usuario@dominio.com" };
+    correoContacto.classList.remove("is-valid");
+    feedback.textContent = "Ingrese un correo válido. Ejemplo: usuario@dominio.com";
+    return { valido: false };
   }
 
   correoContacto.classList.add("is-valid");
-  correoContacto.classList.remove("is-invalid", "is-warning");
+  correoContacto.classList.remove("is-invalid");
+  feedback.textContent = "";
+  return { valido: true };
+}
+
+function validarCategoria() {
+  const valor = categoriaContacto.value.trim();
+  const feedback = categoriaContacto.nextElementSibling;
+
+  if (valor === "") {
+    categoriaContacto.classList.add("is-invalid");
+    categoriaContacto.classList.remove("is-valid");
+    feedback.textContent = "Debe seleccionar una categoría.";
+    return { valido: false };
+  }
+
+  categoriaContacto.classList.add("is-valid");
+  categoriaContacto.classList.remove("is-invalid");
+  feedback.textContent = "";
   return { valido: true };
 }
 
 function validarAsunto() {
   const valor = asuntoContacto.value.trim();
-  
+  const feedback = asuntoContacto.nextElementSibling;
+
   if (valor.length === 0) {
     asuntoContacto.classList.add("is-invalid");
     asuntoContacto.classList.remove("is-valid");
-    return { valido: false, error: "El asunto es requerido." };
+    feedback.textContent = "El asunto es requerido.";
+    return { valido: false };
   }
-  
-  // CAMBIAR: 5 es el número mínimo de caracteres para el asunto
+
   if (valor.length < 5) {
     asuntoContacto.classList.add("is-invalid");
     asuntoContacto.classList.remove("is-valid");
-    return { valido: false, error: "El asunto debe tener al menos 5 caracteres." };
+    feedback.textContent = "El asunto debe tener al menos 5 caracteres.";
+    return { valido: false };
   }
-  
+
   asuntoContacto.classList.add("is-valid");
   asuntoContacto.classList.remove("is-invalid");
+  feedback.textContent = "";
   return { valido: true };
 }
 
-/**
- * Valida el campo de MENSAJE
- * Requisitos: Mínimo 10 caracteres, no vacío
- * CAMBIAR: valor.length < 10 (el número 10 es el mínimo requerido)
- */
 function validarMensaje() {
   const valor = mensajeContacto.value.trim();
-  
+  const feedback = mensajeContacto.nextElementSibling;
+
   if (valor.length === 0) {
     mensajeContacto.classList.add("is-invalid");
     mensajeContacto.classList.remove("is-valid");
-    return { valido: false, error: "El mensaje es requerido." };
+    feedback.textContent = "El mensaje es requerido.";
+    return { valido: false };
   }
-  
-  // CAMBIAR: 10 es el número mínimo de caracteres para el mensaje
+
   if (valor.length < 10) {
     mensajeContacto.classList.add("is-invalid");
     mensajeContacto.classList.remove("is-valid");
-    return { valido: false, error: "El mensaje debe tener al menos 10 caracteres." };
+    feedback.textContent = "El mensaje debe tener al menos 10 caracteres.";
+    return { valido: false };
   }
-  
+
   mensajeContacto.classList.add("is-valid");
   mensajeContacto.classList.remove("is-invalid");
+  feedback.textContent = "";
   return { valido: true };
 }
 
-// ===== PASO 3: AGREGAR EVENTOS DE VALIDACIÓN EN TIEMPO REAL =====
-// Estos eventos se ejecutan mientras el usuario escribe o sale del campo
-// "input" = mientras escribe | "blur" = cuando sale del campo
-// addEventListener: vincula el evento (input/blur) a la función validadora
-nombreContacto.addEventListener("input", validarNombre);
-nombreContacto.addEventListener("blur", validarNombre);
+// ===== PASO 3: EVENTOS EN TIEMPO REAL =====
+[nombreContacto, correoContacto, categoriaContacto, asuntoContacto, mensajeContacto].forEach(campo => {
+  campo.addEventListener("input", () => {
+    if (campo === nombreContacto) validarNombre();
+    if (campo === correoContacto) validarCorreo();
+    if (campo === categoriaContacto) validarCategoria();
+    if (campo === asuntoContacto) validarAsunto();
+    if (campo === mensajeContacto) validarMensaje();
+  });
+  campo.addEventListener("blur", () => {
+    if (campo === nombreContacto) validarNombre();
+    if (campo === correoContacto) validarCorreo();
+    if (campo === categoriaContacto) validarCategoria();
+    if (campo === asuntoContacto) validarAsunto();
+    if (campo === mensajeContacto) validarMensaje();
+  });
+});
 
-correoContacto.addEventListener("input", validarCorreo);
-correoContacto.addEventListener("blur", validarCorreo);
-
-asuntoContacto.addEventListener("input", validarAsunto);
-asuntoContacto.addEventListener("blur", validarAsunto);
-
-mensajeContacto.addEventListener("input", validarMensaje);
-mensajeContacto.addEventListener("blur", validarMensaje);
-
-// ===== PASO 4: PROCESAR ENVÍO DEL FORMULARIO =====
-// Este evento se dispara cuando el usuario hace clic en "Enviar Mensaje"
+// ===== PASO 4: ENVÍO DEL FORMULARIO =====
 formularioContacto.addEventListener("submit", async function(e) {
-  e.preventDefault(); // Prevenir recarga de la página
+  e.preventDefault();
 
-  // Validar todos los campos antes de enviar
   const validacionNombre = validarNombre();
   const validacionCorreo = validarCorreo();
+  const validacionCategoria = validarCategoria();
   const validacionAsunto = validarAsunto();
   const validacionMensaje = validarMensaje();
 
-  // Si algún campo falla, mostrar errores y no enviar
-  if (!validacionNombre.valido || !validacionCorreo.valido || !validacionAsunto.valido || !validacionMensaje.valido) {
-    let errores = [];
-    if (!validacionNombre.valido) errores.push(validacionNombre.error);
-    if (!validacionCorreo.valido) errores.push(validacionCorreo.error);
-    if (!validacionAsunto.valido) errores.push(validacionAsunto.error);
-    if (!validacionMensaje.valido) errores.push(validacionMensaje.error);
-
-    // Mostrar modal de error
-    mensajeError.innerHTML = "<strong>⚠️ Errores en el formulario:</strong><br>" + errores.join("<br>");
+  if (!validacionNombre.valido || !validacionCorreo.valido || !validacionCategoria.valido || !validacionAsunto.valido || !validacionMensaje.valido) {
+    mensajeError.innerHTML = "<strong>⚠️ Errores en el formulario:</strong><br>Revisa los campos marcados en rojo.";
     modalError.style.display = "flex";
     return;
   }
 
-  // Cambiar botón a estado "Enviando..."
   const btnEnviar = formularioContacto.querySelector('button[type="submit"]');
   const textoOriginal = btnEnviar.textContent;
   btnEnviar.textContent = "⏳ Enviando...";
   btnEnviar.disabled = true;
 
   try {
-    // CAMBIAR: Aquí es donde se envía el mensaje
-    // Actualmente simula un envío después de 1.5 segundos
-    // Para envíos reales, reemplaza con: fetch("tu-servicio-de-correo.com", {...})
-    
-    // CAMBIAR: El número 1500 es el tiempo de espera en milisegundos
-    // 1000 = 1 segundo, 3000 = 3 segundos, etc.
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // ✅ Si todo va bien, mostrar mensaje de ÉXITO
     mensajeExito.innerHTML = `
       <strong>✅ ¡Mensaje enviado con éxito!</strong><br>
-      <small>Hola <strong>${nombreContacto.value.trim()}</strong>, hemos recibido tu mensaje sobre: <em>"${asuntoContacto.value.trim()}"</em><br><br>
-      Te responderemos pronto a: <strong>${correoContacto.value.trim()}</strong><br><br>
-      Gracias por contactarnos. 💚</small>
+      <small>Hola <strong>${nombreContacto.value.trim()}</strong>, hemos recibido tu mensaje en la categoría: <em>"${categoriaContacto.value.trim()}"</em> sobre <em>"${asuntoContacto.value.trim()}"</em><br><br>
+      Te responderemos pronto a: <strong>${correoContacto.value.trim()}</strong></small>
     `;
     modalExito.style.display = "flex";
 
-    // Limpiar formulario después de envío exitoso
+    // Crear registro dinámico
+    crearRegistro(
+      nombreContacto.value.trim(),
+      correoContacto.value.trim(),
+      categoriaContacto.value.trim(),
+      asuntoContacto.value.trim(),
+      mensajeContacto.value.trim()
+    );
+
     formularioContacto.reset();
-    // Remover colores de validación
-    [nombreContacto, correoContacto, asuntoContacto, mensajeContacto].forEach(campo => {
-      campo.classList.remove("is-valid", "is-invalid", "is-warning");
+    [nombreContacto, correoContacto, categoriaContacto, asuntoContacto, mensajeContacto].forEach(campo => {
+      campo.classList.remove("is-valid", "is-invalid");
     });
 
   } catch (error) {
-    console.error("Error:", error);
-    
-    // ❌ Si hay ERROR, mostrar mensaje de error
-    // CAMBIAR: Los datos de contacto en el mensaje de error
-    mensajeError.innerHTML = `
-      <strong>❌ Error al enviar el mensaje</strong><br>
-      <small>Ocurrió un problema al enviar tu mensaje.<br><br>
-      Por favor, contáctanos directamente a través de:<br>
-      📧 <strong>contacto@dulceencanto.com</strong><br>
-      📱 <strong>WhatsApp: +593 9 XXXXXXXX</strong></small>
-    `;
+    mensajeError.innerHTML = "<strong>❌ Error al enviar el mensaje</strong><br>Por favor, intenta nuevamente.";
     modalError.style.display = "flex";
   } finally {
-    // Restaurar botón a su estado original (siempre se ejecuta)
     btnEnviar.textContent = textoOriginal;
     btnEnviar.disabled = false;
   }
+
+  function crearRegistro(nombre, correo, categoria, asunto, mensaje) {
+  const li = document.createElement("li");
+  li.className = "list-group-item";
+
+  li.innerHTML = `
+    <div class="d-flex justify-content-between align-items-start w-100">
+      <div class="me-3">
+        <p><strong>👤 Nombre:</strong> ${nombre}</p>
+        <p><strong>📧 Correo:</strong> ${correo}</p>
+        <p><strong>📂 Categoría:</strong> ${categoria}</p>
+        <p><strong>📝 Asunto:</strong> ${asunto}</p>
+        <p class="mb-1"><strong>💬 Mensaje:</strong></p>
+        <div class="alert alert-secondary p-2" style="white-space: pre-line; max-width: 100%;">
+          ${mensaje}
+        </div>
+      </div>
+      <button class="btn btn-sm btn-danger">Eliminar</button>
+    </div>
+  `;
+
+  li.querySelector("button").addEventListener("click", () => {
+    li.remove();
+    actualizarContador();
+  });
+
+  listaRegistros.appendChild(li);
+  actualizarContador();
+}
 });
 
-// ===== PASO 5: CERRAR MODALES (VENTANAS EMERGENTES) =====
-// Los usuarios pueden cerrar los modales de dos formas:
-// 1. Haciendo clic en el botón "Aceptar"
-// 2. Haciendo clic fuera del modal (en el fondo oscuro)
+// ===== PASO 5: CERRAR MODALES =====
+btnAceptarExito.addEventListener("click", () => modalExito.style.display = "none");
+btnAceptarError.addEventListener("click", () => modalError.style.display = "none");
+modalExito.addEventListener("click", (e) => { if (e.target === modalExito) modalExito.style.display = "none"; });
+modalError.addEventListener("click", (e) => { if (e.target === modalError) modalError.style.display = "none"; });
 
-// Cerrar modal de ÉXITO al hacer clic en botón
-btnAceptarExito.addEventListener("click", () => {
-  modalExito.style.display = "none";
-});
+// ===== REGISTROS DINÁMICOS =====
+const listaRegistros = document.getElementById("listaRegistros");
+const contadorRegistros = document.getElementById("contadorRegistros");
 
-// Cerrar modal de ERROR al hacer clic en botón
-btnAceptarError.addEventListener("click", () => {
-  modalError.style.display = "none";
-});
+// Función para actualizar el contador
+function actualizarContador() {
+  contadorRegistros.textContent = listaRegistros.children.length;
+}
 
-// Cerrar modal de ÉXITO al hacer clic en el fondo oscuro
-modalExito.addEventListener("click", (e) => {
-  if (e.target === modalExito) modalExito.style.display = "none";
-});
+// Función para crear un registro
+function crearRegistro(nombre, correo, asunto, mensaje) {
+  const li = document.createElement("li");
+  li.className = "list-group-item d-flex justify-content-between align-items-center";
 
-// Cerrar modal de ERROR al hacer clic en el fondo oscuro
-modalError.addEventListener("click", (e) => {
-  if (e.target === modalError) modalError.style.display = "none";
-});
+  li.innerHTML = `
+    <div>
+      <strong>${nombre}</strong> - ${correo}<br>
+      <em>${asunto}</em>: ${mensaje}
+    </div>
+    <button class="btn btn-sm btn-danger">Eliminar</button>
+  `;
+
+  // Evento para eliminar registro
+  li.querySelector("button").addEventListener("click", () => {
+    li.remove();
+    actualizarContador();
+  });
+
+  listaRegistros.appendChild(li);
+  actualizarContador();
+}

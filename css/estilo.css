@@ -22,21 +22,45 @@ body {
   font-size: 1.2rem;
   color: #eaf9ff; /* texto claro sobre fondo azul */
 }
-
 /* ===== Navegación ===== */
 .navbar {
   background-color: #0a2540; /* azul oscuro */
+  transition: background-color 0.3s ease, padding 0.3s ease;
 }
+
 .navbar-brand {
   color: #3ba9e0 !important; /* celeste */
+  font-weight: 700;
 }
+
 .nav-link {
   color: #e0f7ff !important;
   font-weight: 500;
+  transition: color 0.3s ease, border-bottom 0.3s ease;
 }
+
 .nav-link:hover {
   color: #3ba9e0 !important;
 }
+
+/* Enlace activo */
+.nav-link.active {
+  color: #3ba9e0 !important;
+  font-weight: 700;
+  border-bottom: 2px solid #3ba9e0;
+}
+
+/* Navbar cuando se hace scroll */
+.navbar.scrolled {
+  background-color: #1d6fa5 !important;
+  padding: 8px 0; /* se reduce un poco la altura */
+}
+
+/* Animación suave del menú responsive */
+.collapse.navbar-collapse {
+  transition: all 0.3s ease;
+}
+
 
 /* ===== Sección Inicio ===== */
 .inicio {
