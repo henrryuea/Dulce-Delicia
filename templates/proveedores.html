@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Proveedores - Dulce Delicia{% endblock %}
+
+{% block content %}
+<section class="py-5">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <p class="text-uppercase text-muted mb-1">Gestión comercial</p>
+        <h1 class="h2 mb-0">Proveedores</h1>
+      </div>
+      <span class="badge text-bg-info">{{ proveedores|length }} registrados</span>
+    </div>
+    <div class="table-responsive bg-white shadow-sm rounded p-3">
+      <table class="table align-middle mb-0">
+        <thead><tr><th>Empresa</th><th>Contacto</th><th>Categoría</th><th>Estado</th></tr></thead>
+        <tbody>
+          {% for proveedor in proveedores %}
+          <tr>
+            <td class="fw-semibold">{{ proveedor.empresa|upper }}</td>
+            <td>{{ proveedor.contacto }}</td>
+            <td>{{ proveedor.categoria }}</td>
+            <td><span class="badge text-bg-success">{{ proveedor.estado }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center">No hay proveedores registrados.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

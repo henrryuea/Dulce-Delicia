@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio - Dulce Delicia{% endblock %}
+
+{% block content %}
+<header class="hero-header text-white text-center">
+  <div class="container">
+    <h1>{{ empresa.nombre }}</h1>
+    <p>{{ mensaje }}</p>
+    <small>{{ empresa.ubicacion }}</small>
+  </div>
+</header>
+
+<section class="inicio text-center text-white">
+  <div class="container">
+    <h2 class="display-4 fw-bold">Endulzamos tu día con arte</h2>
+    <p class="lead mt-3 mx-auto">Cheesecakes, tartas, mousses y postres artesanales preparados con dedicación.</p>
+    <a href="{{ url_for('productos') }}" class="btn btn-verde btn-lg mt-3">Ver catálogo completo</a>
+  </div>
+</section>
+
+<section id="productos" class="py-5 bg-light">
+  <div class="container">
+    <h2 class="text-center mb-4">Nuestros Productos</h2>
+    <div class="row g-4">
+      {% for producto in productos %}
+      <article class="col-md-4">
+        <div class="card h-100 shadow-sm border-0 text-center">
+          <img src="{{ url_for('static', filename=producto.imagen) }}" alt="{{ producto.nombre }}" class="postre">
+          <div class="card-body">
+            <h3>{{ producto.nombre|title }}</h3>
+            <p>{{ producto.descripcion }}</p>
+            <p class="fw-bold">${{ "%.2f"|format(producto.precio) }}</p>
+            {% if producto.stock > 0 %}
+            <span class="badge text-bg-success">Disponible</span>
+            {% else %}
+            <span class="badge text-bg-danger">Agotado</span>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+      {% else %}
+      <p class="text-center">No hay productos disponibles.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="py-5 text-center">
+  <div class="container">
+    <h2>Acceso rápido</h2>
+    <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">
+      <a class="btn btn-outline-primary" href="{{ url_for('productos') }}">Productos</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('clientes') }}">Clientes</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('proveedores') }}">Proveedores</a>
+      <a class="btn btn-outline-primary" href="{{ url_for('facturacion') }}">Facturación</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

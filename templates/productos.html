@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Productos - Dulce Delicia{% endblock %}
+
+{% block content %}
+<section class="py-5">
+	<div class="container">
+		<div class="d-flex justify-content-between align-items-center mb-4">
+			<div><p class="text-uppercase text-muted mb-1">Catálogo artesanal</p><h1 class="h2 mb-0">Productos</h1></div>
+			<span class="badge text-bg-info">{{ productos|length }} opciones</span>
+		</div>
+		<div class="row g-4">
+			{% for producto in productos %}
+			<article class="col-md-6 col-lg-4">
+				<div class="card h-100 shadow-sm border-0">
+					<img src="{{ url_for('static', filename=producto.imagen) }}" alt="{{ producto.nombre }}" class="postre">
+					<div class="card-body d-flex flex-column">
+						<h2 class="h4">{{ producto.nombre|title }}</h2>
+						<p>{{ producto.descripcion }}</p>
+						<p class="fw-bold mt-auto">Precio: ${{ "%.2f"|format(producto.precio) }}</p>
+						{% if producto.stock > 0 %}
+						<span class="badge text-bg-success align-self-start">Disponible: {{ producto.stock }}</span>
+						{% else %}
+						<span class="badge text-bg-danger align-self-start">Agotado</span>
+						{% endif %}
+					</div>
+				</div>
+			</article>
+			{% else %}
+			<p class="text-center">No hay productos disponibles.</p>
+			{% endfor %}
+		</div>
+	</div>
+</section>
+{% endblock %}

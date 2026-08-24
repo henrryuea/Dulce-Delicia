@@ -44,6 +44,7 @@ const links = document.querySelectorAll(".nav-link");
 window.addEventListener("scroll", () => {
   let fromTop = window.scrollY + 100;
   links.forEach(link => {
+    if (!link.hash) return;
     const section = document.querySelector(link.hash);
     if (section && section.offsetTop <= fromTop && section.offsetTop + section.offsetHeight > fromTop) {
       link.classList.add("active");
@@ -72,6 +73,7 @@ const mensajeError = document.getElementById("mensajeError");
 const btnAceptarError = document.getElementById("btnAceptarError");
 
 // ===== PASO 2: FUNCIONES DE VALIDACIÓN =====
+if (formularioContacto) {
 function validarNombre() {
   const valor = nombreContacto.value.trim();
   const feedback = nombreContacto.nextElementSibling;
@@ -331,4 +333,5 @@ function crearRegistro(nombre, correo, asunto, mensaje) {
 
   listaRegistros.appendChild(li);
   actualizarContador();
+}
 }
