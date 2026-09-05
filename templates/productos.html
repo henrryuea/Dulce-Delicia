@@ -1,203 +1,35 @@
 {% extends "base.html" %}
 
-<!-- ==============================================================================
-     PROYECTO: Dulce Delicia - Sistema de Gestión de Pastelería Artesanal
-     PLANTILLA: templates/productos.html
-     ASIGNATURA: Desarrollo de Aplicaciones Web
-     UNIVERSIDAD: Universidad Estatal Amazónica (UEA)
-     AVANCE: Semana 12 - Proyecto Integrador U3 (12/16)
-     TEMA: Visualización de datos persistentes en SQLite con Modelo Normalizado (3FN)
-     ESTUDIANTE: Desarrollo Web 2026
-==============================================================================
-DESCRIPCIÓN DE LA PLANTILLA:
-Esta vista presenta el catálogo administrativo de productos recuperados
-directamente de la base de datos local SQLite (data/dulce_delicia.db).
-Muestra los campos normalizados en 3FN: Código único, Fotografía, Nombre,
-Categoría (JOIN con categorias_producto), Unidad de Medida (JOIN con unidades_medida),
-Precio de Venta, Stock Actual y Mínimo, y Acciones (Editar y Eliminar).
-
-Todos los textos y botones cuentan con contraste optimizado (AAA) para máxima
-legibilidad sin elementos invisibles.
-============================================================================== -->
-
-{% block title %}Catálogo de Productos - Dulce Delicia | Persistencia SQLite 3FN{% endblock %}
+{% block title %}Productos - Dulce Delicia{% endblock %}
 
 {% block content %}
-<!-- Contenedor principal con fondo crema artesanal y espaciado vertical -->
-<section class="py-5" style="background-color: var(--c-crema); min-height: 85vh;">
-  <div class="container">
-
-    <!-- ==============================================================================
-         1. ENCABEZADO DEL MÓDULO Y ACCIONES PRINCIPALES
-          título con contraste nítido y botón para registrar nuevo postre
-    ============================================================================== -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-      <div>
-        <!-- navegación jerárquica -->
-        <nav aria-label="breadcrumb">
-          <ol class="breadcrumb small mb-1">
-            <li class="breadcrumb-item"><a href="{{ url_for('panel') }}" class="text-decoration-none text-muted">Panel</a></li>
-            <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">Productos</li>
-          </ol>
-        </nav>
-        <!-- Título del módulo de alta visibilidad -->
-        <h1 class="h2 mb-0 fw-bold text-dark">Gestión de Productos y Repostería</h1>
-        </p>
-      </div>
-      
-      <!-- Contador de productos y botón para abrir el formulario de nuevo registro -->
-      <div class="d-flex gap-2 align-items-center flex-wrap">
-        <span class="badge badge-artesanal badge-moka fs-6 px-3 py-2 fw-semibold">
-          <i class="fa-solid fa-cookie-bite me-1"></i> {{ productos|length }} en catálogo
-        </span>
-        <a href="{{ url_for('nuevo_producto') }}" class="btn btn-caramelo text-white d-flex align-items-center gap-2 shadow-sm">
-          <i class="fa-solid fa-circle-plus"></i>
-          <span>Nuevo Producto</span>
-        </a>
-      </div>
-    </div>
-
-    <!-- ==============================================================================
-         2. TARJETA PRINCIPAL Y TABLA DE PRODUCTOS (Requisito Semana 12)
-         Estructura con cabecera en crema, bordes suaves y tabla responsiva
-    ============================================================================== -->
-    <div class="card card-artesanal border-0 shadow-sm">
-      
-      <!-- Cabecera de la tarjeta con contraste óptimo -->
-      <div class="card-header-artesanal d-flex justify-content-between align-items-center flex-wrap gap-2 py-3">
-        <div class="d-flex align-items-center gap-2">
-          <i class="fa-solid fa-table-list text-caramelo fs-5"></i>
-          <h2 class="h5 mb-0 fw-bold text-dark">Inventario y Precios de Venta </h2>
-        </div>
-        <span class="badge badge-artesanal badge-moka small fw-semibold">
-          <i class="fa-solid fa-database me-1"></i>categorias y unidades
-        </span>
-      </div>
-
-      <!-- Tabla HTML responsiva con clases Bootstrap y estilo artesanal -->
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table-artesanal align-middle mb-0">
-            <thead>
-              <tr>
-                <th style="width: 90px;" class="text-center text-dark">Código</th>
-                <th style="width: 75px;" class="text-dark">Foto</th>
-                <th class="text-dark">Postre / Especialidad</th>
-                <th class="text-dark">Categoría</th>
-                <th class="text-dark">Unidad</th>
-                <th class="text-dark">Precio Venta</th>
-                <th class="text-dark">Stock Actual / Mín</th>
-                <th class="text-end text-dark" style="width: 130px;">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- Iteración sobre cada producto recuperado de la base de datos local SQLite -->
-              {% for producto in productos %}
-              <tr>
-                <!-- Código único del producto (Columna 3FN: codigo) -->
-                <td class="text-center">
-                  <span class="badge bg-dark font-monospace text-white px-2 py-1">{{ producto.codigo }}</span>
-                </td>
-                
-                <!-- Fotografía representativa del postre -->
-                <td>
-                  <img src="{{ url_for('static', filename=producto.imagen) }}" alt="{{ producto.nombre }}" class="rounded-3 border shadow-sm" style="width: 48px; height: 48px; object-fit: cover;">
-                </td>
-                
-                <!-- Nombre y descripción breve del producto -->
-                <td>
-                  <span class="fw-bold text-dark d-block">{{ producto.nombre }}</span>
-                  <small class="text-secondary d-inline-block text-truncate" style="max-width: 250px;" title="{{ producto.descripcion }}">
-                    {{ producto.descripcion }}
-                  </small>
-                </td>
-                
-                <!-- Categoría vinculada desde la tabla 'categorias_producto' -->
-                <td>
-                  <span class="badge badge-artesanal badge-moka">
-                    {{ producto.categoria }}
-                  </span>
-                </td>
-                
-                <!-- Unidad de medida vinculada desde la tabla 'unidades_medida' -->
-                <td>
-                  <span class="badge bg-light text-dark border font-monospace">
-                    {{ producto.unidad if producto.unidad else 'UND' }}
-                  </span>
-                </td>
-                
-                <!-- Precio de venta formateado con Jinja2 en formato moneda USD -->
-                <td>
-                  <span class="fw-bold text-dark fs-6">${{ "%.2f"|format(producto.precio_venta) }}</span>
-                </td>
-                
-                <!-- Stock actual y control de stock mínimo con badges informativos -->
-                <td>
-                  {% if producto.stock_actual > producto.stock_minimo %}
-                    <span class="badge badge-artesanal badge-exito">
-                      <i class="fa-solid fa-box-open me-1"></i> {{ producto.stock_actual }}
-                    </span>
-                  {% elif producto.stock_actual > 0 %}
-                    <span class="badge badge-artesanal badge-alerta" title="Stock cercano al mínimo permitido">
-                      <i class="fa-solid fa-triangle-exclamation me-1"></i> {{ producto.stock_actual }} (Bajo)
-                    </span>
-                  {% else %}
-                    <span class="badge badge-artesanal badge-peligro">
-                      <i class="fa-solid fa-circle-xmark me-1"></i> Agotado
-                    </span>
-                  {% endif %}
-                  <small class="text-secondary d-block mt-1">Mín: {{ producto.stock_minimo }}</small>
-                </td>
-                
-                <!-- Acciones seguras: Botón Editar y Formulario POST para Eliminar -->
-                <td class="text-end">
-                  <div class="btn-group" role="group" aria-label="Acciones de producto">
-                    <!-- Botón para modificar el producto con ProductoForm -->
-                    <a href="{{ url_for('editar_producto', id=producto.id_producto) }}" class="btn btn-sm btn-outline-caramelo shadow-sm" title="Editar este producto">
-                      <i class="fa-solid fa-pen-to-square"></i>
-                    </a>
-                    <!-- Formulario POST con confirmación para evitar borrados accidentales por GET -->
-                    <form action="{{ url_for('eliminar_producto', id=producto.id_producto) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Está seguro de eliminar \'{{ producto.nombre }}\' ({{ producto.codigo }}) de la base de datos?');">
-                      <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm" title="Eliminar de SQLite">
-                        <i class="fa-solid fa-trash-can"></i>
-                      </button>
-                    </form>
-                  </div>
-                </td>
-              </tr>
-              {% else %}
-              <!-- Mensaje visual si la tabla productos estuviese vacía -->
-              <tr>
-                <td colspan="8" class="text-center py-5">
-                  <div class="py-4">
-                    <i class="fa-solid fa-cookie fs-1 text-secondary mb-3 d-block"></i>
-                    <h3 class="h5 text-dark fw-bold">No hay productos registrados en la base de datos</h3>
-                    <p class="text-secondary small mb-3">Haga clic en el botón para agregar el primer postre con Flask-WTF.</p>
-                    <a href="{{ url_for('nuevo_producto') }}" class="btn btn-caramelo text-white shadow-sm">
-                      <i class="fa-solid fa-circle-plus me-1"></i> Registrar Primer Producto
-                    </a>
-                  </div>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      
-      <!-- Pie de tarjeta con metadata técnica de la base de datos -->
-      <div class="card-footer bg-white py-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
-      <div class="d-flex gap-2">
-          <a href="{{ url_for('inicio') }}" class="btn btn-sm btn-outline-secondary" target="_blank" title="Ver cómo lo ven los clientes">
-            <i class="fa-solid fa-eye me-1"></i> Catálogo de Clientes
-          </a>
-          <a href="{{ url_for('nuevo_producto') }}" class="btn btn-sm btn-caramelo text-white shadow-sm">
-            <i class="fa-solid fa-plus me-1"></i> Agregar Nuevo Postre
-          </a>
-        </div>
-      </div>
-    </div>
-
-  </div>
+<section class="py-5">
+	<div class="container">
+		<div class="d-flex justify-content-between align-items-center mb-4">
+			<div><p class="text-uppercase text-muted mb-1">Catálogo artesanal</p><h1 class="h2 mb-0">Productos</h1></div>
+			<span class="badge text-bg-info">{{ productos|length }} opciones</span>
+		</div>
+		<div class="row g-4">
+			{% for producto in productos %}
+			<article class="col-md-6 col-lg-4">
+				<div class="card h-100 shadow-sm border-0">
+					<img src="{{ url_for('static', filename=producto.imagen) }}" alt="{{ producto.nombre }}" class="postre">
+					<div class="card-body d-flex flex-column">
+						<h2 class="h4">{{ producto.nombre|title }}</h2>
+						<p>{{ producto.descripcion }}</p>
+						<p class="fw-bold mt-auto">Precio: ${{ "%.2f"|format(producto.precio) }}</p>
+						{% if producto.stock > 0 %}
+						<span class="badge text-bg-success align-self-start">Disponible: {{ producto.stock }}</span>
+						{% else %}
+						<span class="badge text-bg-danger align-self-start">Agotado</span>
+						{% endif %}
+					</div>
+				</div>
+			</article>
+			{% else %}
+			<p class="text-center">No hay productos disponibles.</p>
+			{% endfor %}
+		</div>
+	</div>
 </section>
 {% endblock %}

@@ -63,7 +63,10 @@ document.addEventListener('DOMContentLoaded', () => {
         
         function validarNombre() {
             const val = nombreContacto.value.trim();
-            const esValido = val.length >= 3;
+            // Expresión regular: solo letras (mayúsculas/minúsculas) y espacios
+            const soloTexto = /^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/;
+            const esValido = val.length >= 3 && soloTexto.test(val);
+
             if (esValido) {
                 nombreContacto.classList.remove('is-invalid');
                 nombreContacto.classList.add('is-valid');
@@ -71,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 nombreContacto.classList.remove('is-valid');
                 nombreContacto.classList.add('is-invalid');
             }
+
             return esValido;
         }
 
