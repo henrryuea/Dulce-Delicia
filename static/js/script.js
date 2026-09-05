@@ -1,6 +1,10 @@
 /**
- * Script de compatibilidad en static/jss/script.js
+ * ==============================================================================
+ * DULCE DELICIA - SCRIPT PRINCIPAL DE INTERACTIVIDAD Y FORMULARIOS
+ * Avance 11/16 - Validación de Formularios con Flask-WTF y WTForms
+ * ==============================================================================
  */
+
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Auto-cierre suave de alertas Flash después de 6 segundos
     const flashAlerts = document.querySelectorAll('.alert-flash');
@@ -123,6 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return esValido;
         }
 
+        // Listeners para advertencias en tiempo real
         nombreContacto.addEventListener('input', validarNombre);
         correoContacto.addEventListener('input', validarCorreo);
         categoriaContacto.addEventListener('change', validarCategoria);
@@ -233,6 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Eventos para cerrar los modales
         if (btnAceptarExito && modalExito) {
             btnAceptarExito.addEventListener('click', () => { modalExito.style.display = 'none'; });
             modalExito.addEventListener('click', (e) => { if (e.target === modalExito) modalExito.style.display = 'none'; });

@@ -1,17 +1,114 @@
-<nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+<!-- ==============================================================================
+     BARRA DE NAVEGACIÓN PRINCIPAL: DULCE DELICIA
+     Se adapta según el estado de sesión:
+     - Visitante / Cliente: Menú público del negocio y botón de Acceso al Sistema.
+     - Administrador autenticado: Menú administrativo de gestión con SQLite.
+============================================================================== -->
+<nav class="navbar navbar-expand-lg navbar-dark navbar-artesanal sticky-top">
   <div class="container">
-    <a class="navbar-brand fw-bold" href="{{ url_for('inicio') }}">Dulce Delicia</a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menuNav" aria-label="Abrir menú">
+    <!-- Logotipo y Marca -->
+    <a class="navbar-brand" href="{{ url_for('inicio') }}">
+      <i class="fa-solid fa-cake-candles text-warning me-1"></i>
+      <span>Dulce Delicia</span>
+      <span class="brand-badge ms-1">Artesanal</span>
+    </a>
+    
+    <!-- Botón Hamburguesa para Dispositivos Móviles -->
+    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#menuNav" aria-controls="menuNav" aria-expanded="false" aria-label="Abrir menú de navegación">
       <span class="navbar-toggler-icon"></span>
     </button>
+    
     <div class="collapse navbar-collapse" id="menuNav">
-      <ul class="navbar-nav ms-auto">
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('inicio') }}">Inicio</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('productos') }}">Productos</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('clientes') }}">Clientes</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('proveedores') }}">Proveedores</a></li>
-        <li class="nav-item"><a class="nav-link" href="{{ url_for('facturacion') }}">Facturación</a></li>
-      </ul>
+      {% if session.get('usuario') %}
+        <!-- ================= MENÚ ADMINISTRATIVO (USUARIO AUTENTICADO) ================= -->
+        <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-lg-1">
+          <li class="nav-item">
+            <a class="nav-link {% if request.path == '/panel' %}active{% endif %}" href="{{ url_for('panel') }}">
+              <i class="fa-solid fa-chart-line me-1"></i> Panel
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if '/productos' in request.path %}active{% endif %}" href="{{ url_for('productos') }}">
+              <i class="fa-solid fa-cookie-bite me-1"></i> Productos
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if '/clientes' in request.path %}active{% endif %}" href="{{ url_for('clientes') }}">
+              <i class="fa-solid fa-users me-1"></i> Clientes
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if '/proveedores' in request.path or '/provedores' in request.path %}active{% endif %}" href="{{ url_for('proveedores') }}">
+              <i class="fa-solid fa-truck-ramp-box me-1"></i> Proveedores
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if '/facturacion' in request.path %}active{% endif %}" href="{{ url_for('facturacion') }}">
+              <i class="fa-solid fa-receipt me-1"></i> Facturación
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('inicio') }}" target="_blank" title="Ver sitio público de clientes">
+              <i class="fa-solid fa-store me-1"></i> Ver Tienda
+            </a>
+          </li>
+        </ul>
+
+        <!-- Acciones del Administrador -->
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <!-- Menú desplegable para registrar nuevos registros -->
+          <div class="dropdown">
+            <button class="btn btn-nav-action dropdown-toggle d-flex align-items-center gap-2" type="button" id="dropdownNuevo" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fa-solid fa-circle-plus"></i>
+              <span>Registrar</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3 mt-2" aria-labelledby="dropdownNuevo">
+              <li><h6 class="dropdown-header text-uppercase fs-7 text-muted">Formularios del Sistema</h6></li>
+              <li><a class="dropdown-item py-2" href="{{ url_for('nuevo_producto') }}"><i class="fa-solid fa-cake-candles text-warning me-2"></i>Nuevo Producto</a></li>
+              <li><a class="dropdown-item py-2" href="{{ url_for('nuevo_cliente') }}"><i class="fa-solid fa-user-plus text-success me-2"></i>Nuevo Cliente</a></li>
+              <li><a class="dropdown-item py-2" href="{{ url_for('nuevo_proveedor') }}"><i class="fa-solid fa-truck-field text-info me-2"></i>Nuevo Proveedor</a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item py-2" href="{{ url_for('nueva_factura') }}"><i class="fa-solid fa-file-invoice-dollar text-danger me-2"></i>Emitir Factura</a></li>
+            </ul>
+          </div>
+
+          <!-- Botón de Cerrar Sesión con identificador del usuario -->
+          <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light rounded-pill px-3 py-1 d-flex align-items-center gap-1" title="Cerrar sesión administrativa">
+            <i class="fa-solid fa-right-from-bracket"></i>
+            <span>Salir</span>
+          </a>
+        </div>
+
+      {% else %}
+        <!-- ================= MENÚ PÚBLICO (CLIENTES Y VISITANTES) ================= -->
+        <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-lg-2">
+          <li class="nav-item">
+            <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('inicio') }}">
+              <i class="fa-solid fa-house me-1"></i> Inicio
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('inicio') }}#quienes">Quiénes Somos</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('inicio') }}#productos">Productos</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('inicio') }}#video">Video</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('inicio') }}#contacto">Contacto</a>
+          </li>
+        </ul>
+
+        <!-- Botón para Personal Administrativo -->
+        <div class="d-flex align-items-center">
+          <a href="{{ url_for('login') }}" class="btn btn-nav-action d-flex align-items-center gap-2">
+            <i class="fa-solid fa-lock"></i>
+            <span>Acceso al Sistema</span>
+          </a>
+        </div>
+      {% endif %}
     </div>
   </div>
 </nav>

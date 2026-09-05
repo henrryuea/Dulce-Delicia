@@ -1,28 +1,141 @@
 {% extends "base.html" %}
 
-{% block title %}Facturación - Dulce Delicia{% endblock %}
+<!-- ==============================================================================
+     PROYECTO: Dulce Delicia - Sistema de Gestión de Pastelería Artesanal
+     PLANTILLA: templates/facturacion.html
+     ASIGNATURA: Desarrollo de Aplicaciones Web
+     UNIVERSIDAD: Universidad Estatal Amazónica (UEA)
+     AVANCE: Semana 12 - Proyecto Integrador U3 (12/16)
+     TEMA: Módulo de Facturación y Ventas con Modelo Normalizado (3FN)
+     ESTUDIANTE: Desarrollo Web 2026
+==============================================================================
+DESCRIPCIÓN DE LA PLANTILLA:
+Esta vista presenta el registro histórico de facturas y ventas de la pastelería.
+Consulta la tabla 'facturas' y realiza JOINs relacionales con:
+  - 'clientes': para identificar al comprador y su RUC.
+  - 'metodos_pago': para detallar el medio financiero utilizado.
+  - 'estados_factura': para controlar si el comprobante está EMITIDA, ANULADA o PENDIENTE.
+============================================================================== -->
+
+{% block title %}Facturación y Ventas - Dulce Delicia | Persistencia SQLite 3FN{% endblock %}
 
 {% block content %}
-<section class="py-5">
-	<div class="container">
-		<p class="text-uppercase text-muted mb-1">Resumen de ventas</p>
-		<h1 class="h2 mb-4">Facturación</h1>
-		<div class="table-responsive bg-white shadow-sm rounded p-3">
-			<table class="table align-middle mb-0">
-				<thead><tr><th>Factura</th><th>Cliente</th><th>Fecha</th><th>Total</th><th>Estado</th></tr></thead>
-				<tbody>
-					{% for factura in facturas %}
-					<tr>
-						<td class="fw-semibold">{{ factura.numero }}</td><td>{{ factura.cliente }}</td><td>{{ factura.fecha }}</td>
-						<td>${{ "%.2f"|format(factura.total) }}</td>
-						<td>{% if factura.estado == "Pagada" %}<span class="badge text-bg-success">{{ factura.estado }}</span>{% else %}<span class="badge text-bg-warning">{{ factura.estado }}</span>{% endif %}</td>
-					</tr>
-					{% else %}
-					<tr><td colspan="5" class="text-center">No hay facturas registradas.</td></tr>
-					{% endfor %}
-				</tbody>
-			</table>
-		</div>
-	</div>
+<section class="py-5" style="background-color: var(--c-crema); min-height: 85vh;">
+  <div class="container">
+    
+    <!-- Encabezado de la Sección -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+      <div>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb small mb-1">
+            <li class="breadcrumb-item"><a href="{{ url_for('panel') }}" class="text-decoration-none text-muted">Panel</a></li>
+            <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">Facturación</li>
+          </ol>
+        </nav>
+        <h1 class="h2 mb-0 fw-bold text-dark">Gestión de Facturación y Ventas</h1>
+      </div>
+      <div class="d-flex gap-2 align-items-center flex-wrap">
+        <span class="badge badge-artesanal badge-moka fs-6 px-3 py-2 fw-semibold">
+          <i class="fa-solid fa-receipt me-1"></i> {{ facturas|length }} facturas
+        </span>
+        <a href="{{ url_for('nueva_factura') }}" class="btn btn-caramelo text-white shadow-sm d-flex align-items-center gap-2">
+          <i class="fa-solid fa-file-invoice-dollar"></i>
+          <span>Emitir Factura</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Tabla Relacional de Facturación (3FN) -->
+    <div class="card card-artesanal border-0 shadow-sm">
+      <div class="card-header-artesanal d-flex justify-content-between align-items-center flex-wrap gap-2 py-3">
+        <div class="d-flex align-items-center gap-2">
+          <i class="fa-solid fa-cash-register text-caramelo fs-5"></i>
+          <h2 class="h5 mb-0 fw-bold text-dark">Comprobantes Electrónicos Registrados (3FN)</h2>
+        </div>
+        <span class="badge badge-artesanal badge-moka small fw-semibold">
+          <i class="fa-solid fa-database me-1"></i> clientes, metodos de pago y estados de factura
+        </span>
+      </div>
+
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table-artesanal align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width: 100px;" class="text-dark">N° Comprobante</th>
+                <th class="text-dark">Cliente / Cédula</th>
+                <th class="text-dark">Fecha de Emisión</th>
+                <th class="text-dark">Método de Pago</th>
+                <th class="text-dark">Subtotal e IVA</th>
+                <th class="text-dark">Total ($ USD)</th>
+                <th class="text-dark">Estado</th>
+                <th class="text-end text-dark" style="width: 100px;">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for factura in facturas %}
+              <tr>
+                <td>
+                  <span class="badge bg-dark font-monospace text-white px-2 py-1">{{ factura.numero }}</span>
+                </td>
+                <td>
+                  <strong class="text-dark d-block">{{ factura.cliente }}</strong>
+                  <small class="text-secondary font-monospace">{{ factura.cedula_ruc if factura.cedula_ruc else 'S/N' }}</small>
+                </td>
+                <td>
+                  <span class="small text-secondary"><i class="fa-regular fa-calendar me-1"></i> {{ factura.fecha }}</span>
+                </td>
+                <td>
+                  <span class="badge badge-artesanal badge-moka">
+                    {{ factura.metodo_pago }}
+                  </span>
+                </td>
+                <td>
+                  <div class="small">
+                    <span class="text-secondary">Sub: ${{ "%.2f"|format(factura.subtotal) }}</span> | 
+                    <span class="text-secondary">IVA: ${{ "%.2f"|format(factura.iva) }}</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="fw-bold fs-6 text-dark">${{ "%.2f"|format(factura.total) }}</span>
+                </td>
+                <td>
+                  {% if factura.estado == 'EMITIDA' %}
+                    <span class="badge badge-artesanal badge-exito"><i class="fa-solid fa-check-circle me-1"></i> Emitida</span>
+                  {% elif factura.estado == 'PENDIENTE' %}
+                    <span class="badge badge-artesanal badge-alerta"><i class="fa-solid fa-clock me-1"></i> Pendiente</span>
+                  {% else %}
+                    <span class="badge badge-artesanal badge-peligro"><i class="fa-solid fa-ban me-1"></i> Anulada</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <a href="{{ url_for('editar_factura', id=factura.id_factura) }}" class="btn btn-sm btn-outline-caramelo shadow-sm" title="Editar Factura">
+                    <i class="fa-solid fa-pen-to-square me-1"></i> Editar
+                  </a>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="8" class="text-center py-5">
+                  <i class="fa-solid fa-file-excel fs-2 text-secondary mb-2 d-block"></i>
+                  <p class="lead mb-2 text-dark">No hay facturas emitidas todavía.</p>
+                  <a href="{{ url_for('nueva_factura') }}" class="btn btn-caramelo text-white btn-sm shadow-sm">Emitir Primera Factura</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <div class="card-footer bg-white py-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <small class="text-secondary">
+        </small>
+        <a href="{{ url_for('nueva_factura') }}" class="btn btn-sm btn-caramelo text-white shadow-sm">
+          <i class="fa-solid fa-receipt me-1"></i> Emitir Nueva Factura
+        </a>
+      </div>
+    </div>
+  </div>
 </section>
 {% endblock %}

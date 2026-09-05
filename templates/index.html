@@ -1,60 +1,228 @@
 {% extends "base.html" %}
 
-{% block title %}Inicio - Dulce Delicia{% endblock %}
+{% block title %}Inicio - Dulce Delicia | Pastelería Artesanal{% endblock %}
 
 {% block content %}
-<header class="hero-header text-white text-center">
-  <div class="container">
-    <h1>{{ empresa.nombre }}</h1>
-    <p>{{ mensaje }}</p>
-    <small>{{ empresa.ubicacion }}</small>
-  </div>
-</header>
-
-<section class="inicio text-center text-white">
-  <div class="container">
-    <h2 class="display-4 fw-bold">Endulzamos tu día con arte</h2>
-    <p class="lead mt-3 mx-auto">Cheesecakes, tartas, mousses y postres artesanales preparados con dedicación.</p>
-    <a href="{{ url_for('productos') }}" class="btn btn-verde btn-lg mt-3">Ver catálogo completo</a>
+<!-- Sección 1: Hero Principal (Inicio de la Tienda Dulce Delicia) -->
+<section id="inicio" class="hero-artesanal text-center">
+  <div class="container position-relative" style="z-index: 2;">
+    <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-semibold mb-3">
+      <i class="fa-solid fa-star me-1"></i> Repostería Fina & Postres de Autor
+    </span>
+    <h1 class="display-4 fw-bold">Endulzamos tu día con arte</h1>
+    <p class="lead mt-3 mx-auto">
+      Cheesecakes, tartas, mousses y postres artesanales preparados con dedicación y amor.
+    </p>
+    <div class="mt-4 d-flex gap-3 justify-content-center flex-wrap">
+      <a href="#productos" class="btn btn-caramelo btn-lg">
+        <i class="fa-solid fa-cookie-bite me-1"></i> Ver catálogo
+      </a>
+      <a href="#contacto" class="btn btn-outline-light btn-lg rounded-pill px-4">
+        <i class="fa-solid fa-paper-plane me-1"></i> Haz tu pedido
+      </a>
+    </div>
   </div>
 </section>
 
-<section id="productos" class="py-5 bg-light">
+<!-- Sección 2: Quiénes Somos -->
+<section id="quienes" class="py-5 bg-white">
   <div class="container">
-    <h2 class="text-center mb-4">Nuestros Productos</h2>
+    <div class="row align-items-center g-5">
+      <div class="col-lg-5 col-md-6 text-center">
+        <img src="{{ url_for('static', filename='img/DULCEDELICIA.png') }}" alt="Dulce Delicia Pastelería Artesanal" class="img-fluid rounded-4 shadow-sm border">
+      </div>
+      <article class="col-lg-7 col-md-6">
+        <span class="badge badge-artesanal badge-moka mb-2">Tradición y Calidad</span>
+        <h2 class="h2 mb-3">Quiénes Somos</h2>
+        <p class="text-muted leading-relaxed mb-3">
+          <strong>Dulce Delicia</strong> nació del sueño de compartir momentos especiales a través de la magia de los postres. 
+          Lo que comenzó como una pequeña idea en la cocina familiar se transformó en un emprendimiento dedicado 
+          a crear experiencias dulces que alegran el corazón.
+        </p>
+        <p class="text-muted leading-relaxed mb-4">
+          Nuestra pasión por lo artesanal nos inspira a combinar recetas tradicionales con un toque moderno, 
+          logrando postres únicos que reflejan calidad, frescura y creatividad.
+        </p>
+        <div class="d-flex gap-3">
+          <a href="#productos" class="btn btn-outline-caramelo btn-sm">
+            <i class="fa-solid fa-cookie-bite me-1"></i> Conoce Nuestros Postres
+          </a>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- Sección 3: Nuestros Productos (Catálogo para Clientes) -->
+<section id="productos" class="py-5" style="background-color: var(--c-crema);">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-end mb-4 flex-wrap gap-2">
+      <div>
+        <p class="text-uppercase text-muted fw-semibold small mb-1">Catálogo Especial</p>
+        <h2 class="h2 mb-0">Nuestros Productos</h2>
+      </div>
+    </div>
+
     <div class="row g-4">
       {% for producto in productos %}
       <article class="col-md-4">
-        <div class="card h-100 shadow-sm border-0 text-center">
-          <img src="{{ url_for('static', filename=producto.imagen) }}" alt="{{ producto.nombre }}" class="postre">
-          <div class="card-body">
-            <h3>{{ producto.nombre|title }}</h3>
-            <p>{{ producto.descripcion }}</p>
-            <p class="fw-bold">${{ "%.2f"|format(producto.precio) }}</p>
-            {% if producto.stock > 0 %}
-            <span class="badge text-bg-success">Disponible</span>
-            {% else %}
-            <span class="badge text-bg-danger">Agotado</span>
-            {% endif %}
+        <div class="card card-artesanal h-100 border-0 text-center shadow-sm">
+          <img src="{{ url_for('static', filename=producto.imagen) }}" alt="{{ producto.nombre }}" class="img-postre-card">
+          <div class="card-body p-4 d-flex flex-column">
+            <h3 class="h5 card-title mb-1">{{ producto.nombre|title }}</h3>
+            <p class="text-muted small flex-grow-1">{{ producto.descripcion }}</p>
+            <p class="fw-bold fs-5 text-dark my-2">${{ "%.2f"|format(producto.precio) }}</p>
+            <div class="mt-auto">
+              <a href="#contacto" class="btn btn-verde-pedido w-100">
+                <i class="fa-solid fa-cart-shopping me-1"></i> Ordenar
+              </a>
+            </div>
           </div>
         </div>
       </article>
       {% else %}
-      <p class="text-center">No hay productos disponibles.</p>
+      <div class="col-12 text-center py-4">
+        <p class="text-muted">No hay productos disponibles.</p>
+      </div>
       {% endfor %}
     </div>
   </div>
 </section>
 
-<section class="py-5 text-center">
+<!-- Sección 4: Video Promocional -->
+<section id="video" class="py-5 text-center bg-dark text-white">
   <div class="container">
-    <h2>Acceso rápido</h2>
-    <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">
-      <a class="btn btn-outline-primary" href="{{ url_for('productos') }}">Productos</a>
-      <a class="btn btn-outline-primary" href="{{ url_for('clientes') }}">Clientes</a>
-      <a class="btn btn-outline-primary" href="{{ url_for('proveedores') }}">Proveedores</a>
-      <a class="btn btn-outline-primary" href="{{ url_for('facturacion') }}">Facturación</a>
+    <h2 class="mb-3 text-white">Conoce más sobre Dulce Delicia</h2>
+    <p class="text-light-emphasis mb-4">Descubre el proceso artesanal y el amor detrás de cada una de nuestras creaciones.</p>
+    <div class="ratio ratio-16x9 shadow rounded-4 overflow-hidden max-w-700 mx-auto" style="max-width: 750px;">
+      <iframe src="https://www.youtube.com/embed/iGQPAGuocsM?si=rbNyfZeYBrIZaskm" title="Dulce Delicia Video Promocional" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
     </div>
   </div>
 </section>
+
+<!-- Sección 5: Formulario de Contacto Interactivo -->
+<section id="contacto" class="py-5 bg-white">
+  <div class="container">
+    <div class="text-center max-w-600 mx-auto mb-4">
+      <span class="badge badge-artesanal badge-moka mb-2">Atención al Cliente</span>
+      <h2 class="h2 mb-1">Contáctanos</h2>
+      <p class="text-muted">Te responderemos en las próximas 24 horas.</p>
+    </div>
+
+    <!-- Caja del Formulario -->
+    <div class="form-contacto-box">
+      <form class="row g-3" id="formContacto" novalidate>
+        <!-- Nombre Completo -->
+        <div class="col-md-6">
+          <label for="nombreContacto" class="form-label">Nombre Completo <span class="text-danger">*</span></label>
+          <input type="text" id="nombreContacto" name="nombre" class="form-control" placeholder="Tu nombre completo">
+          <div class="form-help-text text-muted small">El nombre debe tener al menos 3 caracteres.</div>
+          <div class="invalid-feedback">El nombre es requerido y debe tener al menos 3 letras.</div>
+        </div>
+
+        <!-- Correo Electrónico -->
+        <div class="col-md-6">
+          <label for="correoContacto" class="form-label">Correo Electrónico <span class="text-danger">*</span></label>
+          <input type="email" id="correoContacto" name="correo" class="form-control" placeholder="usuario@correo.com">
+          <div class="form-help-text text-muted small">Ingrese un correo válido. Ejemplo: usuario@dominio.com</div>
+          <div class="invalid-feedback">Ingrese un correo electrónico válido.</div>
+        </div>
+
+        <!-- Categoría -->
+        <div class="col-md-6">
+          <label for="categoriaContacto" class="form-label">Categoría <span class="text-danger">*</span></label>
+          <select id="categoriaContacto" name="categoria" class="form-select">
+            <option value="">Seleccione una opción</option>
+            <option value="Pedido Especial">Pedido Especial de Postres</option>
+            <option value="Consulta General">Consulta de Disponibilidad</option>
+            <option value="Evento o Boda">Evento / Cumpleaños</option>
+            <option value="Otro">Otro Asunto</option>
+          </select>
+          <div class="form-help-text text-muted small">Debe seleccionar una categoría.</div>
+          <div class="invalid-feedback">Debe seleccionar una categoría de la lista.</div>
+        </div>
+
+        <!-- Asunto -->
+        <div class="col-md-6">
+          <label for="asuntoContacto" class="form-label">Asunto <span class="text-danger">*</span></label>
+          <input type="text" id="asuntoContacto" name="asunto" class="form-control" placeholder="¿En qué podemos ayudarte?">
+          <div class="form-help-text text-muted small">El asunto debe tener al menos 5 caracteres.</div>
+          <div class="invalid-feedback">El asunto debe tener al menos 5 caracteres.</div>
+        </div>
+
+        <!-- Mensaje -->
+        <div class="col-12">
+          <label for="mensajeContacto" class="form-label">Mensaje <span class="text-danger">*</span></label>
+          <textarea id="mensajeContacto" name="mensaje" class="form-control" rows="4" placeholder="Escribe tu mensaje o detalles de tu pedido aquí..."></textarea>
+          <div class="form-help-text text-muted small">El mensaje debe tener al menos 10 caracteres.</div>
+          <div class="invalid-feedback">El mensaje debe tener al menos 10 caracteres.</div>
+        </div>
+
+        <!-- Botón de Envío -->
+        <div class="col-12 text-center pt-2">
+          <button type="submit" class="btn btn-caramelo px-5 py-2">
+            <i class="fa-solid fa-paper-plane me-2"></i> Enviar Mensaje
+          </button>
+        </div>
+      </form>
+
+      <!-- Registros Dinámicos Enviados -->
+      <div id="registrosContainer" class="mt-5 pt-4 border-top">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h3 class="h5 mb-0"><i class="fa-solid fa-clipboard-list text-caramelo me-2"></i>Registros enviados</h3>
+          <span class="badge badge-artesanal badge-moka">Total: <span id="contadorRegistros">0</span></span>
+        </div>
+        <ul id="listaRegistros" class="list-group list-group-flush border rounded-3"></ul>
+      </div>
+
+      <!-- Redes Sociales y Canales de Contacto -->
+      <div class="text-center mt-5 pt-3 border-top">
+        <h4 class="h6 text-uppercase fw-bold text-muted mb-3">También puedes contactarnos por:</h4>
+        <div class="d-flex flex-wrap justify-content-center gap-2">
+          <a href="mailto:contacto@dulcedelicia.com" class="social-chip social-chip-mail">
+            <i class="fa-solid fa-envelope"></i> Correo
+          </a>
+          <a href="https://instagram.com" target="_blank" rel="noreferrer" class="social-chip social-chip-ig">
+            <i class="fa-brands fa-instagram"></i> Instagram
+          </a>
+          <a href="https://wa.me/593991112233" target="_blank" rel="noreferrer" class="social-chip social-chip-wa">
+            <i class="fa-brands fa-whatsapp"></i> WhatsApp
+          </a>
+          <a href="https://maps.google.com" target="_blank" rel="noreferrer" class="social-chip social-chip-map">
+            <i class="fa-solid fa-location-dot"></i> Ubicación
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Banner Promoción Especial -->
+<aside class="promo-banner text-center">
+  <div class="container">
+    <h4><i class="fa-solid fa-gift me-2"></i>Promoción Especial</h4>
+    <p>¡2x1 en Cheesecakes y Tartas de Frutas los fines de semana! 🍰✨</p>
+  </div>
+</aside>
+
+<!-- Modales Emergentes Profesionales (Ocultos por defecto) -->
+<div id="modalExito" class="modal-overlay">
+  <div class="modal-content-custom">
+    <div class="rounded-circle bg-success bg-opacity-10 text-success mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+      <i class="fa-solid fa-circle-check fs-2"></i>
+    </div>
+    <div id="mensajeExito"></div>
+    <button id="btnAceptarExito" class="btn btn-caramelo px-4 mt-3">Aceptar</button>
+  </div>
+</div>
+
+<div id="modalError" class="modal-overlay">
+  <div class="modal-content-custom">
+    <div class="rounded-circle bg-danger bg-opacity-10 text-danger mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+      <i class="fa-solid fa-triangle-exclamation fs-2"></i>
+    </div>
+    <div id="mensajeError"></div>
+    <button id="btnAceptarError" class="btn btn-danger px-4 mt-3">Aceptar</button>
+  </div>
+</div>
 {% endblock %}

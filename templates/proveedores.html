@@ -1,33 +1,138 @@
 {% extends "base.html" %}
 
-{% block title %}Proveedores - Dulce Delicia{% endblock %}
+<!-- ==============================================================================
+     PROYECTO: Dulce Delicia - Sistema de Gestión de Pastelería Artesanal
+     PLANTILLA: templates/proveedores.html
+     ASIGNATURA: Desarrollo de Aplicaciones Web
+     UNIVERSIDAD: Universidad Estatal Amazónica (UEA)
+     AVANCE: Semana 12 - Proyecto Integrador U3 (12/16)
+     TEMA: Red de Proveedores con Modelo Relacional Normalizado (3FN)
+     ESTUDIANTE: Desarrollo Web 2026
+==============================================================================
+DESCRIPCIÓN DE LA PLANTILLA:
+Esta vista presenta el directorio de proveedores de materias primas e insumos.
+Consulta la tabla 'proveedores' con claves foráneas hacia los catálogos
+'categorias_proveedor' (Materia Prima, Empaques, Bebidas, Otros) y
+'estados_proveedor' (Activo, Inactivo) en SQLite (data/dulce_delicia.db).
+============================================================================== -->
+
+{% block title %}Red de Proveedores - Dulce Delicia | Persistencia SQLite 3FN{% endblock %}
 
 {% block content %}
-<section class="py-5">
+<section class="py-5" style="background-color: var(--c-crema); min-height: 85vh;">
   <div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    
+    <!-- Encabezado de la Sección -->
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
       <div>
-        <p class="text-uppercase text-muted mb-1">Gestión comercial</p>
-        <h1 class="h2 mb-0">Proveedores</h1>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb small mb-1">
+            <li class="breadcrumb-item"><a href="{{ url_for('panel') }}" class="text-decoration-none text-muted">Panel</a></li>
+            <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">Proveedores</li>
+          </ol>
+        </nav>
+        <h1 class="h2 mb-0 fw-bold text-dark">Red de Proveedores de Insumos</h1>
       </div>
-      <span class="badge text-bg-info">{{ proveedores|length }} registrados</span>
+      <div class="d-flex gap-2 align-items-center flex-wrap">
+        <span class="badge badge-artesanal badge-moka fs-6 px-3 py-2 fw-semibold">
+          <i class="fa-solid fa-truck-ramp-box me-1"></i> {{ proveedores|length }} empresas
+        </span>
+        <a href="{{ url_for('nuevo_proveedor') }}" class="btn btn-caramelo text-white shadow-sm d-flex align-items-center gap-2">
+          <i class="fa-solid fa-plus-circle"></i>
+          <span>Nuevo Proveedor</span>
+        </a>
+      </div>
     </div>
-    <div class="table-responsive bg-white shadow-sm rounded p-3">
-      <table class="table align-middle mb-0">
-        <thead><tr><th>Empresa</th><th>Contacto</th><th>Categoría</th><th>Estado</th></tr></thead>
-        <tbody>
-          {% for proveedor in proveedores %}
-          <tr>
-            <td class="fw-semibold">{{ proveedor.empresa|upper }}</td>
-            <td>{{ proveedor.contacto }}</td>
-            <td>{{ proveedor.categoria }}</td>
-            <td><span class="badge text-bg-success">{{ proveedor.estado }}</span></td>
-          </tr>
-          {% else %}
-          <tr><td colspan="4" class="text-center">No hay proveedores registrados.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+
+    <!-- Tabla Relacional de Proveedores (3FN) -->
+    <div class="card card-artesanal border-0 shadow-sm">
+      <div class="card-header-artesanal d-flex justify-content-between align-items-center flex-wrap gap-2 py-3">
+        <div class="d-flex align-items-center gap-2">
+          <i class="fa-solid fa-truck-fast text-caramelo fs-5"></i>
+          <h2 class="h5 mb-0 fw-bold text-dark">Proveedores de Materia Prima e Insumos</h2>
+        </div>
+        <span class="badge badge-artesanal badge-moka small fw-semibold">
+          <i class="fa-solid fa-database me-1"></i> categoria de proveedor y estados del proveedor
+        </span>
+      </div>
+
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table-artesanal align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width: 80px;" class="text-center text-dark">ID</th>
+                <th class="text-dark">Empresa / Razón Social</th>
+                <th class="text-dark">RUC Fiscal</th>
+                <th class="text-dark">Contacto Comercial</th>
+                <th class="text-dark">Categoría Insumos</th>
+                <th class="text-dark">Estado</th>
+                <th class="text-end text-dark" style="width: 110px;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for proveedor in proveedores %}
+              <tr>
+                <td class="text-center">
+                  <span class="badge bg-secondary font-monospace">#{{ "%03d"|format(proveedor.id_proveedor) }}</span>
+                </td>
+                <td>
+                  <span class="fw-bold text-dark d-block">{{ proveedor.razon_social }}</span>
+                  <small class="text-secondary">{{ proveedor.direccion }}</small>
+                </td>
+                <td>
+                  <span class="font-monospace fw-semibold text-dark">{{ proveedor.ruc }}</span>
+                </td>
+                <td>
+                  <strong class="text-dark d-block">{{ proveedor.contacto }}</strong>
+                  <div class="small text-secondary">
+                    <i class="fa-solid fa-envelope me-1"></i> {{ proveedor.correo }} | 
+                    <i class="fa-solid fa-phone me-1"></i> {{ proveedor.telefono }}
+                  </div>
+                </td>
+                <td>
+                  <span class="badge badge-artesanal badge-moka">
+                    {{ proveedor.categoria }}
+                  </span>
+                </td>
+                <td>
+                  {% if proveedor.estado == 'ACTIVO' %}
+                    <span class="badge badge-artesanal badge-exito">
+                      <i class="fa-solid fa-circle-check me-1"></i> Activo
+                    </span>
+                  {% else %}
+                    <span class="badge badge-artesanal badge-peligro">
+                      <i class="fa-solid fa-ban me-1"></i> Inactivo
+                    </span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <a href="{{ url_for('editar_proveedor', id=proveedor.id_proveedor) }}" class="btn btn-sm btn-outline-caramelo shadow-sm" title="Editar Proveedor">
+                    <i class="fa-solid fa-pen-to-square me-1"></i> Editar
+                  </a>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="7" class="text-center py-5">
+                  <i class="fa-solid fa-truck-field fs-2 text-secondary mb-2 d-block"></i>
+                  <p class="lead mb-2 text-dark">No hay proveedores registrados.</p>
+                  <a href="{{ url_for('nuevo_proveedor') }}" class="btn btn-caramelo text-white btn-sm shadow-sm">Registrar Primer Proveedor</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <div class="card-footer bg-white py-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <small class="text-secondary">
+        </small>
+        <a href="{{ url_for('nuevo_proveedor') }}" class="btn btn-sm btn-caramelo text-white shadow-sm">
+          <i class="fa-solid fa-plus me-1"></i> Nuevo Proveedor
+        </a>
+      </div>
     </div>
   </div>
 </section>
