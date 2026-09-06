@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+<!-- ==============================================================================
+     PLANTILLA: templates/login.html
+     PROPÓSITO: Formulario de inicio de sesión para el personal administrativo
+     TECNOLOGÍA: Flask-WTF con protección CSRF + Bootstrap 5.3
+     COMENTARIOS: Explicado paso a paso para fines académicos
+============================================================================== -->
+
+{% block title %}Iniciar Sesión - Dulce Delicia | Sistema Administrativo{% endblock %}
+
+{% block content %}
+<!-- Contenedor centrado verticalmente con fondo artesanal -->
+<section class="py-5" style="background-color: var(--c-crema); min-height: 75vh; display: flex; align-items: center;">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-7 col-lg-5">
+        
+        <!-- Tarjeta de Inicio de Sesión con sombra pronunciada -->
+        <div class="card card-artesanal border-0 shadow-lg overflow-hidden">
+          
+          <!-- Cabecera de la Tarjeta con fondo oscuro café moka para máximo contraste con el texto blanco -->
+          <div class="text-center py-4 px-3" style="background: linear-gradient(135deg, #2A1A13 0%, #3D261C 100%); color: #FFFFFF;">
+            <!-- Ícono distintivo de seguridad -->
+            <div class="rounded-circle bg-white bg-opacity-10 d-inline-flex align-items-center justify-content-center p-3 mb-2">
+              <i class="fa-solid fa-user-shield fs-2 text-warning"></i>
+            </div>
+            <!-- Título del formulario: blanco brillante sobre fondo oscuro (alto contraste) -->
+            <h1 class="h3 mb-1 text-white fw-bold">Acceso al Sistema</h1>
+            <p class="small text-white text-opacity-75 mb-0">Gestión Administrativa - Dulce Delicia</p>
+          </div>
+
+          <!-- Cuerpo del Formulario de Autenticación -->
+          <div class="card-body p-4 p-md-5 bg-white">
+            
+            <!-- Cuadro de ayuda con credenciales para el docente o evaluador -->
+            <div class="alert alert-warning py-2 px-3 small mb-4 rounded-3 d-flex align-items-start gap-2 border-0" style="background-color: #FEF3C7; color: #92400E;">
+              <i class="fa-solid fa-key mt-1 fs-5"></i>
+              <div>
+                <strong>Credenciales de evaluación académica:</strong><br>
+                Usuario: <code class="text-dark fw-bold">admin</code> &nbsp;|&nbsp; Contraseña: <code class="text-dark fw-bold">admin123</code>
+              </div>
+            </div>
+
+            <!-- Formulario HTML procesado por Flask-WTF -->
+            <form method="POST" novalidate>
+              <!-- Inclusión obligatoria del token CSRF para protección contra ataques Cross-Site Request Forgery -->
+              {{ form.hidden_tag() }}
+
+              <!-- Campo 1: Nombre de Usuario -->
+              <div class="mb-3">
+                <label for="{{ form.usuario.id }}" class="form-label fw-semibold text-dark">
+                  <i class="fa-solid fa-user text-caramelo me-1"></i> {{ form.usuario.label.text }}
+                </label>
+                <!-- Renderizado del campo con clases Bootstrap y validación de errores -->
+                {{ form.usuario(class="form-control" + (" is-invalid" if form.usuario.errors else ""), id="campoUsuario") }}
+                {% if form.usuario.errors %}
+                  <div class="invalid-feedback">
+                    {% for error in form.usuario.errors %}
+                      <div><i class="fa-solid fa-circle-exclamation me-1"></i> {{ error }}</div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+
+              <!-- Campo 2: Contraseña de Acceso -->
+              <div class="mb-4">
+                <label for="{{ form.password.id }}" class="form-label fw-semibold text-dark">
+                  <i class="fa-solid fa-lock text-caramelo me-1"></i> {{ form.password.label.text }}
+                </label>
+                <!-- Renderizado del campo de contraseña protegido -->
+                {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""), id="campoPassword") }}
+                {% if form.password.errors %}
+                  <div class="invalid-feedback">
+                    {% for error in form.password.errors %}
+                      <div><i class="fa-solid fa-circle-exclamation me-1"></i> {{ error }}</div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+
+              <!-- Botón de Envío del Formulario -->
+              <div class="d-grid gap-2">
+                {{ form.submit() }}
+              </div>
+            </form>
+
+            <!-- Botón de Asistencia: Permite rellenar las credenciales demo en un solo clic -->
+            <div class="text-center mt-3">
+              <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 shadow-sm" onclick="autocompletarAdmin()" title="Rellenar usuario y contraseña de prueba">
+                <i class="fa-solid fa-wand-magic-sparkles me-1 text-warning"></i> Llenar con datos demo
+              </button>
+            </div>
+
+            <!-- Enlace para regresar a la tienda pública -->
+            <div class="text-center mt-4 pt-3 border-top">
+              <a href="{{ url_for('inicio') }}" class="text-secondary text-decoration-none small" title="Volver al inicio público">
+                <i class="fa-solid fa-arrow-left me-1"></i> Volver a la Tienda Pública
+              </a>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Script JavaScript para agilizar las pruebas del evaluador -->
+<script>
+  // Función que asigna automáticamente las credenciales demo a los campos del formulario
+  function autocompletarAdmin() {
+    document.getElementById('campoUsuario').value = 'admin';
+    document.getElementById('campoPassword').value = 'admin123';
+  }
+</script>
+{% endblock %}

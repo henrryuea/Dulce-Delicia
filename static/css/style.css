@@ -198,7 +198,7 @@ h4, h5, h6 {
 }
 
 .inicio h2, .hero-artesanal h1 {
-  color: #a88f8f;
+  color: #FFFFFF;
   font-size: 2.8rem;
   margin-bottom: 0.8rem;
   font-family: 'Playfair Display', serif;
@@ -306,6 +306,23 @@ h4, h5, h6 {
   background: linear-gradient(to right, var(--c-crema), #FFFFFF);
   border-bottom: 1px solid var(--c-borde);
   padding: 1.25rem 1.5rem;
+  color: var(--c-moka) !important;
+}
+
+.card-header-artesanal h1,
+.card-header-artesanal h2,
+.card-header-artesanal h3,
+.card-header-artesanal h4,
+.card-header-artesanal h5,
+.card-header-artesanal h6 {
+  color: var(--c-moka) !important;
+  font-weight: 700;
+}
+
+.card-header-artesanal p,
+.card-header-artesanal span:not(.badge),
+.card-header-artesanal small {
+  color: var(--c-texto) !important;
 }
 
 /* ===== Formulario y Validaciones ===== */

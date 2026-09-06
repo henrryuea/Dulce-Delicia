@@ -1,27 +1,4 @@
-"""
-================================================================================
-PROYECTO: Dulce Delicia - Sistema de Gestión de Pastelería Artesanal
-ARCHIVO: forms/facturacion_form.py
-ASIGNATURA: Desarrollo de Aplicaciones Web
-UNIVERSIDAD: Universidad Estatal Amazónica (UEA)
-ESTUDIANTE: Desarrollo Web 2026
-SEMANA: 11 y 12 - Proyecto Integrador U3 (12/16)
-TEMA: Validación de Facturación con Flask-WTF y Normalización en 3FN
-================================================================================
-DESCRIPCIÓN DEL ARCHIVO:
-En este archivo estructuramos el formulario 'FacturacionForm' para la emisión
-y corrección de comprobantes de venta en la pastelería.
-
-Estructura Normalizada (3FN):
-  - Se vincula mediante clave foránea (id_cliente) con la tabla 'clientes'.
-  - Se vincula mediante clave foránea (id_metodo_pago) con el catálogo 'metodos_pago'
-    (Efectivo, Transferencia, Tarjeta, Depósito).
-  - Se vincula mediante clave foránea (id_estado_factura) con el catálogo
-    'estados_factura' (Emitida, Anulada, Pendiente).
-  - Almacena el número correlativo único de comprobante, fecha de emisión,
-    subtotal, valor de IVA al 15% (Ecuador), total y notas u observaciones.
-================================================================================
-"""
+"""Formulario WTForms para validar y registrar facturas."""
 
 # ==============================================================================
 # 1. IMPORTACIONES DE LIBRERÍAS Y COMPONENTES
@@ -216,7 +193,7 @@ class FacturacionForm(FlaskForm):
     # Campo 10: Botón de emisión de factura
     # --------------------------------------------------------------------------
     submit = SubmitField(
-        'Emitir y Guardar Factura en Base de Datos',
+        'Emitir Factura',
         render_kw={
             'class': 'btn btn-caramelo px-4 py-2 text-white shadow-sm'
         }
