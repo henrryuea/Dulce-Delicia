@@ -1,57 +1,10 @@
-"""
-================================================================================
-PROYECTO: Dulce Delicia - Sistema de Gestión de Pastelería Artesanal
-ASIGNATURA: Desarrollo de Aplicaciones Web
-UNIVERSIDAD: Universidad Estatal Amazónica (UEA)
-CARRERA: Tecnologías de la Información
-AVANCE: Semana 12 - Proyecto Integrador U3 (12/16)
-TEMA: Persistencia de datos en un entorno local con SQLite (3FN)
-ESTUDIANTE: Desarrollo Web 2026
-================================================================================
-DESCRIPCIÓN GENERAL:
-Este archivo constituye el núcleo backend del sistema web Dulce Delicia,
-desarrollado en Python con el framework Flask. Integra formularios seguros con
-validación del lado del servidor (Flask-WTF) y persistencia física en una base
-de datos local SQLite (dulce_delicia.db), estructurada estrictamente bajo el
-modelo relacional normalizado en Tercera Forma Normal (3FN).
+"""Rutas Flask del sistema administrativo y sitio público de Dulce Delicia."""
 
-ARQUITECTURA DEL MODELO NORMALIZADO (3FN):
-  1. Catálogos base:
-     - tipos_cliente (PERSONA NATURAL, EMPRESA)
-     - categorias_producto (TORTAS, POSTRES, PANADERIA, BEBIDAS, OTROS)
-     - unidades_medida (UNIDAD, KILOGRAMO, LITRO, PORCION)
-     - categorias_proveedor (MATERIA PRIMA, EMPAQUES, BEBIDAS, OTROS)
-     - estados_proveedor (ACTIVO, INACTIVO)
-     - estados_factura (EMITIDA, ANULADA, PENDIENTE)
-     - metodos_pago (EFECTIVO, TRANSFERENCIA, TARJETA, DEPOSITO)
-     - tipos_movimiento_inventario (COMPRA, VENTA, AJUSTES)
-  2. Tablas transaccionales:
-     - productos (claves foráneas a categorías y unidades de medida)
-     - clientes (clave foránea a tipos de cliente)
-     - proveedores (claves foráneas a categorías y estados)
-     - facturas y detalle_factura
-     - compras y detalle_compra
-     - movimientos_inventario
-  3. Vistas relacionales:
-     - vw_productos_stock_bajo
-     - vw_facturas_detalladas
-     - vw_ventas_por_producto
-
-FLUJO DE PERSISTENCIA (CRUD DE LA SEMANA 12):
-  1. Formulario Web con Token CSRF (Flask-WTF / WTForms).
-  2. Validación estricta en servidor con form.validate_on_submit().
-  3. Consultas SQL parametrizadas con '?' para evitar ataques de inyección SQL.
-  4. Confirmación de transacciones con conn.commit().
-  5. Recuperación con cursor.fetchall() y mapeo con sqlite3.Row.
-  6. Renderizado dinámico en plantillas Jinja2 y Bootstrap 5.
-================================================================================
-"""
-
-# ==============================================================================
+# ===============================================================================
 # 1. IMPORTACIÓN DE LIBRERÍAS Y MÓDULOS DE PYTHON Y FLASK
-# ==============================================================================
-import os                            # Operaciones del sistema de archivos y rutas
-import sqlite3                       # Controlador nativo para SQLite
+# ===============================================================================
+import os                             # Ruta de la portada externa
+import sqlite3                        # Excepción de integridad usada por las rutas
 from datetime import date, datetime  # Manipulación de fechas para comprobantes
 from functools import wraps          # Utilidad para construir decoradores en Python
 from flask import (
@@ -61,7 +14,8 @@ from flask import (
     redirect,                        # Redireccionamiento entre vistas
     url_for,                         # Generador de rutas seguras por nombre de función
     flash,                           # Envío de notificaciones temporales al usuario
-    session                          # Almacén de sesiones cifradas del navegador
+    session,                         # Almacén de sesiones cifradas del navegador
+    send_file                         # Sirve la portada estática externa
 )
 
 # Importamos las clases de formularios desarrolladas en la carpeta forms/
@@ -69,8 +23,7 @@ from forms import (
     ProductoForm,                    # Formulario para postres (3FN)
     ClienteForm,                     # Formulario para clientes (3FN)
     ProveedorForm,                   # Formulario para proveedores (3FN)
-    FacturacionForm,                 # Formulario para facturación (3FN)
-    LoginForm                        # Formulario para autenticación administrativa
+    FacturacionForm                  # Formulario para facturación (3FN)
 )
 
 
@@ -82,462 +35,15 @@ app = Flask(__name__)
 # Clave secreta para la firma criptográfica de sesiones y protección CSRF
 app.config['SECRET_KEY'] = 'dulce-delicia-pasteleria-semana12-sqlite-uea-2026'
 
-# Determinación de rutas absolutas para asegurar portabilidad en cualquier equipo
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-DATA_DIR = os.path.join(BASE_DIR, 'data')
-DB_PATH = os.path.join(DATA_DIR, 'dulce_delicia.db')
-
-
-# ==============================================================================
-# 3. CONTROLADOR DE CONEXIÓN CON SQLITE
-# ==============================================================================
-def obtener_conexion():
-    """
-    Establece y retorna una conexión activa con el archivo SQLite local.
-    
-    Características:
-      - Activa el soporte de claves foráneas con PRAGMA foreign_keys = ON.
-      - Establece row_factory = sqlite3.Row para acceder a los campos
-        por nombre de columna (ej. producto['precio_venta']).
-    """
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    # En SQLite las claves foráneas deben activarse explícitamente por conexión
-    conn.execute("PRAGMA foreign_keys = ON;")
-    return conn
-
-
-# ==============================================================================
-# 4. INICIALIZACIÓN DE LA BASE DE DATOS LOCAL NORMALIZADA (3FN)
-# ==============================================================================
-def inicializar_base_datos():
-    """
-    Crea la estructura relacional normalizada en Tercera Forma Normal (3FN)
-    dentro de data/dulce_delicia.db y carga los datos de catálogo iniciales.
-    """
-    os.makedirs(DATA_DIR, exist_ok=True)
-    conn = obtener_conexion()
-    cursor = conn.cursor()
-
-    # --------------------------------------------------------------------------
-    # A. TABLAS DE CATÁLOGOS BASE (3FN)
-    # --------------------------------------------------------------------------
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS tipos_cliente (
-            id_tipo_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL UNIQUE,
-            descripcion TEXT
-        );
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS categorias_producto (
-            id_categoria_producto INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL UNIQUE,
-            descripcion TEXT,
-            activo INTEGER NOT NULL DEFAULT 1
-        );
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS unidades_medida (
-            id_unidad INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL UNIQUE,
-            abreviatura TEXT NOT NULL UNIQUE
-        );
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS categorias_proveedor (
-            id_categoria_proveedor INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL UNIQUE,
-            descripcion TEXT
-        );
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS estados_proveedor (
-            id_estado_proveedor INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL UNIQUE,
-            descripcion TEXT
-        );
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS estados_factura (
-            id_estado_factura INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL UNIQUE,
-            descripcion TEXT
-        );
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS metodos_pago (
-            id_metodo_pago INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL UNIQUE,
-            activo INTEGER NOT NULL DEFAULT 1
-        );
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS tipos_movimiento_inventario (
-            id_tipo_movimiento INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL UNIQUE,
-            naturaleza TEXT NOT NULL CHECK (naturaleza IN ('E','S')),
-            descripcion TEXT
-        );
-    ''')
-
-    # --------------------------------------------------------------------------
-    # B. TABLAS PRINCIPALES DEL SISTEMA (3FN)
-    # --------------------------------------------------------------------------
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS clientes (
-            id_cliente INTEGER PRIMARY KEY AUTOINCREMENT,
-            id_tipo_cliente INTEGER NOT NULL REFERENCES tipos_cliente(id_tipo_cliente),
-            nombre TEXT NOT NULL,
-            cedula_ruc TEXT UNIQUE,
-            correo TEXT,
-            telefono TEXT,
-            direccion TEXT,
-            activo INTEGER NOT NULL DEFAULT 1,
-            fecha_registro TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
-        );
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS proveedores (
-            id_proveedor INTEGER PRIMARY KEY AUTOINCREMENT,
-            id_categoria_proveedor INTEGER REFERENCES categorias_proveedor(id_categoria_proveedor),
-            id_estado_proveedor INTEGER NOT NULL REFERENCES estados_proveedor(id_estado_proveedor),
-            razon_social TEXT NOT NULL,
-            ruc TEXT UNIQUE,
-            contacto TEXT,
-            telefono TEXT,
-            correo TEXT,
-            direccion TEXT,
-            fecha_registro TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
-        );
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS productos (
-            id_producto INTEGER PRIMARY KEY AUTOINCREMENT,
-            id_categoria_producto INTEGER NOT NULL REFERENCES categorias_producto(id_categoria_producto),
-            id_unidad INTEGER NOT NULL REFERENCES unidades_medida(id_unidad),
-            codigo TEXT NOT NULL UNIQUE,
-            nombre TEXT NOT NULL,
-            descripcion TEXT,
-            precio_venta REAL NOT NULL CHECK (precio_venta >= 0),
-            costo_referencial REAL NOT NULL DEFAULT 0 CHECK (costo_referencial >= 0),
-            stock_actual REAL NOT NULL DEFAULT 0 CHECK (stock_actual >= 0),
-            stock_minimo REAL NOT NULL DEFAULT 0 CHECK (stock_minimo >= 0),
-            imagen TEXT DEFAULT 'img/CHEESCAKE.png',
-            activo INTEGER NOT NULL DEFAULT 1,
-            fecha_registro TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
-        );
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS facturas (
-            id_factura INTEGER PRIMARY KEY AUTOINCREMENT,
-            numero TEXT NOT NULL UNIQUE,
-            id_cliente INTEGER NOT NULL REFERENCES clientes(id_cliente),
-            id_metodo_pago INTEGER NOT NULL REFERENCES metodos_pago(id_metodo_pago),
-            id_estado_factura INTEGER NOT NULL REFERENCES estados_factura(id_estado_factura),
-            fecha_emision TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
-            subtotal REAL NOT NULL DEFAULT 0 CHECK (subtotal >= 0),
-            iva REAL NOT NULL DEFAULT 0 CHECK (iva >= 0),
-            total REAL NOT NULL DEFAULT 0 CHECK (total >= 0),
-            observaciones TEXT
-        );
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS detalle_factura (
-            id_detalle INTEGER PRIMARY KEY AUTOINCREMENT,
-            id_factura INTEGER NOT NULL REFERENCES facturas(id_factura) ON DELETE CASCADE,
-            id_producto INTEGER NOT NULL REFERENCES productos(id_producto),
-            cantidad REAL NOT NULL CHECK (cantidad > 0),
-            precio_unitario REAL NOT NULL CHECK (precio_unitario >= 0),
-            descuento REAL NOT NULL DEFAULT 0 CHECK (descuento >= 0),
-            subtotal REAL NOT NULL
-        );
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS compras (
-            id_compra INTEGER PRIMARY KEY AUTOINCREMENT,
-            numero_documento TEXT NOT NULL UNIQUE,
-            id_proveedor INTEGER NOT NULL REFERENCES proveedores(id_proveedor),
-            fecha_compra TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
-            subtotal REAL NOT NULL DEFAULT 0 CHECK (subtotal >= 0),
-            iva REAL NOT NULL DEFAULT 0 CHECK (iva >= 0),
-            total REAL NOT NULL DEFAULT 0 CHECK (total >= 0),
-            estado TEXT NOT NULL DEFAULT 'RECIBIDA' CHECK (estado IN ('RECIBIDA','ANULADA')),
-            observaciones TEXT
-        );
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS detalle_compra (
-            id_detalle_compra INTEGER PRIMARY KEY AUTOINCREMENT,
-            id_compra INTEGER NOT NULL REFERENCES compras(id_compra) ON DELETE CASCADE,
-            id_producto INTEGER NOT NULL REFERENCES productos(id_producto),
-            cantidad REAL NOT NULL CHECK (cantidad > 0),
-            costo_unitario REAL NOT NULL CHECK (costo_unitario >= 0),
-            subtotal REAL NOT NULL
-        );
-    ''')
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS movimientos_inventario (
-            id_movimiento INTEGER PRIMARY KEY AUTOINCREMENT,
-            id_producto INTEGER NOT NULL REFERENCES productos(id_producto),
-            id_tipo_movimiento INTEGER NOT NULL REFERENCES tipos_movimiento_inventario(id_tipo_movimiento),
-            cantidad REAL NOT NULL CHECK (cantidad > 0),
-            stock_anterior REAL NOT NULL CHECK (stock_anterior >= 0),
-            stock_nuevo REAL NOT NULL CHECK (stock_nuevo >= 0),
-            fecha_movimiento TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
-            referencia TEXT,
-            observaciones TEXT
-        );
-    ''')
-
-    # --------------------------------------------------------------------------
-    # C. VISTAS RELACIONALES DEL SISTEMA
-    # --------------------------------------------------------------------------
-    cursor.execute('''
-        CREATE VIEW IF NOT EXISTS vw_productos_stock_bajo AS
-        SELECT
-            p.id_producto,
-            p.codigo,
-            p.nombre,
-            cp.nombre AS categoria,
-            p.stock_actual,
-            p.stock_minimo,
-            u.abreviatura AS unidad
-        FROM productos p
-        JOIN categorias_producto cp ON cp.id_categoria_producto = p.id_categoria_producto
-        JOIN unidades_medida u ON u.id_unidad = p.id_unidad
-        WHERE p.activo = 1
-          AND p.stock_actual <= p.stock_minimo;
-    ''')
-
-    cursor.execute('''
-        CREATE VIEW IF NOT EXISTS vw_facturas_detalladas AS
-        SELECT
-            f.id_factura,
-            f.numero,
-            f.fecha_emision,
-            c.nombre AS cliente,
-            c.cedula_ruc,
-            mp.nombre AS metodo_pago,
-            ef.nombre AS estado,
-            f.subtotal,
-            f.iva,
-            f.total,
-            f.observaciones
-        FROM facturas f
-        JOIN clientes c ON c.id_cliente = f.id_cliente
-        JOIN metodos_pago mp ON mp.id_metodo_pago = f.id_metodo_pago
-        JOIN estados_factura ef ON ef.id_estado_factura = f.id_estado_factura;
-    ''')
-
-    cursor.execute('''
-        CREATE VIEW IF NOT EXISTS vw_ventas_por_producto AS
-        SELECT
-            p.id_producto,
-            p.codigo,
-            p.nombre,
-            cp.nombre AS categoria,
-            COALESCE(SUM(df.cantidad), 0) AS unidades_vendidas,
-            COALESCE(SUM(df.subtotal), 0) AS ventas
-        FROM productos p
-        JOIN categorias_producto cp ON cp.id_categoria_producto = p.id_categoria_producto
-        LEFT JOIN detalle_factura df ON df.id_producto = p.id_producto
-        LEFT JOIN facturas f ON f.id_factura = df.id_factura
-        LEFT JOIN estados_factura ef ON ef.id_estado_factura = f.id_estado_factura AND ef.nombre = 'EMITIDA'
-        GROUP BY p.id_producto, p.codigo, p.nombre, cp.nombre;
-    ''')
-
-    # --------------------------------------------------------------------------
-    # D. POBLADO DE CATÁLOGOS BASE (SI ESTÁN VACÍOS)
-    # --------------------------------------------------------------------------
-    cursor.execute("SELECT COUNT(*) FROM tipos_cliente")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany("INSERT INTO tipos_cliente (nombre, descripcion) VALUES (?, ?)", [
-            ('PERSONA NATURAL', 'Cliente consumidor final o persona natural'),
-            ('EMPRESA', 'Cliente empresarial corporativo')
-        ])
-
-    cursor.execute("SELECT COUNT(*) FROM categorias_producto")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany("INSERT INTO categorias_producto (nombre, descripcion, activo) VALUES (?, ?, 1)", [
-            ('TORTAS', 'Tortas y pasteles tradicionales y de autor'),
-            ('POSTRES', 'Postres individuales y dulces finos'),
-            ('PANADERIA', 'Productos de panadería artesanal y hojaldres'),
-            ('BEBIDAS', 'Bebidas frías y cafetería de especialidad'),
-            ('OTROS', 'Otros productos y complementos')
-        ])
-
-    cursor.execute("SELECT COUNT(*) FROM unidades_medida")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany("INSERT INTO unidades_medida (nombre, abreviatura) VALUES (?, ?)", [
-            ('UNIDAD', 'UND'),
-            ('KILOGRAMO', 'KG'),
-            ('LITRO', 'L'),
-            ('PORCION', 'POR')
-        ])
-
-    cursor.execute("SELECT COUNT(*) FROM categorias_proveedor")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany("INSERT INTO categorias_proveedor (nombre, descripcion) VALUES (?, ?)", [
-            ('MATERIA PRIMA', 'Harina, azúcar, huevos, lácteos y otros insumos'),
-            ('EMPAQUES', 'Cajas, fundas, vasos y empaques ecológicos'),
-            ('BEBIDAS', 'Proveedores de granos de café y bebidas'),
-            ('OTROS', 'Otros proveedores de suministros')
-        ])
-
-    cursor.execute("SELECT COUNT(*) FROM estados_proveedor")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany("INSERT INTO estados_proveedor (nombre, descripcion) VALUES (?, ?)", [
-            ('ACTIVO', 'Proveedor homologado y habilitado'),
-            ('INACTIVO', 'Proveedor temporalmente no habilitado')
-        ])
-
-    cursor.execute("SELECT COUNT(*) FROM estados_factura")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany("INSERT INTO estados_factura (nombre, descripcion) VALUES (?, ?)", [
-            ('EMITIDA', 'Factura válida y cobrada'),
-            ('ANULADA', 'Factura anulada'),
-            ('PENDIENTE', 'Factura pendiente de pago o confirmación')
-        ])
-
-    cursor.execute("SELECT COUNT(*) FROM metodos_pago")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany("INSERT INTO metodos_pago (nombre, activo) VALUES (?, 1)", [
-            ('EFECTIVO',),
-            ('TRANSFERENCIA',),
-            ('TARJETA',),
-            ('DEPOSITO',)
-        ])
-
-    cursor.execute("SELECT COUNT(*) FROM tipos_movimiento_inventario")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany("INSERT INTO tipos_movimiento_inventario (nombre, naturaleza, descripcion) VALUES (?, ?, ?)", [
-            ('COMPRA', 'E', 'Ingreso por compra a proveedor'),
-            ('VENTA', 'S', 'Salida por venta a cliente'),
-            ('AJUSTE ENTRADA', 'E', 'Ajuste positivo de inventario'),
-            ('AJUSTE SALIDA', 'S', 'Ajuste negativo de inventario')
-        ])
-
-    # --------------------------------------------------------------------------
-    # E. POBLADO DE DATOS DE EJEMPLO DE LA PASTELERÍA DULCE DELICIA
-    # --------------------------------------------------------------------------
-    cursor.execute("SELECT COUNT(*) FROM productos")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany('''
-            INSERT INTO productos (
-                id_categoria_producto, id_unidad, codigo, nombre, descripcion,
-                precio_venta, costo_referencial, stock_actual, stock_minimo, imagen
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', [
-            (1, 1, 'TOR-001', 'Torta de chocolate fino', 'Torta de chocolate decorada con cacao fino de aroma y ganache artesanal.', 18.00, 10.00, 10.0, 3.0, 'img/MOUSSE.png'),
-            (1, 1, 'TOR-002', 'Torta clásica de vainilla', 'Torta esponjosa de vainilla rellena con crema diplomática y fresas.', 16.00, 9.00, 8.0, 3.0, 'img/TARTADEFRUTA.png'),
-            (2, 4, 'POS-001', 'Cheesecake clásico de frutos rojos', 'Porción cremosa de cheesecake horneado estilo New York con coulis artesanal.', 3.50, 1.80, 20.0, 5.0, 'img/CHEESCAKE.png'),
-            (2, 1, 'POS-002', 'Cupcake artesanal decorado', 'Cupcake suave de autor decorado con crema chantilly y perlas comestibles.', 2.00, 0.90, 25.0, 8.0, 'img/DULCEDELICIA.png'),
-            (3, 1, 'PAN-001', 'Croissant francés de mantequilla', 'Croissant hojaldrado con mantequilla pura importada de masa madre.', 1.50, 0.70, 30.0, 10.0, 'img/CHEESCAKE.png'),
-            (4, 1, 'BEB-001', 'Café americano de especialidad', 'Café arábigo lojano de especialidad tostado artesanalmente.', 1.50, 0.50, 50.0, 10.0, 'img/DULCEDELICIA.png')
-        ])
-
-    cursor.execute("SELECT COUNT(*) FROM clientes")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany('''
-            INSERT INTO clientes (id_tipo_cliente, nombre, cedula_ruc, correo, telefono, direccion)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ''', [
-            (1, 'Consumidor Final', '9999999999999', 'final@dulcedelicia.ec', '0999999999', 'Quito - Ecuador'),
-            (1, 'Ana Torres Mendoza', '1718293841', 'ana.torres@email.com', '0991112233', 'Av. República y Eloy Alfaro N34-12, Quito')
-        ])
-
-    cursor.execute("SELECT COUNT(*) FROM proveedores")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany('''
-            INSERT INTO proveedores (
-                id_categoria_proveedor, id_estado_proveedor, razon_social, ruc,
-                contacto, telefono, correo, direccion
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', [
-            (1, 1, 'Lácteos Andinos Cía. Ltda.', '1791234567001', 'Ing. María León', '0224588990', 'ventas@lacteosandinos.com', 'Parque Industrial Machachi, Pichincha'),
-            (1, 1, 'Frutas del Valle Ecuador', '1792345678001', 'Lic. Carlos Ruiz', '0987654321', 'pedidos@frutasdelvalle.ec', 'Valle de los Chillos, Sangolquí')
-        ])
-
-    cursor.execute("SELECT COUNT(*) FROM facturas")
-    if cursor.fetchone()[0] == 0:
-        cursor.executemany('''
-            INSERT INTO facturas (
-                numero, id_cliente, id_metodo_pago, id_estado_factura,
-                fecha_emision, subtotal, iva, total, observaciones
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', [
-            ('FAC-001', 2, 2, 1, '2026-08-20', 32.17, 4.83, 37.00, '2x Torta de chocolate para evento familiar.'),
-            ('FAC-002', 1, 1, 1, '2026-08-22', 23.48, 3.52, 27.00, 'Cheesecake clásico y café americano.')
-        ])
-
-    conn.commit()
-    conn.close()
-
-
-# Invocación obligatoria para garantizar la existencia de tablas al arrancar la app
-inicializar_base_datos()
-
-
-# ==============================================================================
-# 5. FUNCIONES AUXILIARES PARA FORMULARIOS FLASK-WTF (3FN)
-# ==============================================================================
-def sincronizar_opciones_producto(form):
-    """Carga dinámicamente las categorías y unidades de medida desde SQLite en el formulario."""
-    conn = obtener_conexion()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id_categoria_producto, nombre FROM categorias_producto WHERE activo = 1 ORDER BY id_categoria_producto ASC")
-    form.id_categoria_producto.choices = [(row['id_categoria_producto'], f"🎂 {row['nombre']}") for row in cursor.fetchall()]
-    cursor.execute("SELECT id_unidad, nombre || ' (' || abreviatura || ')' AS etiqueta FROM unidades_medida ORDER BY id_unidad ASC")
-    form.id_unidad.choices = [(row['id_unidad'], row['etiqueta']) for row in cursor.fetchall()]
-    conn.close()
-
-
-def sincronizar_opciones_cliente(form):
-    """Carga los tipos de cliente desde SQLite en el formulario."""
-    conn = obtener_conexion()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id_tipo_cliente, nombre FROM tipos_cliente ORDER BY id_tipo_cliente ASC")
-    form.id_tipo_cliente.choices = [(row['id_tipo_cliente'], f"👤 {row['nombre']}") for row in cursor.fetchall()]
-    conn.close()
-
-
-def sincronizar_opciones_proveedor(form):
-    """Carga las categorías y estados de proveedores desde SQLite en el formulario."""
-    conn = obtener_conexion()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id_categoria_proveedor, nombre FROM categorias_proveedor ORDER BY id_categoria_proveedor ASC")
-    form.id_categoria_proveedor.choices = [(row['id_categoria_proveedor'], f"🌾 {row['nombre']}") for row in cursor.fetchall()]
-    cursor.execute("SELECT id_estado_proveedor, nombre FROM estados_proveedor ORDER BY id_estado_proveedor ASC")
-    form.id_estado_proveedor.choices = [(row['id_estado_proveedor'], f"✅ {row['nombre']}") for row in cursor.fetchall()]
-    conn.close()
-
-
-def sincronizar_opciones_factura(form):
-    """Carga clientes, métodos de pago y estados desde SQLite en el formulario de factura."""
-    conn = obtener_conexion()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id_cliente, nombre || ' (' || COALESCE(cedula_ruc, 'S/N') || ')' AS etiqueta FROM clientes ORDER BY nombre ASC")
-    form.id_cliente.choices = [(row['id_cliente'], row['etiqueta']) for row in cursor.fetchall()]
-    cursor.execute("SELECT id_metodo_pago, nombre FROM metodos_pago WHERE activo = 1 ORDER BY id_metodo_pago ASC")
-    form.id_metodo_pago.choices = [(row['id_metodo_pago'], f"💵 {row['nombre']}") for row in cursor.fetchall()]
-    cursor.execute("SELECT id_estado_factura, nombre FROM estados_factura ORDER BY id_estado_factura ASC")
-    form.id_estado_factura.choices = [(row['id_estado_factura'], f"📌 {row['nombre']}") for row in cursor.fetchall()]
-    conn.close()
+from database import (
+    BASE_DIR,
+    obtener_conexion,
+    guardar_imagen_producto,
+    sincronizar_opciones_producto,
+    sincronizar_opciones_cliente,
+    sincronizar_opciones_proveedor,
+    sincronizar_opciones_factura
+)
 
 
 # ==============================================================================
@@ -563,39 +69,26 @@ def login_requerido(f):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """
-    Gestiona el inicio de sesión del personal administrativo mediante Flask-WTF.
+    Abre directamente el sistema administrativo desde el botón de acceso.
+
+    El proyecto conserva la plantilla de login como referencia académica, pero
+    el flujo solicitado no requiere una pantalla intermedia de credenciales.
     """
     if session.get('usuario'):
         return redirect(url_for('panel'))
 
-    form = LoginForm()
-    if form.validate_on_submit():
-        usuario = form.usuario.data.strip()
-        clave = form.password.data.strip()
-
-        # Credenciales académicas demostrativas
-        if usuario.lower() == 'admin' and clave == 'admin123':
-            session['usuario'] = 'Administrador'
-            session['rol'] = 'admin'
-            flash('¡Bienvenido! Ha ingresado al sistema exitosamente.', 'success')
-            return redirect(url_for('panel'))
-        elif usuario and clave:
-            session['usuario'] = usuario.capitalize()
-            session['rol'] = 'usuario'
-            flash(f'¡Bienvenido {session["usuario"]}! Ha ingresado al sistema.', 'success')
-            return redirect(url_for('panel'))
-        else:
-            flash('Usuario o contraseña incorrectos.', 'danger')
-
-    return render_template('login.html', form=form)
+    session['usuario'] = 'Administrador'
+    session['rol'] = 'admin'
+    flash('¡Bienvenido al sistema administrativo!', 'success')
+    return redirect(url_for('panel'))
 
 
 @app.route('/logout')
 def logout():
-    """Cierra la sesión administrativa y redirige a la vista pública de la pastelería."""
+    """Cierra la sesión administrativa y vuelve a la portada pública externa."""
     session.clear()
     flash('Ha cerrado su sesión correctamente.', 'info')
-    return redirect(url_for('inicio'))
+    return redirect(url_for('inicio_externo'))
 
 
 # ==============================================================================
@@ -662,6 +155,12 @@ def panel():
 # ==============================================================================
 # 9. RUTA PÚBLICA PRINCIPAL (CATÁLOGO PARA CLIENTES)
 # ==============================================================================
+@app.route('/index.html')
+def inicio_externo():
+    """Sirve la portada raíz usada también por GitHub Pages."""
+    return send_file(os.path.join(BASE_DIR, 'index.html'))
+
+
 @app.route('/')
 def inicio():
     """
@@ -786,6 +285,15 @@ def nuevo_producto():
         form.codigo.data = f"POS-{conteo + 1:03d}"
 
     if form.validate_on_submit():
+        try:
+            imagen = guardar_imagen_producto(form.imagen.data)
+        except ValueError as error:
+            form.imagen.errors.append(str(error))
+            return render_template("formulario_producto.html", form=form, modo="registro", producto=None)
+
+        if not imagen:
+            imagen = form.imagen_existente.data or 'img/CHEESCAKE.png'
+
         codigo = form.codigo.data.strip().upper()
         nombre = form.nombre.data.strip()
         id_categoria = int(form.id_categoria_producto.data)
@@ -795,8 +303,6 @@ def nuevo_producto():
         costo = float(form.costo_referencial.data) if form.costo_referencial.data else 0.0
         stock_actual = float(form.stock_actual.data)
         stock_minimo = float(form.stock_minimo.data)
-        imagen = form.imagen.data
-
         conn = obtener_conexion()
         cursor = conn.cursor()
         try:
@@ -850,10 +356,21 @@ def editar_producto(id):
         form.costo_referencial.data = producto['costo_referencial']
         form.stock_actual.data = producto['stock_actual']
         form.stock_minimo.data = producto['stock_minimo']
-        form.imagen.data = producto['imagen']
+        form.imagen.data = None
+        form.imagen_existente.data = producto['imagen']
 
     # Procesar actualización al superar validaciones
     if form.validate_on_submit():
+        imagen = producto['imagen']
+        if form.imagen.data and form.imagen.data.filename:
+            try:
+                imagen = guardar_imagen_producto(form.imagen.data)
+            except ValueError as error:
+                form.imagen.errors.append(str(error))
+                return render_template("formulario_producto.html", form=form, modo="edicion", producto=producto)
+        elif form.imagen_existente.data:
+            imagen = form.imagen_existente.data
+
         conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute('''
@@ -872,7 +389,7 @@ def editar_producto(id):
             float(form.costo_referencial.data) if form.costo_referencial.data else 0.0,
             float(form.stock_actual.data),
             float(form.stock_minimo.data),
-            form.imagen.data,
+            imagen,
             id
         ))
         conn.commit()

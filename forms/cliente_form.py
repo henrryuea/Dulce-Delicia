@@ -1,31 +1,4 @@
-"""
-================================================================================
-PROYECTO: Dulce Delicia - Sistema de Gestión de Pastelería Artesanal
-ARCHIVO: forms/cliente_form.py
-ASIGNATURA: Desarrollo de Aplicaciones Web
-UNIVERSIDAD: Universidad Estatal Amazónica (UEA)
-ESTUDIANTE: Desarrollo Web 2026
-SEMANA: 11 y 12 - Proyecto Integrador U3 (12/16)
-TEMA: Validación de Clientes con Flask-WTF y Normalización en 3FN
-================================================================================
-DESCRIPCIÓN DEL ARCHIVO:
-Este módulo define la clase de formulario 'ClienteForm' que gestiona la entrada
-y modificación de datos de clientes en la pastelería artesanal Dulce Delicia.
-
-Estructura Relacional Normalizada (3FN):
-  - Se vincula mediante clave foránea (id_tipo_cliente) con el catálogo
-    'tipos_cliente' ('PERSONA NATURAL' o 'EMPRESA').
-  - Almacena identificación fiscal única (cedula_ruc), nombres completos,
-    correo electrónico institucional o personal, número telefónico y domicilio.
-
-VALIDACIONES INTEGRADAS DEL LADO DEL SERVIDOR:
-  - Token CSRF obligatorio mediante FlaskForm.
-  - DataRequired: Previene registros incompletos.
-  - Length: Limita longitudes según las restricciones de la base de datos.
-  - Email: Verifica la estructura sintáctica estándar de correos.
-  - Regexp: Valida que cédula/RUC y teléfono contengan únicamente dígitos.
-================================================================================
-"""
+"""Formulario WTForms para validar y registrar clientes."""
 
 # ==============================================================================
 # 1. IMPORTACIONES DE MÓDULOS DE FLASK-WTF Y WTFORMS
@@ -157,7 +130,7 @@ class ClienteForm(FlaskForm):
     # Campo 7: Botón de envío procesado por Flask
     # --------------------------------------------------------------------------
     submit = SubmitField(
-        'Guardar Cliente en Base de Datos',
+        'Guardar Cliente',
         render_kw={
             'class': 'btn btn-caramelo px-4 py-2 text-white shadow-sm'
         }

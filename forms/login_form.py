@@ -1,11 +1,4 @@
-"""
-================================================================================
-PROYECTO: Dulce Delicia - Sistema de Pastelería Artesanal
-ARCHIVO: forms/login_form.py
-DESCRIPCIÓN: Formulario de inicio de sesión desarrollado con Flask-WTF
-ESTUDIANTE: Desarrollo de Aplicaciones Web - UEA
-================================================================================
-"""
+"""Formulario WTForms para el acceso administrativo."""
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField
 from wtforms.validators import DataRequired, Length

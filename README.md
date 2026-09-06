@@ -129,4 +129,4 @@ Ingresar a: **[http://127.0.0.1:5000](http://127.0.0.1:5000)**
 1. **Protección CSRF**: Toda petición POST de formulario valida el token CSRF generado mediante `{{ form.hidden_tag() }}`.
 2. **Validación del lado del Servidor**: Se utiliza `form.validate_on_submit()` para garantizar la integridad de los datos antes de procesarlos.
 3. **Mensajes de Error Contextuales**: Errores renderizados directamente debajo de cada campo (`.invalid-feedback`).
-4. **Preparación para Persistencia**: Estructura modular diseñada para conectar con MySQL o PostgreSQL en las semanas 12-16 sin reestructurar las vistas.
+4. **Persistencia local**: La aplicación utiliza SQLite mediante `data/dulce_delicia.db`.

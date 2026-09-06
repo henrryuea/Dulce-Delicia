@@ -1,36 +1,4 @@
-"""
-================================================================================
-PROYECTO: Dulce Delicia - Sistema de Gestión de Pastelería Artesanal
-ARCHIVO: forms/producto_form.py
-ASIGNATURA: Desarrollo de Aplicaciones Web
-UNIVERSIDAD: Universidad Estatal Amazónica (UEA)
-DOCENTE / EVALUADOR: Carrera de Tecnologías de la Información
-ESTUDIANTE: Desarrollo Web 2026
-SEMANA: 11 y 12 - Proyecto Integrador U3 (12/16)
-TEMA: Validación de Formularios con Flask-WTF y Modelo Normalizado (3FN)
-================================================================================
-DESCRIPCIÓN DEL ARCHIVO:
-En este archivo definimos la clase de formulario 'ProductoForm' utilizando las
-herramientas de Flask-WTF y WTForms. Este formulario representa la interfaz
-de entrada para el módulo de inventario y catálogo de la pastelería.
-
-A diferencia de modelos planos o no estructurados, este formulario implementa
-la estructura correspondiente al modelo relacional normalizado en Tercera
-Forma Normal (3FN), vinculándose con:
-  1. Catálogo de Categorías (tabla 'categorias_producto')
-  2. Catálogo de Unidades de Medida (tabla 'unidades_medida')
-  3. Campos financieros y de control de stock (precio_venta, costo_referencial,
-     stock_actual, stock_minimo, código único correlativo).
-
-MEDIDAS DE SEGURIDAD Y VALIDACIÓN:
-  - Token CSRF automático generado por FlaskForm para mitigar falsificación
-    de peticiones en sitios cruzados.
-  - DataRequired(): Impide el envío de campos obligatorios en blanco.
-  - Length(): Limita el número de caracteres para prevenir ataques de desbordamiento.
-  - NumberRange(): Asegura que precios y cantidades sean estrictamente no negativos.
-  - Regexp(): Valida la nomenclatura estandarizada de los códigos de producto.
-================================================================================
-"""
+"""Formulario WTForms para validar y registrar productos."""
 
 # ==============================================================================
 # 1. IMPORTACIONES DE LIBRERÍAS Y COMPONENTES DE FLASK-WTF Y WTFORMS
@@ -42,6 +10,7 @@ from wtforms import (
     DecimalField,      # Campo numérico de coma flotante para valores monetarios y stock
     IntegerField,      # Campo numérico entero para cantidades enteras
     SelectField,       # Lista desplegable para claves foráneas y selecciones
+    FileField,         # Archivo de imagen elegido desde el equipo
     SubmitField        # Botón de envío procesado por el servidor
 )
 from wtforms.validators import (
@@ -230,21 +199,22 @@ class ProductoForm(FlaskForm):
     # --------------------------------------------------------------------------
     # Campo 10: Fotografía representativa del postre para el catálogo
     # --------------------------------------------------------------------------
-    imagen = SelectField(
+    imagen = FileField(
         'Fotografía del Producto',
-        choices=[
-            ('img/CHEESCAKE.png', '🍰 Cheesecake Clásico New York (img/CHEESCAKE.png)'),
-            ('img/TARTADEFRUTA.png', '🍓 Tarta de Frutas Tropicales (img/TARTADEFRUTA.png)'),
-            ('img/MOUSSE.png', '🍫 Mousse de Chocolate Fino (img/MOUSSE.png)'),
-            ('img/DULCEDELICIA.png', '🎂 Especialidad Dulce Delicia (img/DULCEDELICIA.png)')
-        ],
-        default='img/CHEESCAKE.png',
-        validators=[
-            DataRequired(message='Debe seleccionar una fotografía para el postre.')
-        ],
+        render_kw={
+            'class': 'form-control',
+            'id': 'select_imagen_producto',
+            'accept': '.png,.jpg,.jpeg,.webp,.gif'
+        }
+    )
+
+    imagen_existente = SelectField(
+        'Usar una imagen existente',
+        choices=[],
+        validate_choice=False,
         render_kw={
             'class': 'form-select',
-            'id': 'select_imagen_producto'
+            'id': 'imagen_existente_producto'
         }
     )
 
@@ -252,7 +222,7 @@ class ProductoForm(FlaskForm):
     # Campo 11: Botón de envío procesado por el servidor Flask
     # --------------------------------------------------------------------------
     submit = SubmitField(
-        'Guardar Producto en Base de Datos',
+        'Guardar Producto',
         render_kw={
             'class': 'btn btn-caramelo px-4 py-2 text-white shadow-sm'
         }

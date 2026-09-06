@@ -1,27 +1,4 @@
-"""
-================================================================================
-PROYECTO: Dulce Delicia - Sistema de Gestión de Pastelería Artesanal
-ARCHIVO: forms/proveedor_form.py
-ASIGNATURA: Desarrollo de Aplicaciones Web
-UNIVERSIDAD: Universidad Estatal Amazónica (UEA)
-ESTUDIANTE: Desarrollo Web 2026
-SEMANA: 11 y 12 - Proyecto Integrador U3 (12/16)
-TEMA: Validación de Proveedores con Flask-WTF y Normalización en 3FN
-================================================================================
-DESCRIPCIÓN DEL ARCHIVO:
-En este archivo implementamos la clase 'ProveedorForm' para la captura y
-actualización de los datos de proveedores de materias primas (harinas, lácteos,
-chocolates, frutas e insumos de panadería).
-
-Estructura Normalizada (3FN):
-  - Vinculación mediante clave foránea (id_categoria_proveedor) con la tabla
-    'categorias_proveedor' (Materia Prima, Empaques, Bebidas, Otros).
-  - Vinculación mediante clave foránea (id_estado_proveedor) con la tabla
-    'estados_proveedor' (Activo, Inactivo).
-  - Almacena Razón Social, RUC tributario único, Representante comercial,
-    contacto telefónico, correo institucional y dirección física de bodega.
-================================================================================
-"""
+"""Formulario WTForms para validar y registrar proveedores."""
 
 # ==============================================================================
 # 1. IMPORTACIONES DE FLASK-WTF Y WTFORMS
@@ -189,7 +166,7 @@ class ProveedorForm(FlaskForm):
     # Campo 9: Botón de confirmación y guardado
     # --------------------------------------------------------------------------
     submit = SubmitField(
-        'Guardar Proveedor en Base de Datos',
+        'Guardar Proveedor',
         render_kw={
             'class': 'btn btn-caramelo px-4 py-2 text-white shadow-sm'
         }

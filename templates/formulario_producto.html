@@ -87,7 +87,7 @@ SEGURIDAD Y USABILIDAD:
           <!-- ==============================================================================
                3. FORMULARIO FLASK-WTF (MÉTODO POST)
           ============================================================================== -->
-          <form method="POST" novalidate>
+          <form method="POST" enctype="multipart/form-data" novalidate>
             <!-- Token de seguridad contra ataques Cross-Site Request Forgery -->
             {{ form.hidden_tag() }}
 
@@ -245,11 +245,14 @@ SEGURIDAD Y USABILIDAD:
 
               <!-- Campo: Fotografía / Imagen -->
               <div class="col-12">
-                <label for="{{ form.imagen.id }}" class="form-label">
-                  {{ form.imagen.label.text }} <span class="text-danger">*</span>
+                <label for="{{ form.imagen_existente.id }}" class="form-label">
+                  Imagen del Producto
                 </label>
-                {{ form.imagen(class="form-select" + (" is-invalid" if form.imagen.errors else ""), id="select_imagen_producto") }}
-                <div class="form-help-text text-muted small">Imagen que se mostrará en el catálogo web.</div>
+                {{ form.imagen_existente(class="form-select" + (" is-invalid" if form.imagen_existente.errors else "")) }}
+                <div class="form-help-text text-muted small">Puedes reutilizar una imagen disponible o cargar una nueva debajo.</div>
+                <label for="{{ form.imagen.id }}" class="form-label mt-3">Cargar imagen local <span class="text-muted">(opcional)</span></label>
+                {{ form.imagen(class="form-control" + (" is-invalid" if form.imagen.errors else ""), id="select_imagen_producto") }}
+                <div class="form-help-text text-muted small">Formatos permitidos: PNG, JPG, JPEG, WEBP o GIF.</div>
                 {% if form.imagen.errors %}
                   <div class="invalid-feedback">
                     {% for error in form.imagen.errors %}
@@ -262,10 +265,10 @@ SEGURIDAD Y USABILIDAD:
               <!-- Previsualización en vivo de la imagen del postre -->
               <div class="col-12 mt-3">
                 <div class="p-3 bg-light rounded-3 border d-flex align-items-center gap-3">
-                  <img id="preview_imagen" src="{{ url_for('static', filename=form.imagen.data or 'img/CHEESCAKE.png') }}" alt="Vista previa" class="rounded-3 border shadow-sm" style="width: 80px; height: 80px; object-fit: cover;">
+                  <img id="preview_imagen" src="{{ url_for('static', filename=(producto.imagen if producto and producto.imagen else 'img/CHEESCAKE.png')) }}" alt="Vista previa" class="rounded-3 border shadow-sm" style="width: 80px; height: 80px; object-fit: cover;">
                   <div>
                     <strong class="d-block text-dark small">Vista previa de la fotografía</strong>
-                    <span class="text-muted small" id="ruta_preview">{{ form.imagen.data or 'img/CHEESCAKE.png' }}</span>
+                    <span class="text-muted small" id="ruta_preview">{{ producto.imagen if producto and producto.imagen else 'Selecciona una imagen' }}</span>
                   </div>
                 </div>
               </div>
@@ -287,18 +290,27 @@ SEGURIDAD Y USABILIDAD:
   </div>
 </section>
 
-<!-- Script interactivo para actualizar la vista previa de la foto al cambiar el selector -->
+<!-- Script interactivo para actualizar la vista previa de la foto elegida -->
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     const selectImg = document.getElementById('select_imagen_producto');
+    const imagenExistente = document.getElementById('imagen_existente_producto');
     const previewImg = document.getElementById('preview_imagen');
     const rutaSpan = document.getElementById('ruta_preview');
 
     if (selectImg && previewImg && rutaSpan) {
       selectImg.addEventListener('change', function() {
-        const nuevaRuta = this.value;
-        previewImg.src = '/static/' + nuevaRuta;
-        rutaSpan.textContent = nuevaRuta;
+        const archivo = this.files[0];
+        if (!archivo) return;
+        previewImg.src = URL.createObjectURL(archivo);
+        rutaSpan.textContent = archivo.name;
+      });
+    }
+    if (imagenExistente && previewImg && rutaSpan) {
+      imagenExistente.addEventListener('change', function() {
+        if (!this.value) return;
+        previewImg.src = '/static/' + this.value;
+        rutaSpan.textContent = this.value;
       });
     }
   });
