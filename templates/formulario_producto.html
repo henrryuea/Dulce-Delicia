@@ -83,14 +83,21 @@
 
                             <!-- 4. Imagen del producto -->
                             <div class="mb-3">
-                                {{ form.imagen.label(class="form-label fw-semibold text-navy small") }}
+                                {{ form.imagen_url.label(class="form-label fw-semibold text-navy small") }}
                                 <div class="input-group">
                                     <span class="input-group-text bg-light"><i class="bi bi-image"></i></span>
+                                    {{ form.imagen_url(class="form-control" + (" is-invalid" if form.imagen_url.errors else ""), type="url", placeholder="https://ejemplo.com/imagen.jpg") }}
+                                </div>
+                                <div class="form-text small text-muted">Pega un enlace público directo a una imagen. También puedes subir un archivo JPG, PNG o WEBP de hasta 5 MB.</div>
+                                {% for error in form.imagen_url.errors %}
+                                    <div class="text-danger small mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                {% endfor %}
+                                <div class="mt-2">
+                                    {{ form.imagen.label(class="form-label fw-semibold text-navy small") }}
                                     {{ form.imagen(class="form-control" + (" is-invalid" if form.imagen.errors else ""), accept="image/jpeg,image/png,image/webp") }}
                                 </div>
-                                <div class="form-text small text-muted">Selecciona una imagen JPG, PNG o WEBP de hasta 5 MB. Se guardará en la base de datos.</div>
-                                <div id="imagenPreviewContenedor" class="mt-3 {% if not editando %}d-none{% endif %}">
-                                    <img id="imagenPreview" src="{% if editando %}{{ url_for('imagen_producto', producto_id=id) }}{% endif %}" alt="Vista previa de la imagen del producto"
+                                <div id="imagenPreviewContenedor" class="mt-3 {% if not ((editando and imagen_actual) or form.imagen_url.data) %}d-none{% endif %}">
+                                    <img id="imagenPreview" src="{% if form.imagen_url.data %}{{ form.imagen_url.data }}{% elif editando and imagen_actual %}{{ url_for('imagen_producto', producto_id=id) }}{% endif %}" alt="Vista previa de la imagen del producto"
                                          class="img-fluid rounded-3 border shadow-sm" style="max-height: 180px; width: 100%; object-fit: cover;">
                                     <small id="imagenPreviewEstado" class="text-muted d-block mt-1"></small>
                                 </div>
@@ -162,35 +169,61 @@
 <script>
 (() => {
     const campo = document.getElementById('{{ form.imagen.id }}');
+    const campoUrl = document.getElementById('{{ form.imagen_url.id }}');
     const contenedor = document.getElementById('imagenPreviewContenedor');
     const preview = document.getElementById('imagenPreview');
     const estado = document.getElementById('imagenPreviewEstado');
-    if (!campo || !contenedor || !preview) return;
+    if (!campo || !campoUrl || !contenedor || !preview) return;
 
     let vistaPreviaLocal = null;
+    const limpiarVistaPreviaLocal = () => {
+        if (vistaPreviaLocal) URL.revokeObjectURL(vistaPreviaLocal);
+        vistaPreviaLocal = null;
+    };
     const actualizarVistaPrevia = () => {
+        const url = campoUrl.value.trim();
+        if (url) {
+            limpiarVistaPreviaLocal();
+            campo.value = '';
+            preview.src = url;
+            contenedor.classList.remove('d-none');
+            estado.textContent = 'Vista previa de la URL ingresada.';
+            return;
+        }
+
         const archivo = campo.files && campo.files[0];
         if (!archivo) {
-            if (vistaPreviaLocal) URL.revokeObjectURL(vistaPreviaLocal);
-            vistaPreviaLocal = null;
+            limpiarVistaPreviaLocal();
             {% if editando %}
+            {% if imagen_actual %}
             preview.src = "{{ url_for('imagen_producto', producto_id=id) }}";
             contenedor.classList.remove('d-none');
-            estado.textContent = 'Imagen local guardada actualmente.';
+            estado.textContent = 'Imagen guardada actualmente.';
+            {% else %}
+            contenedor.classList.add('d-none');
+            preview.removeAttribute('src');
+            {% endif %}
             {% else %}
             contenedor.classList.add('d-none');
             preview.removeAttribute('src');
             {% endif %}
             return;
         }
-        if (vistaPreviaLocal) URL.revokeObjectURL(vistaPreviaLocal);
+        limpiarVistaPreviaLocal();
         vistaPreviaLocal = URL.createObjectURL(archivo);
         preview.src = vistaPreviaLocal;
         contenedor.classList.remove('d-none');
         estado.textContent = 'Vista previa de la imagen seleccionada.';
     };
 
-    campo.addEventListener('change', actualizarVistaPrevia);
+    campo.addEventListener('change', () => {
+        campoUrl.value = '';
+        actualizarVistaPrevia();
+    });
+    campoUrl.addEventListener('input', actualizarVistaPrevia);
+    preview.addEventListener('error', () => {
+        estado.textContent = 'No se pudo cargar la imagen. Verifica que el enlace sea público y directo a una imagen.';
+    });
     actualizarVistaPrevia();
 })();
 </script>

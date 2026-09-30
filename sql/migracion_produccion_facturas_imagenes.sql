@@ -11,10 +11,17 @@ CREATE INDEX IF NOT EXISTS idx_facturacion_fecha_hora
 
 CREATE TABLE IF NOT EXISTS imagenes_productos (
     producto_id INTEGER PRIMARY KEY REFERENCES productos(id) ON DELETE CASCADE,
-    contenido BYTEA NOT NULL,
+    contenido BYTEA,
+    url TEXT,
     tipo_contenido VARCHAR(30) NOT NULL DEFAULT 'image/jpeg',
     actualizado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE imagenes_productos
+    ADD COLUMN IF NOT EXISTS url TEXT;
+
+ALTER TABLE imagenes_productos
+    ALTER COLUMN contenido DROP NOT NULL;
 
 CREATE TABLE IF NOT EXISTS lotes_produccion (
     id SERIAL PRIMARY KEY,

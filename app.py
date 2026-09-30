@@ -214,10 +214,19 @@ def asegurar_inventario_base():
         cur.execute("""
             CREATE TABLE IF NOT EXISTS imagenes_productos (
                 producto_id INTEGER PRIMARY KEY REFERENCES productos(id) ON DELETE CASCADE,
-                contenido BYTEA NOT NULL,
+                contenido BYTEA,
+                url TEXT,
                 tipo_contenido VARCHAR(30) NOT NULL DEFAULT 'image/jpeg',
                 actualizado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
+        """)
+        cur.execute("""
+            ALTER TABLE imagenes_productos
+            ADD COLUMN IF NOT EXISTS url TEXT
+        """)
+        cur.execute("""
+            ALTER TABLE imagenes_productos
+            ALTER COLUMN contenido DROP NOT NULL
         """)
         cur.execute("""
             CREATE TABLE IF NOT EXISTS lotes_produccion (
@@ -2118,28 +2127,36 @@ def guardar_imagen_producto(archivo):
 
 @app.route('/productos/<int:producto_id>/imagen')
 def imagen_producto(producto_id):
-    """Sirve la imagen local del catálogo guardada en la base de datos."""
+    """Sirve la imagen local del catálogo o redirige a su URL pública."""
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
-        'SELECT contenido, tipo_contenido FROM imagenes_productos WHERE producto_id = %s',
+        'SELECT contenido, tipo_contenido, url FROM imagenes_productos WHERE producto_id = %s',
         (producto_id,)
     )
     imagen = cur.fetchone()
     cur.close()
     conn.close()
     if not imagen:
-        return send_file(
+        respuesta = send_file(
             os.path.join(app.static_folder, 'img', 'MOUSSE.png'),
-            mimetype='image/png',
-            max_age=3600
+            mimetype='image/png'
         )
-    return send_file(
-        io.BytesIO(bytes(imagen['contenido'])),
-        mimetype=imagen['tipo_contenido'],
-        download_name=f'producto-{producto_id}.jpg',
-        max_age=3600
-    )
+    elif imagen['url']:
+        respuesta = redirect(imagen['url'])
+    elif imagen['contenido'] is not None:
+        respuesta = send_file(
+            io.BytesIO(bytes(imagen['contenido'])),
+            mimetype=imagen['tipo_contenido'],
+            download_name=f'producto-{producto_id}.jpg'
+        )
+    else:
+        respuesta = send_file(
+            os.path.join(app.static_folder, 'img', 'MOUSSE.png'),
+            mimetype='image/png'
+        )
+    respuesta.headers['Cache-Control'] = 'no-store'
+    return respuesta
 
 
 def eliminar_foto_perfil(ruta_relativa):
@@ -4541,10 +4558,11 @@ def nuevo_producto():
     form.categoria_producto_id.choices = [(t['id'], t['nombre']) for t in tipos]
 
     if form.validate_on_submit():
+        imagen_url = form.imagen_url.data.strip() if form.imagen_url.data else None
         try:
             imagen_bytes = (
                 guardar_imagen_producto(form.imagen.data)
-                if form.imagen.data and form.imagen.data.filename else None
+                if not imagen_url and form.imagen.data and form.imagen.data.filename else None
             )
         except ValueError as error:
             form.imagen.errors.append(str(error))
@@ -4559,10 +4577,20 @@ def nuevo_producto():
              form.descripcion.data.strip(), form.disponible.data, bool(form.es_insumo.data))
         )
         producto_id = cursor.fetchone()['id']
-        if imagen_bytes:
+        if imagen_url:
             cursor.execute(
-                '''INSERT INTO imagenes_productos (producto_id, contenido)
-                   VALUES (%s, %s)''',
+                '''INSERT INTO imagenes_productos (producto_id, contenido, url)
+                   VALUES (%s, NULL, %s)
+                   ON CONFLICT (producto_id) DO UPDATE
+                   SET contenido = NULL,
+                       url = EXCLUDED.url,
+                       actualizado_en = CURRENT_TIMESTAMP''',
+                (producto_id, imagen_url)
+            )
+        elif imagen_bytes:
+            cursor.execute(
+                '''INSERT INTO imagenes_productos (producto_id, contenido, url)
+                   VALUES (%s, %s, NULL)''',
                 (producto_id, psycopg2.Binary(imagen_bytes))
             )
         conn.commit()
@@ -4600,9 +4628,15 @@ def editar_producto(id):
 
     cursor.execute('SELECT * FROM categorias_producto ORDER BY nombre')
     tipos = cursor.fetchall()
+    cursor.execute(
+        'SELECT url, contenido IS NOT NULL AS tiene_contenido FROM imagenes_productos WHERE producto_id = %s',
+        (id,)
+    )
+    imagen_actual = cursor.fetchone()
 
     datos_form = dict(producto)
     datos_form['precio'] = producto['precio_base']  # el form usa 'precio', la BD usa 'precio_base'
+    datos_form['imagen_url'] = imagen_actual['url'] if imagen_actual else ''
 
     form = ProductoForm(data=datos_form) if request.method == 'GET' else ProductoForm()
     form.categoria_producto_id.choices = [(t['id'], t['nombre']) for t in tipos]
@@ -4611,10 +4645,11 @@ def editar_producto(id):
         form.stock_entrada.data = 0
 
     if form.validate_on_submit():
+        imagen_url = form.imagen_url.data.strip() if form.imagen_url.data else None
         try:
             imagen_bytes = (
                 guardar_imagen_producto(form.imagen.data)
-                if form.imagen.data and form.imagen.data.filename else None
+                if not imagen_url and form.imagen.data and form.imagen.data.filename else None
             )
         except ValueError as error:
             form.imagen.errors.append(str(error))
@@ -4622,7 +4657,8 @@ def editar_producto(id):
             conn.close()
             return render_template(
                 'formulario_producto.html', form=form, editando=True, id=id,
-                stock_actual=producto['stock_actual'] or 0
+                stock_actual=producto['stock_actual'] or 0,
+                imagen_actual=bool(imagen_actual and (imagen_actual['url'] or imagen_actual['tiene_contenido']))
             )
         entrada_stock = int(form.stock_entrada.data or 0)
         cursor.execute('SELECT stock_actual FROM productos WHERE id = %s FOR UPDATE', (id,))
@@ -4640,12 +4676,23 @@ def editar_producto(id):
             (form.categoria_producto_id.data, form.nombre.data.strip(), float(form.precio.data),
              form.descripcion.data.strip(), form.disponible.data, bool(form.es_insumo.data), id)
         )
-        if imagen_bytes:
+        if imagen_url:
             cursor.execute(
-                '''INSERT INTO imagenes_productos (producto_id, contenido)
-                   VALUES (%s, %s)
+                '''INSERT INTO imagenes_productos (producto_id, contenido, url)
+                   VALUES (%s, NULL, %s)
+                   ON CONFLICT (producto_id) DO UPDATE
+                   SET contenido = NULL,
+                       url = EXCLUDED.url,
+                       actualizado_en = CURRENT_TIMESTAMP''',
+                (id, imagen_url)
+            )
+        elif imagen_bytes:
+            cursor.execute(
+                '''INSERT INTO imagenes_productos (producto_id, contenido, url)
+                   VALUES (%s, %s, NULL)
                    ON CONFLICT (producto_id) DO UPDATE
                    SET contenido = EXCLUDED.contenido,
+                       url = NULL,
                        tipo_contenido = EXCLUDED.tipo_contenido,
                        actualizado_en = CURRENT_TIMESTAMP''',
                 (id, psycopg2.Binary(imagen_bytes))
@@ -4674,7 +4721,8 @@ def editar_producto(id):
     conn.close()
     return render_template(
         'formulario_producto.html', form=form, editando=True, id=id,
-        stock_actual=producto['stock_actual'] or 0
+        stock_actual=producto['stock_actual'] or 0,
+        imagen_actual=bool(imagen_actual and (imagen_actual['url'] or imagen_actual['tiene_contenido']))
     )
 
 

@@ -3,9 +3,10 @@ import unittest
 from datetime import datetime
 
 from PIL import Image
-from werkzeug.datastructures import FileStorage
+from werkzeug.datastructures import FileStorage, MultiDict
 
-from app import guardar_imagen_producto, registrar_ventas_en_lotes
+from app import app, guardar_imagen_producto, registrar_ventas_en_lotes
+from forms.producto_form import ProductoForm
 
 
 class CursorLotesFalso:
@@ -78,6 +79,19 @@ class LotesProduccionTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, 'No se pudo leer'):
             guardar_imagen_producto(archivo)
+
+    def test_acepta_url_http_de_imagen_y_rechaza_esquemas_no_seguros(self):
+        with app.test_request_context('/'):
+            form = ProductoForm(formdata=MultiDict({
+                'imagen_url': 'https://ejemplo.com/torta.jpg',
+            }))
+            self.assertTrue(form.imagen_url.validate(form))
+
+            form_inseguro = ProductoForm(formdata=MultiDict({
+                'imagen_url': 'javascript:alert(1)',
+            }))
+            self.assertFalse(form_inseguro.imagen_url.validate(form_inseguro))
+            app.jinja_env.get_template('formulario_producto.html')
 
 
 if __name__ == '__main__':

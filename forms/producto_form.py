@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from wtforms import BooleanField, FileField, FloatField, IntegerField, SelectField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Length, NumberRange, Optional
+from wtforms.validators import DataRequired, Length, NumberRange, Optional, Regexp, URL
 
 
 class ProductoForm(FlaskForm):
@@ -25,7 +25,16 @@ class ProductoForm(FlaskForm):
             NumberRange(min=0.01, message='El precio debe ser mayor que cero.'),
         ],
     )
-    imagen = FileField('Imagen del producto (opcional)', validators=[Optional()])
+    imagen_url = StringField(
+        'URL de la imagen (opcional)',
+        validators=[
+            Optional(),
+            Regexp(r'^https?://', message='La URL debe comenzar con http:// o https://.'),
+            URL(require_tld=True, message='Ingresa una URL de imagen válida.'),
+            Length(max=2048, message='La URL no puede superar 2048 caracteres.'),
+        ],
+    )
+    imagen = FileField('O selecciona un archivo (opcional)', validators=[Optional()])
     descripcion = TextAreaField(
         'Descripción',
         validators=[
