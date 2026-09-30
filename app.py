@@ -663,6 +663,50 @@ def asegurar_relaciones_solicitudes():
         conn.close()
 
 
+def asegurar_resenas():
+    """Crea la tabla de reseñas/calificaciones de productos si aún no existe."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute('''
+            CREATE TABLE IF NOT EXISTS resenas_producto (
+                id SERIAL PRIMARY KEY,
+                producto_id INTEGER NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+                cliente_cedula VARCHAR(20) NOT NULL
+                    REFERENCES clientes(cedula) ON UPDATE CASCADE ON DELETE CASCADE,
+                calificacion SMALLINT NOT NULL CHECK (calificacion BETWEEN 1 AND 5),
+                comentario TEXT,
+                creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                actualizado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT uq_resena_producto_cliente UNIQUE (producto_id, cliente_cedula)
+            )
+        ''')
+        cur.execute('''
+            CREATE INDEX IF NOT EXISTS idx_resenas_producto_producto
+            ON resenas_producto (producto_id)
+        ''')
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+
+def obtener_cliente_actual(cursor):
+    """Ubica la ficha de clientes ligada a la cuenta autenticada (correo o cédula)."""
+    if not current_user.is_authenticated:
+        return None
+    cursor.execute(
+        '''SELECT * FROM clientes
+           WHERE LOWER(TRIM(correo)) = LOWER(TRIM(%s)) OR cedula = %s
+           LIMIT 1''',
+        (current_user.correo, current_user.usuario)
+    )
+    return cursor.fetchone()
+
+
 def obtener_impuestos_activos(cursor):
     """Devuelve tasas tributarias vigentes para el cálculo de un nuevo documento."""
     cursor.execute(
@@ -3477,7 +3521,10 @@ def productos():
     lista_productos = []
     base_datos_disponible = False
     puede_ver_futuros = False
+    productos_comprados_cliente = set()
+    resenas_cliente = {}
     try:
+        asegurar_resenas()
         puede_ver_futuros = puede_ver_productos_futuros(current_user)
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -3503,10 +3550,13 @@ def productos():
         sql_where = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
         query = f'''
             SELECT p.*, c.nombre AS categoria_nombre,
-                   COUNT(d.id) AS detalles_relacionados
+                   COUNT(DISTINCT d.id) AS detalles_relacionados,
+                   COALESCE(ROUND(AVG(r.calificacion)::numeric, 1), 0) AS promedio_calificacion,
+                   COUNT(DISTINCT r.id) AS total_resenas
             FROM productos p
             JOIN categorias_producto c ON p.categoria_producto_id = c.id
             LEFT JOIN detalle_factura d ON d.producto_id = p.id
+            LEFT JOIN resenas_producto r ON r.producto_id = p.id
             {sql_where}
             GROUP BY p.id, c.nombre
             ORDER BY p.disponible DESC, p.id ASC
@@ -3514,6 +3564,32 @@ def productos():
         cursor.execute(query, tuple(params))
         lista_productos = cursor.fetchall()
         base_datos_disponible = True
+
+        if current_user.is_authenticated and current_user.has_role('Cliente'):
+            cliente = obtener_cliente_actual(cursor)
+            if cliente:
+                cursor.execute('''
+                    SELECT DISTINCT d.producto_id
+                    FROM detalle_factura d
+                    JOIN facturacion f ON f.numero = d.factura_numero
+                    JOIN estados_documento e ON e.id = f.estado_id
+                    WHERE f.cliente_cedula = %s AND f.tipo = 'Factura'
+                      AND d.es_adicional = FALSE
+                      AND POSITION('cancel' IN LOWER(e.nombre)) = 0
+                      AND POSITION('anulad' IN LOWER(e.nombre)) = 0
+                ''', (cliente['cedula'],))
+                productos_comprados_cliente = {fila['producto_id'] for fila in cursor.fetchall()}
+
+                cursor.execute('''
+                    SELECT producto_id, calificacion, comentario
+                    FROM resenas_producto
+                    WHERE cliente_cedula = %s
+                ''', (cliente['cedula'],))
+                resenas_cliente = {
+                    fila['producto_id']: {'calificacion': fila['calificacion'], 'comentario': fila['comentario']}
+                    for fila in cursor.fetchall()
+                }
+
         cursor.close()
         conn.close()
     except psycopg2.Error:
@@ -3529,9 +3605,74 @@ def productos():
         query_busqueda=q,
         tipo_seleccionado=tipo,
         puede_ver_futuros=puede_ver_futuros,
-        base_datos_disponible=base_datos_disponible
+        base_datos_disponible=base_datos_disponible,
+        productos_comprados_cliente=productos_comprados_cliente,
+        resenas_cliente=resenas_cliente
     ), (200 if base_datos_disponible else 503)
 
+
+@app.route('/productos/<int:producto_id>/resena', methods=['POST'])
+@role_required('Cliente')
+def calificar_producto(producto_id):
+    """
+    Permite a un cliente autenticado calificar (1 a 5 estrellas) y dejar un
+    comentario sobre un producto que haya comprado. Se relaciona con clientes
+    y facturación (solo puede reseñar productos con al menos una factura
+    válida) y con productos mediante producto_id. Un cliente solo puede tener
+    una reseña por producto: reenviar el formulario actualiza la existente.
+    """
+    asegurar_resenas()
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cliente = obtener_cliente_actual(cursor)
+        if not cliente:
+            flash('No encontramos una ficha de cliente asociada a tu cuenta.', 'warning')
+            return redirect(url_for('productos'))
+
+        cursor.execute('''
+            SELECT 1
+            FROM detalle_factura d
+            JOIN facturacion f ON f.numero = d.factura_numero
+            JOIN estados_documento e ON e.id = f.estado_id
+            WHERE d.producto_id = %s AND f.cliente_cedula = %s
+              AND f.tipo = 'Factura' AND d.es_adicional = FALSE
+              AND POSITION('cancel' IN LOWER(e.nombre)) = 0
+              AND POSITION('anulad' IN LOWER(e.nombre)) = 0
+            LIMIT 1
+        ''', (producto_id, cliente['cedula']))
+        compro_el_producto = cursor.fetchone() is not None
+        if not compro_el_producto:
+            flash('Solo puedes calificar productos que hayas comprado.', 'warning')
+            return redirect(url_for('productos'))
+
+        try:
+            calificacion = int(request.form.get('calificacion', 0))
+        except (TypeError, ValueError):
+            calificacion = 0
+        if calificacion < 1 or calificacion > 5:
+            flash('Selecciona una calificación entre 1 y 5 estrellas.', 'warning')
+            return redirect(url_for('productos'))
+        comentario = (request.form.get('comentario') or '').strip()[:500] or None
+
+        cursor.execute('''
+            INSERT INTO resenas_producto (producto_id, cliente_cedula, calificacion, comentario)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (producto_id, cliente_cedula)
+            DO UPDATE SET calificacion = EXCLUDED.calificacion,
+                          comentario = EXCLUDED.comentario,
+                          actualizado_en = CURRENT_TIMESTAMP
+        ''', (producto_id, cliente['cedula'], calificacion, comentario))
+        conn.commit()
+        flash('¡Gracias por tu reseña!', 'success')
+    except psycopg2.Error:
+        conn.rollback()
+        app.logger.exception('No se pudo guardar la reseña del producto %s.', producto_id)
+        flash('No se pudo guardar tu reseña. Inténtalo nuevamente.', 'danger')
+    finally:
+        cursor.close()
+        conn.close()
+    return redirect(url_for('productos'))
 
 
 @app.route('/proveedores')
@@ -6155,6 +6296,7 @@ def estadisticas():
     """
     asegurar_detalles_factura()
     asegurar_inventario_base()
+    asegurar_resenas()
     conn = get_db_connection()
     cursor = conn.cursor()
     es_cliente = (current_user.rol_nombre == 'Cliente')
@@ -6304,6 +6446,7 @@ def estadisticas():
 
     hora_pico = None
     resumen_produccion = None
+    resumen_resenas = None
     merma_porcentaje = 0.0
     if not es_cliente:
         cursor.execute('''
@@ -6358,6 +6501,13 @@ def estadisticas():
                 / float(resumen_produccion['producidas']) * 100
             )
 
+        cursor.execute('''
+            SELECT COUNT(*) AS total,
+                   ROUND(AVG(calificacion)::numeric, 1) AS promedio
+            FROM resenas_producto
+        ''')
+        resumen_resenas = cursor.fetchone()
+
     cursor.close()
     conn.close()
 
@@ -6388,6 +6538,7 @@ def estadisticas():
         alertas_inventario=alertas_inventario,
         hora_pico=hora_pico,
         resumen_produccion=resumen_produccion,
+        resumen_resenas=resumen_resenas,
         merma_porcentaje=merma_porcentaje,
     )
 

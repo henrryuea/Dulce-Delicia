@@ -112,8 +112,13 @@
                     <div class="card-body p-4">
                         <span class="bakery-kpi-card__icon bakery-kpi-card__icon--lilac"><i class="bi bi-star-half"></i></span>
                         <div class="bakery-kpi-card__label">Satisfacción del cliente</div>
+                        {% if resumen_resenas and resumen_resenas.total %}
+                        <h2 class="h6 fw-bold text-navy mt-3 mb-1">{{ resumen_resenas.promedio }} / 5 <i class="bi bi-star-fill text-warning"></i></h2>
+                        <p class="small text-muted mb-0">{{ resumen_resenas.total }} {% if resumen_resenas.total == 1 %}reseña registrada{% else %}reseñas registradas{% endif %} de clientes.</p>
+                        {% else %}
                         <h2 class="h6 fw-bold text-navy mt-3 mb-1">Sin reseñas registradas</h2>
                         <p class="small text-muted mb-0">El promedio aparecerá cuando existan calificaciones vinculadas a pedidos.</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>

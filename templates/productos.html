@@ -181,6 +181,19 @@
                             <i class="bi bi-collection me-1"></i>{{ producto.categoria_nombre }}
                         </span>
 
+                        {% if producto.total_resenas %}
+                        <div class="resena-resumen">
+                            <i class="bi bi-star-fill"></i>
+                            <strong>{{ producto.promedio_calificacion }}</strong>
+                            <span>({{ producto.total_resenas }} {% if producto.total_resenas == 1 %}reseña{% else %}reseñas{% endif %})</span>
+                        </div>
+                        {% elif not producto.es_insumo %}
+                        <div class="resena-resumen text-muted">
+                            <i class="bi bi-star"></i>
+                            <span>Sin reseñas todavía</span>
+                        </div>
+                        {% endif %}
+
                         <h3 class="h5 card-title fw-bold text-navy my-2 titulo-producto">
                             {{ producto.nombre }}
                         </h3>
@@ -188,6 +201,14 @@
                         <p class="card-text text-muted small flex-grow-1 mb-4 descripcion-producto">
                             {{ producto.descripcion }}
                         </p>
+
+                        {% if current_user.is_authenticated and current_user.has_role('Cliente') and not producto.es_insumo and producto.id in productos_comprados_cliente %}
+                        <button type="button" class="btn btn-outline-brand btn-sm rounded-pill mb-3 align-self-start"
+                                data-bs-toggle="modal" data-bs-target="#modalResena{{ producto.id }}">
+                            <i class="bi bi-pencil-square me-1"></i>
+                            {% if producto.id in resenas_cliente %}Editar tu reseña{% else %}Calificar producto{% endif %}
+                        </button>
+                        {% endif %}
 
                         <!-- Botones de Acción (Cotizar/Información, Editar, Eliminar) -->
                         <div class="pt-3 border-top mt-auto d-flex justify-content-between align-items-center gap-2">
@@ -236,6 +257,42 @@
                         </div>
                     </div>
                 </div>
+
+                {% if current_user.is_authenticated and current_user.has_role('Cliente') and not producto.es_insumo and producto.id in productos_comprados_cliente %}
+                <div class="modal fade" id="modalResena{{ producto.id }}" tabindex="-1" aria-labelledby="tituloModalResena{{ producto.id }}" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content rounded-4 border-0 shadow">
+                            <form method="POST" action="{{ url_for('calificar_producto', producto_id=producto.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <div class="modal-header">
+                                    <h2 class="modal-title h5 fw-bold text-navy" id="tituloModalResena{{ producto.id }}">
+                                        Calificar {{ producto.nombre }}
+                                    </h2>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                                </div>
+                                <div class="modal-body">
+                                    {% set resena_previa = resenas_cliente.get(producto.id) %}
+                                    <label class="form-label d-block">Tu calificación</label>
+                                    <div class="star-rating mb-3">
+                                        {% for valor in [5, 4, 3, 2, 1] %}
+                                        <input type="radio" id="star{{ valor }}-{{ producto.id }}" name="calificacion" value="{{ valor }}"
+                                               {% if resena_previa and resena_previa.calificacion == valor %}checked{% endif %} required>
+                                        <label for="star{{ valor }}-{{ producto.id }}"><i class="bi bi-star-fill"></i></label>
+                                        {% endfor %}
+                                    </div>
+                                    <label for="comentarioResena{{ producto.id }}" class="form-label">Comentario (opcional)</label>
+                                    <textarea id="comentarioResena{{ producto.id }}" name="comentario" class="form-control" rows="3" maxlength="500"
+                                              placeholder="Cuéntanos qué te pareció este producto">{{ resena_previa.comentario if resena_previa else '' }}</textarea>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Cancelar</button>
+                                    <button type="submit" class="btn btn-verde rounded-pill"><i class="bi bi-check2 me-1"></i>Enviar reseña</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>

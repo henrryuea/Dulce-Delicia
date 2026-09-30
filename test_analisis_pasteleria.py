@@ -84,6 +84,7 @@ class AnalisisPasteleriaTests(unittest.TestCase):
                     'merma': 1,
                     'disponibles': 2,
                 },
+                {'total': 3, 'promedio': Decimal('4.7')},
             ],
         )
         self.conn = ConexionAnalisisFalsa(self.cursor)
@@ -95,12 +96,13 @@ class AnalisisPasteleriaTests(unittest.TestCase):
                 with patch.object(User, 'has_permission', return_value=True):
                     with patch.object(aplicacion, 'asegurar_detalles_factura'):
                         with patch.object(aplicacion, 'asegurar_inventario_base'):
-                            with patch.object(aplicacion, 'get_db_connection', return_value=self.conn):
-                                with patch.object(aplicacion, 'registrar_log'):
-                                    with cliente.session_transaction() as sesion:
-                                        sesion['_user_id'] = str(self.usuario.id)
-                                        sesion['_fresh'] = True
-                                    respuesta = cliente.get('/estadisticas')
+                            with patch.object(aplicacion, 'asegurar_resenas'):
+                                with patch.object(aplicacion, 'get_db_connection', return_value=self.conn):
+                                    with patch.object(aplicacion, 'registrar_log'):
+                                        with cliente.session_transaction() as sesion:
+                                            sesion['_user_id'] = str(self.usuario.id)
+                                            sesion['_fresh'] = True
+                                        respuesta = cliente.get('/estadisticas')
         return respuesta
 
     def test_panel_usa_datos_relacionados_y_muestra_pendientes_sin_inventarlos(self):
@@ -141,6 +143,7 @@ class AnalisisPasteleriaTests(unittest.TestCase):
             None,
             None,
             {'lotes': 0, 'producidas': 0, 'vendidas': 0, 'merma': 0, 'disponibles': 0},
+            {'total': 0, 'promedio': None},
         ])
 
         respuesta = self.solicitar_panel()
@@ -152,6 +155,16 @@ class AnalisisPasteleriaTests(unittest.TestCase):
         self.assertIn('Sin pedidos con hora registrada', contenido)
         self.assertIn('Sin lotes registrados este mes', contenido)
         self.assertIn('No hay entregas programadas', contenido)
+        self.assertIn('Sin reseñas registradas', contenido)
+
+    def test_panel_muestra_promedio_de_resenas_cuando_existen(self):
+        self.preparar_cliente('Encargado', 'encargada')
+        respuesta = self.solicitar_panel()
+        contenido = respuesta.get_data(as_text=True)
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn('4.7 / 5', contenido)
+        self.assertIn('3 reseñas registradas', contenido)
 
 
 if __name__ == '__main__':

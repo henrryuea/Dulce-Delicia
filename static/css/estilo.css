@@ -418,6 +418,48 @@ h1, h2, h3, h4, h5, h6 {
     min-height: 0;
 }
 
+/* Resumen de calificaciones (promedio en estrellas) sobre cada producto */
+.resena-resumen {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+    color: var(--text-muted, #6b7280);
+    margin-bottom: 0.35rem;
+}
+
+.resena-resumen i {
+    color: #f2b705;
+}
+
+/* Selector de calificación por estrellas (formulario "Calificar producto") */
+.star-rating {
+    display: inline-flex;
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+    gap: 0.2rem;
+}
+
+.star-rating input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.star-rating label {
+    color: #d9d9e3;
+    cursor: pointer;
+    font-size: 1.75rem;
+    transition: color 0.15s ease;
+    margin: 0;
+}
+
+.star-rating input:checked ~ label,
+.star-rating label:hover,
+.star-rating label:hover ~ label {
+    color: #f2b705;
+}
+
 .descripcion-producto {
     min-height: 0;
 }
