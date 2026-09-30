@@ -2318,6 +2318,18 @@ a:hover {
     gap: .3rem;
 }
 
+@media (min-width: 1200px) {
+    .bakery-shell-nav .navbar-collapse > .bakery-nav-links {
+        flex-wrap: wrap;
+        row-gap: .35rem;
+        justify-content: flex-end;
+    }
+
+    .bakery-shell-nav .bakery-account {
+        margin-left: 0;
+    }
+}
+
 .bakery-shell-nav .bakery-nav-links > .nav-item > .nav-link {
     display: inline-flex;
     align-items: center;
