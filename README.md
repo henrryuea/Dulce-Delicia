@@ -6,7 +6,7 @@
 ![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3.3-purple?logo=bootstrap)
 ![UEA](https://img.shields.io/badge/Universidad-Estatal%20Amaz%C3%B3nica-green)
 
-> **Proyecto Integrador Unidad 3 - Avance 11/16: Validación de Formularios con Flask-WTF y WTForms**  
+> **Proyecto Integrador Unidad 4 - Avance 15/16: CRUD, PostgreSQL, autenticación e inventario**
 > **Asignatura:** Desarrollo de Aplicaciones Web  
 > **Estudiante:** Henrry Ivan Espinosa Guevara  
 > **Universidad Estatal Amazónica (UEA)** — 2026  
@@ -17,7 +17,9 @@
 
 **Dulce Delicia** es una aplicación web integral desarrollada con **Flask** para la gestión operativa, comercial y administrativa de una pastelería y repostería fina artesanal.
 
-En esta **Semana 11 (Avance 11/16)**, el sistema incorpora el manejo avanzado de **formularios web del lado del servidor** mediante **Flask-WTF** y **WTForms**, aplicando reglas de validación estrictas, protección contra ataques **CSRF**, mensajes de retroalimentación dinámicos (*Flash messages*) y un diseño visual gourmet, cálido y elegante orientado al nicho gastronómico.
+En este avance de **Semana 15**, el sistema integra formularios validados con **Flask-WTF**,
+operaciones CRUD, autenticación con contraseñas hasheadas, protección **CSRF**,
+PostgreSQL para producción e inventario reconciliado con las ventas.
 
 ---
 
@@ -27,7 +29,10 @@ En esta **Semana 11 (Avance 11/16)**, el sistema incorpora el manejo avanzado de
 Dulce-Delicia/
 │
 ├── app.py                         # Configuración SECRET_KEY, rutas GET/POST, validación y persistencia
+├── database.py                    # Conexión PostgreSQL/SQLite, esquema relacional y catálogos
 ├── requirements.txt               # Dependencias del proyecto
+├── render.yaml                    # Servicio web y PostgreSQL en Render
+├── data/postgresql_facturacion.sql# DDL/migración PostgreSQL para pedidos, abonos y facturas
 ├── README.md                      # Documentación del repositorio
 ├── GUIA_RAPIDA.md                 # Guía rápida de uso y referencia
 │
@@ -36,7 +41,9 @@ Dulce-Delicia/
 │   ├── producto_form.py           # Clase ProductoForm(FlaskForm)
 │   ├── cliente_form.py            # Clase ClienteForm(FlaskForm)
 │   ├── proveedor_form.py          # Clase ProveedorForm(FlaskForm)
-│   └── facturacion_form.py        # Clase FacturacionForm(FlaskForm)
+│   ├── facturacion_form.py        # Clase FacturacionForm(FlaskForm)
+│   ├── registro_form.py           # Registro de cliente o solicitud de acceso interno
+│   └── inventario_form.py         # Formulario para ajustes de stock
 │
 ├── templates/                     # Plantillas Jinja2 con herencia y componentes
 │   ├── base.html                  # Plantilla base con Bootstrap 5, FontAwesome y alertas Flash
@@ -52,7 +59,12 @@ Dulce-Delicia/
 │   ├── formulario_proveedor.html  # Formulario WTForms para proveedores (RUC, categorías)
 │   │
 │   ├── facturacion.html           # Registro de facturas y ventas emitidas
-│   ├── formulario_facturacion.html# Formulario WTForms para facturación (subtotal, IVA 15%, total)
+│   ├── formulario_facturacion.html# Facturación con líneas de productos y control de stock
+│   ├── mi_cuenta.html             # Facturas propias y catálogo disponible de cliente
+│   ├── registro.html              # Solicitud de cuenta cliente o personal
+│   ├── comprobante_pago.html      # Recibo de abono para consulta/impresión
+│   └── solicitudes_acceso.html    # Aprobación de cuentas reservada a ADMIN
+│   ├── inventario.html            # Existencias, ajustes e historial de movimientos
 │   │
 │   └── components/
 │       ├── navbar.html            # Barra de navegación con accesos rápidos para registrar
@@ -73,10 +85,10 @@ Dulce-Delicia/
 
 | Módulo | Formulario | Validadores Principales | Reutilización |
 | :--- | :--- | :--- | :--- |
-| **Productos** | `ProductoForm` | `DataRequired`, `Length(3, 100)`, `NumberRange(min=0.50)` | Registro y Edición |
+| **Productos** | `ProductoForm` | `DataRequired`, `Length`, `NumberRange`, decimales finitos | Registro y Edición |
 | **Clientes** | `ClienteForm` | `DataRequired`, `Length`, `Email`, `Regexp` (Cédula 10 dígitos / RUC) | Registro y Edición |
 | **Proveedores** | `ProveedorForm` | `DataRequired`, `Length`, `Email`, `Regexp` (RUC 13 dígitos numéricos) | Registro y Edición |
-| **Facturación** | `FacturacionForm` | `DataRequired`, `NumberRange`, `Regexp`, cálculo dinámico de totales | Emisión y Edición |
+| **Facturación** | `FacturacionForm` | `DataRequired`, `Length`, `Regexp`; precios y totales recalculados en servidor | Emisión y Edición |
 
 ---
 
@@ -114,12 +126,20 @@ cd Dulce-Delicia
 pip install -r requirements.txt
 ```
 
-### 4. Ejecutar la aplicación
+### 4. Crear el primer usuario administrativo
+
+En PowerShell configure una clave de sesión privada y cree la cuenta:
+```powershell
+$env:SECRET_KEY = (python -c "import secrets; print(secrets.token_hex(32))")
+flask --app app crear-admin
+```
+
+### 5. Ejecutar la aplicación
 ```bash
 python app.py
 ```
 
-### 5. Abrir en el navegador
+### 6. Abrir en el navegador
 Ingresar a: **[http://127.0.0.1:5000](http://127.0.0.1:5000)**
 
 ---
@@ -129,4 +149,90 @@ Ingresar a: **[http://127.0.0.1:5000](http://127.0.0.1:5000)**
 1. **Protección CSRF**: Toda petición POST de formulario valida el token CSRF generado mediante `{{ form.hidden_tag() }}`.
 2. **Validación del lado del Servidor**: Se utiliza `form.validate_on_submit()` para garantizar la integridad de los datos antes de procesarlos.
 3. **Mensajes de Error Contextuales**: Errores renderizados directamente debajo de cada campo (`.invalid-feedback`).
-4. **Persistencia local**: La aplicación utiliza SQLite mediante `data/dulce_delicia.db`.
+4. **Autenticación**: No existe contraseña predeterminada de administrador. Los clientes y el personal pueden solicitar una cuenta, pero el administrador debe aprobarla; se guardan hashes seguros y hay bloqueo temporal tras cinco intentos fallidos.
+5. **Persistencia**: SQLite se usa en desarrollo local; configure `DATABASE_URL` para utilizar PostgreSQL en producción.
+
+---
+
+## Avance 15/16: CRUD, autenticación, PostgreSQL e inventario
+
+El sistema contiene tablas relacionales para clientes, productos, pedidos, detalles de pedido,
+pagos, facturas y detalles de factura, además de los catálogos e historial de inventario. Las
+claves primarias y foráneas relacionan los registros; los identificadores de clientes, códigos
+de producto, pedidos, comprobantes y facturas tienen restricciones únicas. Los listados usan
+`JOIN`, las consultas reciben parámetros y las rutas administrativas exigen autenticación y CSRF.
+
+La venta crea un pedido y reserva el stock dentro de una transacción: si falla la validación,
+la base de datos revierte el pedido, el detalle, el movimiento y cualquier abono. El servidor
+calcula el subtotal y el IVA del 15 %. Cada abono positivo produce un comprobante; no se admite
+pagar más del saldo. Al llegar el pago acumulado al total se cambia automáticamente el estado
+a **PAGADO** y se emite una sola factura con sus líneas. Los números se forman usando las claves
+primarias autogeneradas y restricciones `UNIQUE`, no conteos de filas. Los importes nuevos usan
+`NUMERIC(12,2)` y las cantidades `NUMERIC(12,3)` en PostgreSQL. Una factura emitida es inmutable;
+la anulación o devolución requiere un proceso contable separado. La página **Inventario** muestra
+existencias, alertas y movimientos auditables sin permitir stock negativo.
+Las claves de idempotencia persistidas con índice único evitan duplicar pedidos o abonos si se
+reenvía un formulario tras una interrupción o doble clic.
+
+En producción use PostgreSQL mediante `DATABASE_URL`; el esquema crea o migra la columna de
+relación de facturas sin borrar el historial existente. SQLite queda disponible para desarrollo
+local, no como almacenamiento persistente en un servicio Render.
+
+### Desarrollo local
+
+Sin `DATABASE_URL`, la aplicación usa `data/dulce_delicia.db` (SQLite). Instale dependencias,
+cree una clave privada y una cuenta administrativa antes de arrancar:
+
+```powershell
+$env:SECRET_KEY = (python -c "import secrets; print(secrets.token_hex(32))")
+flask --app app crear-admin
+python app.py
+```
+
+No hay contraseña predeterminada: el sistema no puede revelar la contraseña actual porque solo
+guarda su hash. `crear-admin` solicita el nombre y una contraseña nueva (12–128 caracteres) sin
+mostrarla; ese valor lo define quien instala/despliega la aplicación. Si ya existe la cuenta,
+restablézcala con `flask --app app restablecer-admin`, que habilita también el rol ADMIN. Los
+usuarios no pueden autoasignarse privilegios: `ADMIN` se crea por CLI/entorno; los usuarios que
+soliciten acceso de personal quedan `PENDIENTE` hasta ser aprobados por un administrador.
+Las cuentas de cliente también esperan verificación/aprobación; después solo ven sus propias
+facturas y productos en existencia, en modo lectura. El catálogo público puede consultarse sin
+iniciar sesión.
+
+Los roles internos tienen permisos distintos: `ADMIN` gestiona el catálogo, clientes,
+proveedores, facturas y solicitudes de acceso. `STAFF` puede registrar ventas y abonos, atender
+ajustes de inventario y consultar productos/clientes; no puede modificar registros maestros,
+gestionar proveedores ni aprobar cuentas. La autorización se comprueba en las rutas del servidor.
+
+### Producción y Render
+
+El archivo `render.yaml` define el servicio Flask, Gunicorn y una base PostgreSQL administrada.
+Al crear el Blueprint en Render, configure `ADMIN_USERNAME` (3-30 caracteres) y
+`ADMIN_PASSWORD` (12–128 caracteres) como variables privadas; Render genera `SECRET_KEY`
+y conecta `DATABASE_URL`. Si prefiere no sembrar las credenciales mediante variables de entorno,
+cree la cuenta con `flask --app app crear-admin` desde la consola del servicio. La aplicación
+crea las tablas y catálogos al arrancar y protege las cookies de sesión con HTTPS en producción.
+Defina una contraseña propia segura en `ADMIN_PASSWORD`; no hay un usuario/contraseña demo.
+Para recuperar acceso a una cuenta existente use el comando `restablecer-admin` en una consola
+segura con acceso al servicio/base de datos.
+El esquema PostgreSQL explícito está en [`data/postgresql_facturacion.sql`](./data/postgresql_facturacion.sql);
+requiere que las tablas base (`clientes`, `productos`, `metodos_pago`, `facturas` y
+`detalle_factura`) ya existan. El arranque de Flask realiza la inicialización idempotente
+automáticamente, así que Render no requiere ejecutar ese archivo manualmente.
+
+En el plan gratuito de Render, los servicios web pueden suspenderse y las bases PostgreSQL
+gratuitas pueden tener límites de disponibilidad/retención establecidos por Render. Para uso
+continuo, seleccione planes de pago y configure copias de seguridad desde Render. No use SQLite
+en el disco efímero de un servicio desplegado.
+
+Las imágenes cargadas se guardan en el sistema de archivos local. En Render, use un disco
+persistente o almacenamiento de objetos antes de depender de imágenes propias tras reinicios
+o despliegues; las imágenes incluidas en `static/img` sí forman parte del código publicado.
+
+### Prueba funcional recomendada
+
+Inicie sesión, consulte Productos/Clientes/Proveedores, registre y edite un producto, y haga una
+entrada o ajuste en Inventario. En Facturación, busque un cliente por cédula o regístrelo,
+cree un pedido con stock disponible, registre uno o más abonos, abra cada comprobante y confirme
+que la factura aparece solo al cancelar el saldo. Verifique que no se acepte una sobreventa o un
+sobrepago, que el stock se reserve al crear el pedido y que cierre sesión correctamente.

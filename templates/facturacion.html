@@ -1,140 +1,147 @@
 {% extends "base.html" %}
 
-<!-- ==============================================================================
-     PROYECTO: Dulce Delicia - Sistema de Gestión de Pastelería Artesanal
-     PLANTILLA: templates/facturacion.html
-     ASIGNATURA: Desarrollo de Aplicaciones Web
-     UNIVERSIDAD: Universidad Estatal Amazónica (UEA)
-     AVANCE: Semana 12 - Proyecto Integrador U3 (12/16)
-     TEMA: Módulo de Facturación y Ventas con Modelo Normalizado (3FN)
-     ESTUDIANTE: Desarrollo Web 2026
-==============================================================================
-DESCRIPCIÓN DE LA PLANTILLA:
-Esta vista presenta el registro histórico de facturas y ventas de la pastelería.
-Consulta la tabla 'facturas' y realiza JOINs relacionales con:
-  - 'clientes': para identificar al comprador y su RUC.
-  - 'metodos_pago': para detallar el medio financiero utilizado.
-  - 'estados_factura': para controlar si el comprobante está EMITIDA, ANULADA o PENDIENTE.
-============================================================================== -->
-
-{% block title %}Facturación y Ventas - Dulce Delicia | Persistencia SQLite 3FN{% endblock %}
+{% block title %}Pedidos y facturación - Dulce Delicia{% endblock %}
 
 {% block content %}
 <section class="py-5" style="background-color: var(--c-crema); min-height: 85vh;">
   <div class="container">
-    
-    <!-- Encabezado de la Sección -->
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
       <div>
         <nav aria-label="breadcrumb">
           <ol class="breadcrumb small mb-1">
             <li class="breadcrumb-item"><a href="{{ url_for('panel') }}" class="text-decoration-none text-muted">Panel</a></li>
-            <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">Facturación</li>
+            <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">Pedidos y facturas</li>
           </ol>
         </nav>
-        <h1 class="h2 mb-0 fw-bold text-dark">Gestión de Facturación y Ventas</h1>
+        <h1 class="h2 mb-0 fw-bold text-dark">Pedidos, abonos y facturas</h1>
+        <p class="text-secondary mb-0">La factura se emite al liquidar cada pedido.</p>
       </div>
-      <div class="d-flex gap-2 align-items-center flex-wrap">
-        <span class="badge badge-artesanal badge-moka fs-6 px-3 py-2 fw-semibold">
-          <i class="fa-solid fa-receipt me-1"></i> {{ facturas|length }} facturas
-        </span>
-        <a href="{{ url_for('nueva_factura') }}" class="btn btn-caramelo text-white shadow-sm d-flex align-items-center gap-2">
-          <i class="fa-solid fa-file-invoice-dollar"></i>
-          <span>Emitir Factura</span>
-        </a>
-      </div>
+      <a href="{{ url_for('nueva_factura') }}" class="btn btn-caramelo text-white shadow-sm">
+        <i class="fa-solid fa-cart-plus me-2"></i>Crear pedido
+      </a>
     </div>
 
-    <!-- Tabla Relacional de Facturación (3FN) -->
-    <div class="card card-artesanal border-0 shadow-sm">
+    <div class="card card-artesanal border-0 shadow-sm mb-5">
       <div class="card-header-artesanal d-flex justify-content-between align-items-center flex-wrap gap-2 py-3">
-        <div class="d-flex align-items-center gap-2">
-          <i class="fa-solid fa-cash-register text-caramelo fs-5"></i>
-          <h2 class="h5 mb-0 fw-bold text-dark">Comprobantes Electrónicos Registrados (3FN)</h2>
-        </div>
-        <span class="badge badge-artesanal badge-moka small fw-semibold">
-          <i class="fa-solid fa-database me-1"></i> clientes, metodos de pago y estados de factura
-        </span>
+        <h2 class="h5 mb-0 fw-bold text-dark"><i class="fa-solid fa-box-open text-caramelo me-2"></i>Pedidos y saldo</h2>
+        <span class="badge badge-artesanal badge-moka">{{ pedidos|length }} pedidos</span>
       </div>
-
+      {% if pedidos %}
       <div class="card-body p-0">
         <div class="table-responsive">
           <table class="table-artesanal align-middle mb-0">
-            <thead>
-              <tr>
-                <th style="width: 100px;" class="text-dark">N° Comprobante</th>
-                <th class="text-dark">Cliente / Cédula</th>
-                <th class="text-dark">Fecha de Emisión</th>
-                <th class="text-dark">Método de Pago</th>
-                <th class="text-dark">Subtotal e IVA</th>
-                <th class="text-dark">Total ($ USD)</th>
-                <th class="text-dark">Estado</th>
-                <th class="text-end text-dark" style="width: 100px;">Acción</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Pedido / cliente</th><th>Productos</th><th>Total</th><th>Abonado</th><th>Saldo</th><th>Estado</th></tr></thead>
             <tbody>
-              {% for factura in facturas %}
+            {% for pedido in pedidos %}
               <tr>
                 <td>
-                  <span class="badge bg-dark font-monospace text-white px-2 py-1">{{ factura.numero }}</span>
+                  <strong class="font-monospace d-block">{{ pedido.numero }}</strong>
+                  <span>{{ pedido.cliente }}</span>
+                  <small class="text-secondary d-block">{{ pedido.cedula_ruc }} · {{ pedido.fecha_pedido }}</small>
                 </td>
                 <td>
-                  <strong class="text-dark d-block">{{ factura.cliente }}</strong>
-                  <small class="text-secondary font-monospace">{{ factura.cedula_ruc if factura.cedula_ruc else 'S/N' }}</small>
+                  {% for linea in detalles_pedido.get(pedido.id_pedido, []) %}
+                  <span class="d-block small">{{ linea.codigo_producto }} · {{ linea.producto }} × {{ linea.cantidad }} · ${{ "%.2f"|format(linea.precio_unitario) }} c/u = ${{ "%.2f"|format(linea.subtotal) }}</span>
+                  {% endfor %}
+                  <small class="text-secondary">Subtotal ${{ "%.2f"|format(pedido.subtotal) }} · IVA ${{ "%.2f"|format(pedido.iva) }}</small>
                 </td>
+                <td class="fw-bold">${{ "%.2f"|format(pedido.total) }}</td>
+                <td>${{ "%.2f"|format(pedido.monto_pagado) }}</td>
+                <td class="fw-bold {% if pedido.saldo > 0 %}text-danger{% else %}text-success{% endif %}">${{ "%.2f"|format(pedido.saldo) }}</td>
                 <td>
-                  <span class="small text-secondary"><i class="fa-regular fa-calendar me-1"></i> {{ factura.fecha }}</span>
-                </td>
-                <td>
-                  <span class="badge badge-artesanal badge-moka">
-                    {{ factura.metodo_pago }}
-                  </span>
-                </td>
-                <td>
-                  <div class="small">
-                    <span class="text-secondary">Sub: ${{ "%.2f"|format(factura.subtotal) }}</span> | 
-                    <span class="text-secondary">IVA: ${{ "%.2f"|format(factura.iva) }}</span>
-                  </div>
-                </td>
-                <td>
-                  <span class="fw-bold fs-6 text-dark">${{ "%.2f"|format(factura.total) }}</span>
-                </td>
-                <td>
-                  {% if factura.estado == 'EMITIDA' %}
-                    <span class="badge badge-artesanal badge-exito"><i class="fa-solid fa-check-circle me-1"></i> Emitida</span>
-                  {% elif factura.estado == 'PENDIENTE' %}
-                    <span class="badge badge-artesanal badge-alerta"><i class="fa-solid fa-clock me-1"></i> Pendiente</span>
+                  {% if pedido.estado == 'PAGADO' %}
+                    <span class="badge badge-artesanal badge-exito">Pagado · facturado</span>
+                  {% elif pedido.estado == 'PENDIENTE' %}
+                    <span class="badge badge-artesanal badge-alerta">Pendiente</span>
                   {% else %}
-                    <span class="badge badge-artesanal badge-peligro"><i class="fa-solid fa-ban me-1"></i> Anulada</span>
+                    <span class="badge badge-artesanal badge-peligro">Anulado</span>
                   {% endif %}
                 </td>
-                <td class="text-end">
-                  <a href="{{ url_for('editar_factura', id=factura.id_factura) }}" class="btn btn-sm btn-outline-caramelo shadow-sm" title="Editar Factura">
-                    <i class="fa-solid fa-pen-to-square me-1"></i> Editar
-                  </a>
-                </td>
               </tr>
-              {% else %}
               <tr>
-                <td colspan="8" class="text-center py-5">
-                  <i class="fa-solid fa-file-excel fs-2 text-secondary mb-2 d-block"></i>
-                  <p class="lead mb-2 text-dark">No hay facturas emitidas todavía.</p>
-                  <a href="{{ url_for('nueva_factura') }}" class="btn btn-caramelo text-white btn-sm shadow-sm">Emitir Primera Factura</a>
+                <td colspan="6" class="bg-white">
+                  <div class="row g-3">
+                    <div class="col-lg-7">
+                      <strong class="small text-uppercase text-secondary">Comprobantes de abono</strong>
+                      <div class="d-flex flex-wrap gap-2 mt-2">
+                        {% for pago in pagos_por_pedido.get(pedido.id_pedido, []) %}
+                        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('comprobante_pago', id=pago.id_pago) }}">
+                          <i class="fa-solid fa-receipt me-1"></i>{{ pago.numero_comprobante }} · ${{ "%.2f"|format(pago.monto) }} · {{ pago.metodo_pago }}
+                        </a>
+                        {% else %}
+                        <span class="small text-muted">Aún no hay abonos.</span>
+                        {% endfor %}
+                      </div>
+                    </div>
+                    {% if pedido.estado == 'PENDIENTE' %}
+                    {% set abono = formularios_abono[pedido.id_pedido] %}
+                    <div class="col-lg-5">
+                      <strong class="small text-uppercase text-secondary">Registrar abono</strong>
+                      <form method="POST" action="{{ url_for('registrar_abono', id=pedido.id_pedido) }}" class="row g-2 mt-1">
+                        {{ abono.hidden_tag() }}
+                        <div class="col-sm-5">
+                          {{ abono.monto(class="form-control form-control-sm", placeholder="Monto") }}
+                        </div>
+                        <div class="col-sm-7">
+                          {{ abono.id_metodo_pago(class="form-select form-select-sm") }}
+                        </div>
+                        <div class="col-12">
+                          {{ abono.observaciones(class="form-control form-control-sm", placeholder="Referencia opcional") }}
+                        </div>
+                        <div class="col-12">
+                          {{ abono.submit(class="btn btn-sm btn-caramelo text-white") }}
+                          <small class="text-secondary ms-1">Máximo ${{ "%.2f"|format(pedido.saldo) }}</small>
+                        </div>
+                      </form>
+                    </div>
+                    {% endif %}
+                  </div>
                 </td>
               </tr>
-              {% endfor %}
+            {% endfor %}
             </tbody>
           </table>
         </div>
       </div>
-      
-      <div class="card-footer bg-white py-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <small class="text-secondary">
-        </small>
-        <a href="{{ url_for('nueva_factura') }}" class="btn btn-sm btn-caramelo text-white shadow-sm">
-          <i class="fa-solid fa-receipt me-1"></i> Emitir Nueva Factura
-        </a>
+      {% else %}
+      <div class="card-body text-center py-5">
+        <i class="fa-solid fa-basket-shopping fs-2 text-secondary mb-2"></i>
+        <p class="mb-3">Todavía no hay pedidos.</p>
+        <a href="{{ url_for('nueva_factura') }}" class="btn btn-caramelo text-white">Crear el primer pedido</a>
       </div>
+      {% endif %}
+    </div>
+
+    <div class="card card-artesanal border-0 shadow-sm">
+      <div class="card-header-artesanal d-flex justify-content-between align-items-center flex-wrap gap-2 py-3">
+        <h2 class="h5 mb-0 fw-bold text-dark"><i class="fa-solid fa-file-invoice-dollar text-caramelo me-2"></i>Facturas emitidas</h2>
+        <span class="badge badge-artesanal badge-moka">{{ facturas|length }} facturas</span>
+      </div>
+      {% if facturas %}
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table-artesanal align-middle mb-0">
+            <thead><tr><th>Factura</th><th>Cliente / identificación</th><th>Fecha</th><th>Productos</th><th>Pago</th><th>Subtotal</th><th>IVA</th><th>Total</th></tr></thead>
+            <tbody>
+            {% for factura in facturas %}
+              <tr>
+                <td><span class="badge bg-dark font-monospace">{{ factura.numero }}</span><small class="text-secondary d-block">{{ factura.observaciones or '' }}</small></td>
+                <td>{{ factura.cliente }}<small class="text-secondary d-block">{{ factura.cedula_ruc }}</small></td>
+                <td>{{ factura.fecha_emision }}</td>
+                <td>{% for linea in detalles_factura.get(factura.id_factura, []) %}<span class="d-block small">{{ linea.codigo_producto }} · {{ linea.producto }} × {{ linea.cantidad }} · ${{ "%.2f"|format(linea.precio_unitario) }} = ${{ "%.2f"|format(linea.subtotal) }}</span>{% endfor %}</td>
+                <td>{{ factura.metodo_pago }}</td>
+                <td>${{ "%.2f"|format(factura.subtotal) }}</td>
+                <td>${{ "%.2f"|format(factura.iva) }}</td>
+                <td class="fw-bold">${{ "%.2f"|format(factura.total) }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% else %}
+      <div class="card-body text-center py-4 text-secondary">Las facturas aparecerán aquí cuando cada pedido esté totalmente pagado.</div>
+      {% endif %}
     </div>
   </div>
 </section>

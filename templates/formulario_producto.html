@@ -5,7 +5,7 @@
      PLANTILLA: templates/formulario_producto.html
      ASIGNATURA: Desarrollo de Aplicaciones Web
      UNIVERSIDAD: Universidad Estatal Amazónica (UEA)
-     AVANCE: Semana 11 y 12 - Proyecto Integrador U3 (12/16)
+     AVANCE: Semana 15 - Proyecto Integrador U4 (15/16)
      TEMA: Formulario Flask-WTF con Modelo Relacional Normalizado (3FN)
      ESTUDIANTE: Desarrollo Web 2026
 ==============================================================================
@@ -216,8 +216,10 @@ SEGURIDAD Y USABILIDAD:
                 <label for="{{ form.stock_actual.id }}" class="form-label">
                   {{ form.stock_actual.label.text }} <span class="text-danger">*</span>
                 </label>
-                {{ form.stock_actual(class="form-control" + (" is-invalid" if form.stock_actual.errors else "")) }}
-                <div class="form-help-text text-muted small">Cantidad física disponible en vitrina o bodega.</div>
+                {{ form.stock_actual(class="form-control" + (" is-invalid" if form.stock_actual.errors else ""), readonly=(modo == 'edicion')) }}
+                <div class="form-help-text text-muted small">
+                  {% if modo == 'edicion' %}Modifique las existencias únicamente desde Control de Inventario o mediante ventas.{% else %}Existencia inicial; se registrará en el historial de inventario.{% endif %}
+                </div>
                 {% if form.stock_actual.errors %}
                   <div class="invalid-feedback">
                     {% for error in form.stock_actual.errors %}

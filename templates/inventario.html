@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Control de Inventario - Dulce Delicia{% endblock %}
+
+{% block content %}
+<section class="py-5" style="background-color: var(--c-crema); min-height: 85vh;">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+      <div>
+        <nav aria-label="breadcrumb">
+          <ol class="breadcrumb small mb-1">
+            <li class="breadcrumb-item"><a href="{{ url_for('panel') }}" class="text-decoration-none text-muted">Panel</a></li>
+            <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">Inventario</li>
+          </ol>
+        </nav>
+        <h1 class="h2 mb-0 fw-bold text-dark">Control de Inventario y Stock</h1>
+      </div>
+      <span class="badge badge-artesanal badge-moka fs-6 px-3 py-2">{{ productos|length }} productos activos</span>
+    </div>
+
+    <div class="row g-4 mb-4">
+      <div class="col-lg-4">
+        <div class="card card-artesanal border-0 shadow-sm h-100">
+          <div class="card-header-artesanal py-3">
+            <h2 class="h5 mb-0 fw-bold text-dark"><i class="fa-solid fa-arrows-rotate text-caramelo me-2"></i>Ajustar existencias</h2>
+          </div>
+          <div class="card-body p-4">
+            <p class="small text-secondary">Las ventas descuentan stock automáticamente. Registre aquí entradas y correcciones; cada movimiento queda auditado.</p>
+            <form method="POST">
+              {{ form.hidden_tag() }}
+              <div class="mb-3">
+                {{ form.id_producto.label(class="form-label fw-semibold") }}
+                {{ form.id_producto(class="form-select" + (" is-invalid" if form.id_producto.errors else "")) }}
+                {% for error in form.id_producto.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="row g-3 mb-3">
+                <div class="col-7">
+                  {{ form.tipo.label(class="form-label fw-semibold") }}
+                  {{ form.tipo(class="form-select" + (" is-invalid" if form.tipo.errors else "")) }}
+                  {% for error in form.tipo.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-5">
+                  {{ form.cantidad.label(class="form-label fw-semibold") }}
+                  {{ form.cantidad(class="form-control" + (" is-invalid" if form.cantidad.errors else "")) }}
+                  {% for error in form.cantidad.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+                </div>
+              </div>
+              <div class="mb-3">
+                {{ form.observaciones.label(class="form-label fw-semibold") }}
+                {{ form.observaciones(class="form-control" + (" is-invalid" if form.observaciones.errors else "")) }}
+                {% for error in form.observaciones.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+              </div>
+              {{ form.submit() }}
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-8">
+        <div class="card card-artesanal border-0 shadow-sm h-100">
+          <div class="card-header-artesanal py-3">
+            <h2 class="h5 mb-0 fw-bold text-dark"><i class="fa-solid fa-boxes-stacked text-caramelo me-2"></i>Existencias disponibles</h2>
+          </div>
+          <div class="card-body p-0 table-responsive">
+            <table class="table-artesanal align-middle mb-0">
+              <thead><tr><th>Código</th><th>Producto</th><th>Categoría</th><th>Stock</th><th>Mínimo</th><th>Estado</th></tr></thead>
+              <tbody>
+                {% for producto in productos %}
+                <tr>
+                  <td><span class="badge bg-dark font-monospace">{{ producto.codigo }}</span></td>
+                  <td class="fw-semibold">{{ producto.nombre }}</td>
+                  <td>{{ producto.categoria }}</td>
+                  <td>{{ "%.3f"|format(producto.stock_actual) }} {{ producto.unidad }}</td>
+                  <td>{{ "%.3f"|format(producto.stock_minimo) }} {{ producto.unidad }}</td>
+                  <td>
+                    {% if producto.stock_actual <= 0 %}
+                      <span class="badge badge-artesanal badge-peligro">Agotado</span>
+                    {% elif producto.stock_actual <= producto.stock_minimo %}
+                      <span class="badge badge-artesanal badge-alerta">Stock bajo</span>
+                    {% else %}
+                      <span class="badge badge-artesanal badge-exito">Disponible</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center py-4">No hay productos activos registrados.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-artesanal border-0 shadow-sm">
+      <div class="card-header-artesanal py-3">
+        <h2 class="h5 mb-0 fw-bold text-dark"><i class="fa-solid fa-clock-rotate-left text-caramelo me-2"></i>Historial reciente de movimientos</h2>
+      </div>
+      <div class="card-body p-0 table-responsive">
+        <table class="table-artesanal align-middle mb-0">
+          <thead><tr><th>Fecha</th><th>Producto</th><th>Movimiento</th><th>Cantidad</th><th>Stock antes</th><th>Stock después</th><th>Referencia / Motivo</th></tr></thead>
+          <tbody>
+            {% for movimiento in movimientos %}
+            <tr>
+              <td>{{ movimiento.fecha_movimiento }}</td>
+              <td><span class="fw-semibold">{{ movimiento.producto }}</span><small class="d-block text-muted">{{ movimiento.codigo }}</small></td>
+              <td>{{ movimiento.tipo }}</td>
+              <td>{{ "%.3f"|format(movimiento.cantidad) }}</td>
+              <td>{{ "%.3f"|format(movimiento.stock_anterior) }}</td>
+              <td>{{ "%.3f"|format(movimiento.stock_nuevo) }}</td>
+              <td><span class="font-monospace">{{ movimiento.referencia }}</span><small class="d-block text-muted">{{ movimiento.observaciones }}</small></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="text-center py-4">Aún no hay movimientos de inventario.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,4 +1,4 @@
-"""Formulario WTForms para el acceso administrativo."""
+"""Formulario WTForms para el acceso de clientes y personal."""
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField
 from wtforms.validators import DataRequired, Length
@@ -6,8 +6,7 @@ from wtforms.validators import DataRequired, Length
 
 class LoginForm(FlaskForm):
     """
-    Formulario para el control de acceso al sistema administrativo.
-    Permite validar que solo usuarios autorizados gestionen los datos.
+    Formulario común; el rol y estado aprobado determinan los permisos de la cuenta.
     """
     usuario = StringField(
         'Nombre de Usuario',
@@ -18,7 +17,8 @@ class LoginForm(FlaskForm):
         render_kw={
             'placeholder': 'Ej. admin',
             'class': 'form-control',
-            'autofocus': True
+            'autofocus': True,
+            'autocomplete': 'username'
         }
     )
 
@@ -26,11 +26,12 @@ class LoginForm(FlaskForm):
         'Contraseña de Acceso',
         validators=[
             DataRequired(message='Por favor ingrese su contraseña.'),
-            Length(min=4, max=50, message='La contraseña debe tener al menos 4 caracteres.')
+            Length(min=1, max=128, message='La contraseña no puede superar 128 caracteres.')
         ],
         render_kw={
             'placeholder': '••••••••',
-            'class': 'form-control'
+            'class': 'form-control',
+            'autocomplete': 'current-password'
         }
     )
 

@@ -2,9 +2,9 @@
 
 <!-- ==============================================================================
      PLANTILLA: templates/login.html
-     PROPÓSITO: Formulario de inicio de sesión para el personal administrativo
+     PROPÓSITO: Acceso por rol para clientes y personal aprobado
      TECNOLOGÍA: Flask-WTF con protección CSRF + Bootstrap 5.3
-     COMENTARIOS: Explicado paso a paso para fines académicos
+     AUTORIZACIÓN: Las cuentas de clientes y personal requieren aprobación administrativa
 ============================================================================== -->
 
 {% block title %}Iniciar Sesión - Dulce Delicia | Sistema Administrativo{% endblock %}
@@ -27,19 +27,15 @@
             </div>
             <!-- Título del formulario: blanco brillante sobre fondo oscuro (alto contraste) -->
             <h1 class="h3 mb-1 text-white fw-bold">Acceso al Sistema</h1>
-            <p class="small text-white text-opacity-75 mb-0">Gestión Administrativa - Dulce Delicia</p>
+            <p class="small text-white text-opacity-75 mb-0">Portal de clientes y gestión autorizada</p>
           </div>
 
           <!-- Cuerpo del Formulario de Autenticación -->
           <div class="card-body p-4 p-md-5 bg-white">
             
-            <!-- Cuadro de ayuda con credenciales para el docente o evaluador -->
-            <div class="alert alert-warning py-2 px-3 small mb-4 rounded-3 d-flex align-items-start gap-2 border-0" style="background-color: #FEF3C7; color: #92400E;">
-              <i class="fa-solid fa-key mt-1 fs-5"></i>
-              <div>
-                <strong>Credenciales de evaluación académica:</strong><br>
-                Usuario: <code class="text-dark fw-bold">admin</code> &nbsp;|&nbsp; Contraseña: <code class="text-dark fw-bold">admin123</code>
-              </div>
+            <div class="alert alert-light border py-2 px-3 small mb-4 rounded-3 d-flex align-items-start gap-2">
+              <i class="fa-solid fa-shield-halved mt-1 text-success"></i>
+              <span>Clientes: consulte únicamente sus facturas y productos disponibles. El personal requiere aprobación administrativa; no existe contraseña pública de administrador.</span>
             </div>
 
             <!-- Formulario HTML procesado por Flask-WTF -->
@@ -85,11 +81,11 @@
               </div>
             </form>
 
-            <!-- Botón de Asistencia: Permite rellenar las credenciales demo en un solo clic -->
             <div class="text-center mt-3">
-              <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 shadow-sm" onclick="autocompletarAdmin()" title="Rellenar usuario y contraseña de prueba">
-                <i class="fa-solid fa-wand-magic-sparkles me-1 text-warning"></i> Llenar con datos demo
-              </button>
+              <a href="{{ url_for('registro') }}" class="btn btn-outline-caramelo w-100">
+                <i class="fa-solid fa-user-plus me-1"></i>Crear cuenta de cliente o solicitar acceso interno
+              </a>
+              <small class="text-secondary d-block mt-2">Todas las nuevas cuentas requieren verificación y aprobación.</small>
             </div>
 
             <!-- Enlace para regresar a la tienda pública -->
@@ -107,12 +103,4 @@
   </div>
 </section>
 
-<!-- Script JavaScript para agilizar las pruebas del evaluador -->
-<script>
-  // Función que asigna automáticamente las credenciales demo a los campos del formulario
-  function autocompletarAdmin() {
-    document.getElementById('campoUsuario').value = 'admin';
-    document.getElementById('campoPassword').value = 'admin123';
-  }
-</script>
 {% endblock %}

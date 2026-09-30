@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Solicitudes de acceso - Dulce Delicia{% endblock %}
+
+{% block content %}
+<section class="py-5" style="background-color: var(--c-crema); min-height: 80vh;">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+      <div>
+        <span class="badge badge-artesanal badge-moka mb-2"><i class="fa-solid fa-user-lock me-1"></i>Solo administrador</span>
+        <h1 class="h2 fw-bold mb-0">Solicitudes de acceso</h1>
+      </div>
+      <a href="{{ url_for('panel') }}" class="btn btn-outline-secondary">Volver al panel</a>
+    </div>
+    <div class="alert alert-warning">
+      Verifique la identidad/contacto de cada solicitante antes de aprobar. Personal interno obtiene acceso de gestión;
+      clientes solo podrán consultar sus propias facturas y el catálogo.
+    </div>
+    <div class="card card-artesanal border-0 shadow-sm">
+      {% if solicitudes %}
+      <div class="table-responsive">
+        <table class="table-artesanal align-middle mb-0">
+          <thead><tr><th>Solicitante</th><th>Usuario / correo</th><th>Tipo</th><th>Identificación</th><th>Estado del cliente</th><th>Decisión</th></tr></thead>
+          <tbody>
+          {% for solicitud in solicitudes %}
+            <tr>
+              <td>{{ solicitud.nombre }}</td>
+              <td><span class="d-block">{{ solicitud.usuario }}</span><small class="text-secondary">{{ solicitud.correo }}</small></td>
+              <td>
+                {% if solicitud.rol == 'CLIENTE' %}Cliente{% else %}Personal interno{% endif %}
+              </td>
+              <td>{{ solicitud.cedula_ruc or 'No aplica' }}</td>
+              <td>
+                {% if solicitud.rol == 'CLIENTE' %}
+                  {% if solicitud.cliente_activo %}Cliente existente{% else %}Registro nuevo pendiente{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td>
+                <div class="d-flex gap-2">
+                  <form method="POST" action="{{ url_for('resolver_solicitud_acceso', id=solicitud.id_usuario, accion='aprobar') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-success" type="submit">Aprobar</button>
+                  </form>
+                  <form method="POST" action="{{ url_for('resolver_solicitud_acceso', id=solicitud.id_usuario, accion='rechazar') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-outline-danger" type="submit">Rechazar</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="card-body text-center py-5">
+        <i class="fa-solid fa-circle-check fs-2 text-success mb-2"></i>
+        <p class="mb-0">No hay solicitudes pendientes.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}

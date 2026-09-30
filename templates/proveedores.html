@@ -5,7 +5,7 @@
      PLANTILLA: templates/proveedores.html
      ASIGNATURA: Desarrollo de Aplicaciones Web
      UNIVERSIDAD: Universidad Estatal Amazónica (UEA)
-     AVANCE: Semana 12 - Proyecto Integrador U3 (12/16)
+     AVANCE: Semana 15 - Proyecto Integrador U4 (15/16)
      TEMA: Red de Proveedores con Modelo Relacional Normalizado (3FN)
      ESTUDIANTE: Desarrollo Web 2026
 ==============================================================================
@@ -13,10 +13,10 @@ DESCRIPCIÓN DE LA PLANTILLA:
 Esta vista presenta el directorio de proveedores de materias primas e insumos.
 Consulta la tabla 'proveedores' con claves foráneas hacia los catálogos
 'categorias_proveedor' (Materia Prima, Empaques, Bebidas, Otros) y
-'estados_proveedor' (Activo, Inactivo) en SQLite (data/dulce_delicia.db).
+'estados_proveedor' (Activo, Inactivo) en la base de datos configurada.
 ============================================================================== -->
 
-{% block title %}Red de Proveedores - Dulce Delicia | Persistencia SQLite 3FN{% endblock %}
+{% block title %}Red de Proveedores - Dulce Delicia | Base relacional{% endblock %}
 
 {% block content %}
 <section class="py-5" style="background-color: var(--c-crema); min-height: 85vh;">
@@ -107,9 +107,15 @@ Consulta la tabla 'proveedores' con claves foráneas hacia los catálogos
                   {% endif %}
                 </td>
                 <td class="text-end">
-                  <a href="{{ url_for('editar_proveedor', id=proveedor.id_proveedor) }}" class="btn btn-sm btn-outline-caramelo shadow-sm" title="Editar Proveedor">
-                    <i class="fa-solid fa-pen-to-square me-1"></i> Editar
-                  </a>
+                  <div class="d-flex justify-content-end gap-1">
+                    <a href="{{ url_for('editar_proveedor', id=proveedor.id_proveedor) }}" class="btn btn-sm btn-outline-caramelo shadow-sm" title="Editar Proveedor">
+                      <i class="fa-solid fa-pen-to-square me-1"></i> Editar
+                    </a>
+                    <form method="POST" action="{{ url_for('eliminar_proveedor', id=proveedor.id_proveedor) }}" onsubmit="return confirm('¿Eliminar este proveedor?');">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar proveedor"><i class="fa-solid fa-trash"></i></button>
+                    </form>
+                  </div>
                 </td>
               </tr>
               {% else %}

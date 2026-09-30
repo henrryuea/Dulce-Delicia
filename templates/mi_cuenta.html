@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Mi cuenta - Dulce Delicia{% endblock %}
+
+{% block content %}
+<section class="py-5" style="background-color: var(--c-crema); min-height: 85vh;">
+  <div class="container">
+    <div class="mb-4">
+      <span class="badge badge-artesanal badge-moka mb-2"><i class="fa-solid fa-user me-1"></i>Portal de cliente</span>
+      <h1 class="h2 fw-bold mb-1">Hola, {{ cuenta.nombre or cuenta.usuario }}</h1>
+      <p class="text-secondary mb-0">Aquí puede consultar sus facturas y los productos disponibles. Esta cuenta es de solo lectura.</p>
+    </div>
+
+    <div class="card card-artesanal border-0 shadow-sm mb-5">
+      <div class="card-header-artesanal d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h2 class="h5 mb-0 fw-bold"><i class="fa-solid fa-file-invoice-dollar me-2"></i>Mis facturas</h2>
+        <span class="badge badge-artesanal badge-moka">{{ facturas|length }} facturas</span>
+      </div>
+      {% if facturas %}
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table-artesanal align-middle mb-0">
+            <thead><tr><th>Número</th><th>Fecha</th><th>Productos</th><th>Subtotal</th><th>IVA</th><th>Pago</th><th>Total</th></tr></thead>
+            <tbody>
+            {% for factura in facturas %}
+              <tr>
+                <td class="font-monospace fw-bold">{{ factura.numero }}</td>
+                <td>{{ factura.fecha_emision }}</td>
+                <td>
+                  {% for linea in detalles_por_factura.get(factura.id_factura, []) %}
+                  <span class="d-block small">{{ linea.codigo_producto }} · {{ linea.nombre_producto }} × {{ linea.cantidad }} · ${{ "%.2f"|format(linea.precio_unitario) }}</span>
+                  {% endfor %}
+                </td>
+                <td>${{ "%.2f"|format(factura.subtotal) }}</td>
+                <td>${{ "%.2f"|format(factura.iva) }}</td>
+                <td>{{ factura.metodo_pago }}</td>
+                <td class="fw-bold">${{ "%.2f"|format(factura.total) }}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% else %}
+      <div class="card-body text-center py-5">
+        <i class="fa-solid fa-receipt fs-2 text-secondary mb-2"></i>
+        <p class="mb-0">Aún no hay facturas emitidas asociadas a esta cuenta.</p>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
+      <div>
+        <h2 class="h3 fw-bold mb-1">Productos disponibles</h2>
+        <p class="text-secondary mb-0">Catálogo de productos activos con existencias en el local.</p>
+      </div>
+      <span class="badge badge-artesanal badge-moka">{{ productos|length }} disponibles</span>
+    </div>
+    <div class="row g-4">
+      {% for producto in productos %}
+      <div class="col-sm-6 col-lg-4">
+        <article class="card card-artesanal h-100 border-0 shadow-sm">
+          <img src="{{ url_for('static', filename=producto.imagen or 'img/CHEESCAKE.png') }}"
+               class="card-img-top" alt="{{ producto.nombre }}" loading="lazy"
+               style="height: 220px; object-fit: cover;">
+          <div class="card-body">
+            <small class="text-secondary font-monospace">{{ producto.codigo }}</small>
+            <h3 class="h5 fw-bold mt-1">{{ producto.nombre }}</h3>
+            <p class="small text-secondary">{{ producto.descripcion or 'Producto artesanal de Dulce Delicia.' }}</p>
+            <div class="d-flex justify-content-between align-items-center">
+              <strong class="fs-5 text-caramelo">${{ "%.2f"|format(producto.precio_venta) }}</strong>
+              <span class="badge badge-artesanal badge-exito">Disponible</span>
+            </div>
+          </div>
+        </article>
+      </div>
+      {% else %}
+      <div class="col-12"><div class="alert alert-light">Por el momento no hay productos disponibles.</div></div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Crear cuenta - Dulce Delicia{% endblock %}
+
+{% block content %}
+<section class="py-5" style="background-color: var(--c-crema); min-height: 80vh;">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-lg-8">
+        <div class="card card-artesanal border-0 shadow">
+          <div class="card-header-artesanal">
+            <span class="badge badge-artesanal badge-moka mb-2"><i class="fa-solid fa-user-plus me-1"></i>Solicitud de cuenta</span>
+            <h1 class="h3 mb-1 fw-bold">Crear cuenta</h1>
+            <p class="mb-0 small">Los accesos se habilitan después de la revisión del administrador.</p>
+          </div>
+          <div class="card-body p-4 p-md-5">
+            <div class="alert alert-info">
+              Los clientes tendrán acceso de solo lectura a sus facturas y al catálogo de productos.
+              Las cuentas del personal también requieren aprobación; no se puede solicitar una cuenta de administrador.
+            </div>
+            <form method="POST" novalidate>
+              {{ form.hidden_tag() }}
+              <div class="row g-3">
+                <div class="col-md-6">
+                  {{ form.rol_solicitado.label(class="form-label fw-semibold") }}
+                  {{ form.rol_solicitado(class="form-select" + (" is-invalid" if form.rol_solicitado.errors else ""), id="rolSolicitado") }}
+                  {% for error in form.rol_solicitado.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-md-6">
+                  {{ form.usuario.label(class="form-label fw-semibold") }}
+                  {{ form.usuario(class="form-control" + (" is-invalid" if form.usuario.errors else "")) }}
+                  {% for error in form.usuario.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-md-6">
+                  {{ form.nombre.label(class="form-label fw-semibold") }}
+                  {{ form.nombre(class="form-control" + (" is-invalid" if form.nombre.errors else "")) }}
+                  {% for error in form.nombre.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-md-6">
+                  {{ form.correo.label(class="form-label fw-semibold") }}
+                  {{ form.correo(class="form-control" + (" is-invalid" if form.correo.errors else "")) }}
+                  {% for error in form.correo.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-12" id="identificacionGroup">
+                  {{ form.cedula_ruc.label(class="form-label fw-semibold") }}
+                  {{ form.cedula_ruc(class="form-control" + (" is-invalid" if form.cedula_ruc.errors else ""), id="cedulaRuc") }}
+                  {% for error in form.cedula_ruc.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+                  <div class="form-text">Para proteger los datos de facturación, el administrador verificará la identificación antes de aprobar la cuenta.</div>
+                </div>
+                <div class="col-md-6">
+                  {{ form.password.label(class="form-label fw-semibold") }}
+                  {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else "")) }}
+                  {% for error in form.password.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+                  <div class="form-text">Mínimo 12 caracteres.</div>
+                </div>
+                <div class="col-md-6">
+                  {{ form.confirmar_password.label(class="form-label fw-semibold") }}
+                  {{ form.confirmar_password(class="form-control" + (" is-invalid" if form.confirmar_password.errors else "")) }}
+                  {% for error in form.confirmar_password.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+                </div>
+              </div>
+              <div class="d-flex flex-wrap gap-2 justify-content-between mt-4">
+                <a href="{{ url_for('login') }}" class="btn btn-outline-secondary">Ya tengo cuenta</a>
+                {{ form.submit() }}
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const role = document.getElementById('rolSolicitado');
+  const group = document.getElementById('identificacionGroup');
+  const identity = document.getElementById('cedulaRuc');
+  const updateRoleFields = () => {
+    const isCustomer = role.value === 'CLIENTE';
+    group.classList.toggle('d-none', !isCustomer);
+    identity.required = isCustomer;
+  };
+  role.addEventListener('change', updateRoleFields);
+  updateRoleFields();
+});
+</script>
+{% endblock %}

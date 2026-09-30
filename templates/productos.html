@@ -5,13 +5,13 @@
      PLANTILLA: templates/productos.html
      ASIGNATURA: Desarrollo de Aplicaciones Web
      UNIVERSIDAD: Universidad Estatal Amazónica (UEA)
-     AVANCE: Semana 12 - Proyecto Integrador U3 (12/16)
-     TEMA: Visualización de datos persistentes en SQLite con Modelo Normalizado (3FN)
+     AVANCE: Semana 15 - Proyecto Integrador U4 (15/16)
+     TEMA: CRUD de productos, stock y modelo relacional (3FN)
      ESTUDIANTE: Desarrollo Web 2026
 ==============================================================================
 DESCRIPCIÓN DE LA PLANTILLA:
 Esta vista presenta el catálogo administrativo de productos recuperados
-directamente de la base de datos local SQLite (data/dulce_delicia.db).
+directamente de la base de datos configurada.
 Muestra los campos normalizados en 3FN: Código único, Fotografía, Nombre,
 Categoría (JOIN con categorias_producto), Unidad de Medida (JOIN con unidades_medida),
 Precio de Venta, Stock Actual y Mínimo, y Acciones (Editar y Eliminar).
@@ -20,7 +20,7 @@ Todos los textos y botones cuentan con contraste optimizado (AAA) para máxima
 legibilidad sin elementos invisibles.
 ============================================================================== -->
 
-{% block title %}Catálogo de Productos - Dulce Delicia | Persistencia SQLite 3FN{% endblock %}
+{% block title %}Catálogo de Productos - Dulce Delicia | Control de stock{% endblock %}
 
 {% block content %}
 <!-- Contenedor principal con fondo crema artesanal y espaciado vertical -->
@@ -50,15 +50,17 @@ legibilidad sin elementos invisibles.
         <span class="badge badge-artesanal badge-moka fs-6 px-3 py-2 fw-semibold">
           <i class="fa-solid fa-cookie-bite me-1"></i> {{ productos|length }} en catálogo
         </span>
+        {% if session.get('rol') == 'ADMIN' %}
         <a href="{{ url_for('nuevo_producto') }}" class="btn btn-caramelo text-white d-flex align-items-center gap-2 shadow-sm">
           <i class="fa-solid fa-circle-plus"></i>
           <span>Nuevo Producto</span>
         </a>
+        {% endif %}
       </div>
     </div>
 
     <!-- ==============================================================================
-         2. TARJETA PRINCIPAL Y TABLA DE PRODUCTOS (Requisito Semana 12)
+         2. TARJETA PRINCIPAL Y TABLA DE PRODUCTOS
          Estructura con cabecera en crema, bordes suaves y tabla responsiva
     ============================================================================== -->
     <div class="card card-artesanal border-0 shadow-sm">
@@ -91,7 +93,7 @@ legibilidad sin elementos invisibles.
               </tr>
             </thead>
             <tbody>
-              <!-- Iteración sobre cada producto recuperado de la base de datos local SQLite -->
+              <!-- Iteración de productos relacionados con sus catálogos -->
               {% for producto in productos %}
               <tr>
                 <!-- Código único del producto (Columna 3FN: codigo) -->
@@ -151,6 +153,7 @@ legibilidad sin elementos invisibles.
                 
                 <!-- Acciones seguras: Botón Editar y Formulario POST para Eliminar -->
                 <td class="text-end">
+                  {% if session.get('rol') == 'ADMIN' %}
                   <div class="btn-group" role="group" aria-label="Acciones de producto">
                     <!-- Botón para modificar el producto con ProductoForm -->
                     <a href="{{ url_for('editar_producto', id=producto.id_producto) }}" class="btn btn-sm btn-outline-caramelo shadow-sm" title="Editar este producto">
@@ -158,11 +161,15 @@ legibilidad sin elementos invisibles.
                     </a>
                     <!-- Formulario POST con confirmación para evitar borrados accidentales por GET -->
                     <form action="{{ url_for('eliminar_producto', id=producto.id_producto) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Está seguro de eliminar \'{{ producto.nombre }}\' ({{ producto.codigo }}) del catálogo?');">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                       <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm" title="Eliminar producto">
                         <i class="fa-solid fa-trash-can"></i>
                       </button>
                     </form>
                   </div>
+                  {% else %}
+                  <span class="small text-muted">Consulta</span>
+                  {% endif %}
                 </td>
               </tr>
               {% else %}
@@ -173,9 +180,11 @@ legibilidad sin elementos invisibles.
                     <i class="fa-solid fa-cookie fs-1 text-secondary mb-3 d-block"></i>
                     <h3 class="h5 text-dark fw-bold">No hay productos registrados en la base de datos</h3>
                     <p class="text-secondary small mb-3">Haga clic en el botón para agregar el primer postre con Flask-WTF.</p>
+                    {% if session.get('rol') == 'ADMIN' %}
                     <a href="{{ url_for('nuevo_producto') }}" class="btn btn-caramelo text-white shadow-sm">
                       <i class="fa-solid fa-circle-plus me-1"></i> Registrar Primer Producto
                     </a>
+                    {% endif %}
                   </div>
                 </td>
               </tr>
@@ -191,9 +200,11 @@ legibilidad sin elementos invisibles.
           <a href="{{ url_for('inicio') }}" class="btn btn-sm btn-outline-secondary" target="_blank" title="Ver cómo lo ven los clientes">
             <i class="fa-solid fa-eye me-1"></i> Catálogo de Clientes
           </a>
+          {% if session.get('rol') == 'ADMIN' %}
           <a href="{{ url_for('nuevo_producto') }}" class="btn btn-sm btn-caramelo text-white shadow-sm">
             <i class="fa-solid fa-plus me-1"></i> Agregar Nuevo Postre
           </a>
+          {% endif %}
         </div>
       </div>
     </div>

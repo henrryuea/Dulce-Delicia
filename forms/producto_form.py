@@ -15,10 +15,19 @@ from wtforms import (
 )
 from wtforms.validators import (
     DataRequired,      # Validador: El campo no puede quedar vacío
+    InputRequired,     # Validador: Requiere que se envíe incluso cuando el valor es cero
     Length,            # Validador: Rango mínimo y máximo de caracteres permitidos
     NumberRange,       # Validador: Rango numérico permitido (ej. precio >= 0)
-    Regexp             # Validador: Expresión regular para verificar formatos específicos
+    Regexp,            # Validador: Expresión regular para verificar formatos específicos
+    ValidationError
 )
+
+
+def decimal_finito(form, field):
+    del form
+    if field.data is not None and not field.data.is_finite():
+        raise ValidationError('Ingrese un número válido y finito.')
+
 
 
 # ==============================================================================
@@ -132,6 +141,7 @@ class ProductoForm(FlaskForm):
         places=2,
         validators=[
             DataRequired(message='El precio de venta es obligatorio.'),
+            decimal_finito,
             NumberRange(min=0.25, max=500.00, message='El precio de venta debe estar entre $0.25 y $500.00.')
         ],
         render_kw={
@@ -149,6 +159,7 @@ class ProductoForm(FlaskForm):
         places=2,
         default=0.00,
         validators=[
+            decimal_finito,
             NumberRange(min=0.00, max=500.00, message='El costo no puede ser negativo.')
         ],
         render_kw={
@@ -166,7 +177,8 @@ class ProductoForm(FlaskForm):
         places=2,
         default=10.0,
         validators=[
-            DataRequired(message='El stock actual es obligatorio.'),
+            InputRequired(message='El stock actual es obligatorio.'),
+            decimal_finito,
             NumberRange(min=0.0, max=10000.0, message='El stock debe ser un valor positivo o cero.')
         ],
         render_kw={
@@ -185,7 +197,8 @@ class ProductoForm(FlaskForm):
         places=2,
         default=3.0,
         validators=[
-            DataRequired(message='El stock mínimo es obligatorio.'),
+            InputRequired(message='El stock mínimo es obligatorio.'),
+            decimal_finito,
             NumberRange(min=0.0, max=1000.0, message='El stock mínimo no puede ser negativo.')
         ],
         render_kw={
@@ -211,7 +224,6 @@ class ProductoForm(FlaskForm):
     imagen_existente = SelectField(
         'Usar una imagen existente',
         choices=[],
-        validate_choice=False,
         render_kw={
             'class': 'form-select',
             'id': 'imagen_existente_producto'

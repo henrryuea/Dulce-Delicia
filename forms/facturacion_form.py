@@ -1,200 +1,107 @@
-"""Formulario WTForms para validar y registrar facturas."""
+"""Formulario para crear pedidos con validación del servidor."""
 
-# ==============================================================================
-# 1. IMPORTACIONES DE LIBRERÍAS Y COMPONENTES
-# ==============================================================================
-from datetime import date
+from decimal import Decimal
+
 from flask_wtf import FlaskForm
-from wtforms import (
-    StringField,       # Campo para el número de comprobante
-    DateField,         # Selector de fecha en formato YYYY-MM-DD
-    DecimalField,      # Valores numéricos monetarios con dos decimales
-    SelectField,       # Selectores para cliente, método de pago y estado
-    TextAreaField,     # Observaciones o notas adicionales de la venta
-    SubmitField        # Botón de confirmación
-)
-from wtforms.validators import (
-    DataRequired,      # Validación de campo obligatorio
-    Length,            # Restricción de longitud de texto
-    NumberRange,       # Restricción de valores positivos
-    Regexp             # Formato correlativo (ej. FAC-001)
-)
+from wtforms import DecimalField, HiddenField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms.validators import DataRequired, Email, Length, NumberRange, Optional, Regexp
 
 
-# ==============================================================================
-# 2. DEFINICIÓN DE LA CLASE DEL FORMULARIO DE FACTURACIÓN (3FN)
-# ==============================================================================
 class FacturacionForm(FlaskForm):
-    """
-    Formulario web para la emisión y gestión de facturas de venta.
-    Reutilizado en '/facturacion/nueva' y '/facturacion/editar/<id>'.
-    """
-
-    # --------------------------------------------------------------------------
-    # Campo 1: Número correlativo único de factura (Ej: FAC-001, FAC-002)
-    # --------------------------------------------------------------------------
-    numero = StringField(
-        'N° de Factura / Comprobante',
+    clave_idempotencia = HiddenField(
         validators=[
-            DataRequired(message='El número de factura es obligatorio.'),
-            Length(min=5, max=30, message='El número debe tener entre 5 y 30 caracteres.'),
-            Regexp(r'^[A-Z0-9\-]+$', message='El formato solo permite mayúsculas, números y guiones (ej. FAC-001).')
-        ],
-        render_kw={
-            'placeholder': 'Ej. FAC-001',
-            'class': 'form-control font-monospace fw-bold',
-            'autofocus': True
-        }
+            DataRequired(),
+            Regexp(r'^[A-Za-z0-9_-]{32,64}$', message='Clave de operación inválida.')
+        ]
     )
-
-    # --------------------------------------------------------------------------
-    # Campo 2: Cliente asociado (Clave Foránea a la tabla 'clientes')
-    # --------------------------------------------------------------------------
-    id_cliente = SelectField(
-        'Cliente Registrado (Catálogo de Clientes)',
+    cedula_ruc = StringField(
+        'Cédula o RUC',
+        validators=[
+            Regexp(r'^\d{10,13}$', message='Ingrese una identificación de 10 a 13 dígitos.')
+        ],
+        render_kw={'class': 'form-control', 'inputmode': 'numeric', 'autocomplete': 'off'}
+    )
+    nombre_cliente = StringField(
+        'Nombre o razón social',
+        validators=[Optional(), Length(max=120)],
+        render_kw={'class': 'form-control', 'autocomplete': 'name'}
+    )
+    id_tipo_cliente = SelectField(
+        'Tipo de cliente',
         coerce=int,
-        choices=[
-            (1, 'Consumidor Final (9999999999999)'),
-            (2, 'Ana Torres Mendoza (1718293841)')
-        ],
-        validators=[
-            DataRequired(message='Debe seleccionar el cliente para la factura.')
-        ],
-        render_kw={
-            'class': 'form-select'
-        }
+        validators=[Optional()],
+        render_kw={'class': 'form-select'}
     )
-
-    # --------------------------------------------------------------------------
-    # Campo 3: Fecha de emisión de la factura
-    # --------------------------------------------------------------------------
-    fecha_emision = DateField(
-        'Fecha de Emisión',
-        validators=[
-            DataRequired(message='La fecha de emisión es obligatoria.')
-        ],
-        default=date.today,
-        format='%Y-%m-%d',
-        render_kw={
-            'class': 'form-control'
-        }
+    correo = StringField(
+        'Correo electrónico',
+        validators=[Optional(), Email(message='Ingrese un correo electrónico válido.'), Length(max=120)],
+        render_kw={'class': 'form-control', 'type': 'email', 'autocomplete': 'email'}
     )
-
-    # --------------------------------------------------------------------------
-    # Campo 4: Método de pago (Catálogo 3FN: 'metodos_pago')
-    # --------------------------------------------------------------------------
+    telefono = StringField(
+        'Teléfono',
+        validators=[Optional(), Length(max=30)],
+        render_kw={'class': 'form-control', 'autocomplete': 'tel'}
+    )
+    direccion = StringField(
+        'Dirección',
+        validators=[Optional(), Length(max=200)],
+        render_kw={'class': 'form-control', 'autocomplete': 'street-address'}
+    )
     id_metodo_pago = SelectField(
-        'Método de Pago (Catálogo 3FN)',
+        'Método del primer abono',
         coerce=int,
-        choices=[
-            (1, '💵 EFECTIVO (Cobro en Caja)'),
-            (2, '🏦 TRANSFERENCIA (Banco Pichincha / Guayaquil / Produbanco)'),
-            (3, '💳 TARJETA (Débito o Crédito Datafast)'),
-            (4, '📱 DEPOSITO (Depósito Bancario Directo)')
-        ],
-        validators=[
-            DataRequired(message='Debe seleccionar el método de pago.')
-        ],
-        render_kw={
-            'class': 'form-select'
-        }
+        validators=[Optional()],
+        render_kw={'class': 'form-select'}
     )
-
-    # --------------------------------------------------------------------------
-    # Campo 5: Subtotal antes de impuestos ($ USD)
-    # --------------------------------------------------------------------------
-    subtotal = DecimalField(
-        'Subtotal ($ USD)',
+    monto_inicial = DecimalField(
+        'Abono inicial (USD)',
         places=2,
-        validators=[
-            DataRequired(message='El subtotal es obligatorio.'),
-            NumberRange(min=0.01, max=10000.00, message='El subtotal debe ser mayor a $0.00.')
-        ],
-        render_kw={
-            'placeholder': '0.00',
-            'step': '0.01',
-            'class': 'form-control',
-            'id': 'subtotal_input'
-        }
+        default=Decimal('0.00'),
+        validators=[Optional(), NumberRange(
+            min=0, max=Decimal('9999999999.99'),
+            message='El abono debe estar entre $0 y $9,999,999,999.99.'
+        )],
+        render_kw={'class': 'form-control', 'min': '0', 'step': '0.01'}
     )
-
-    # --------------------------------------------------------------------------
-    # Campo 6: IVA 15% vigente en Ecuador ($ USD)
-    # --------------------------------------------------------------------------
-    iva = DecimalField(
-        'IVA 15% ($ USD)',
-        places=2,
-        validators=[
-            DataRequired(message='El cálculo de IVA es obligatorio.'),
-            NumberRange(min=0.00, max=2000.00, message='El IVA debe ser mayor o igual a $0.00.')
-        ],
-        render_kw={
-            'placeholder': '0.00',
-            'step': '0.01',
-            'class': 'form-control',
-            'id': 'iva_input'
-        }
-    )
-
-    # --------------------------------------------------------------------------
-    # Campo 7: Total a cancelar ($ USD)
-    # --------------------------------------------------------------------------
-    total = DecimalField(
-        'Total de la Factura ($ USD)',
-        places=2,
-        validators=[
-            DataRequired(message='El valor total es obligatorio.'),
-            NumberRange(min=0.01, max=12000.00, message='El total debe ser mayor a $0.00.')
-        ],
-        render_kw={
-            'placeholder': '0.00',
-            'step': '0.01',
-            'class': 'form-control font-monospace fw-bold fs-5 text-dark',
-            'id': 'total_input'
-        }
-    )
-
-    # --------------------------------------------------------------------------
-    # Campo 8: Estado del comprobante (Catálogo 3FN: 'estados_factura')
-    # --------------------------------------------------------------------------
-    id_estado_factura = SelectField(
-        'Estado del Comprobante (Catálogo 3FN)',
-        coerce=int,
-        choices=[
-            (1, '✅ EMITIDA (Comprobante Válido y Cobrado)'),
-            (2, '❌ ANULADA (Comprobante Anulado)'),
-            (3, '⏳ PENDIENTE (Pendiente de Confirmación de Pago)')
-        ],
-        default=1,
-        validators=[
-            DataRequired(message='Debe seleccionar el estado de la factura.')
-        ],
-        render_kw={
-            'class': 'form-select'
-        }
-    )
-
-    # --------------------------------------------------------------------------
-    # Campo 9: Observaciones o descripción de postres vendidos
-    # --------------------------------------------------------------------------
     observaciones = TextAreaField(
-        'Observaciones / Detalle de la Venta',
-        validators=[
-            Length(max=300, message='Las observaciones no pueden superar los 300 caracteres.')
-        ],
-        render_kw={
-            'rows': 2,
-            'placeholder': 'Detalle de postres vendidos (ej. 2x Torta de chocolate, 1x Café americano)...',
-            'class': 'form-control'
-        }
+        'Observaciones del pedido',
+        validators=[Optional(), Length(max=300)],
+        render_kw={'class': 'form-control', 'rows': 2}
+    )
+    submit = SubmitField(
+        'Crear pedido',
+        render_kw={'class': 'btn btn-caramelo px-4 py-2 text-white shadow-sm'}
     )
 
-    # --------------------------------------------------------------------------
-    # Campo 10: Botón de emisión de factura
-    # --------------------------------------------------------------------------
+
+class AbonoForm(FlaskForm):
+    clave_idempotencia = HiddenField(
+        validators=[
+            DataRequired(),
+            Regexp(r'^[A-Za-z0-9_-]{32,64}$', message='Clave de operación inválida.')
+        ]
+    )
+    monto = DecimalField(
+        'Monto del abono (USD)',
+        places=2,
+        validators=[NumberRange(
+            min=Decimal('0.01'), max=Decimal('9999999999.99'),
+            message='El abono debe estar entre $0.01 y $9,999,999,999.99.'
+        )],
+        render_kw={'class': 'form-control', 'min': '0.01', 'step': '0.01', 'required': True}
+    )
+    id_metodo_pago = SelectField(
+        'Método de pago',
+        coerce=int,
+        validators=[NumberRange(min=1, message='Seleccione un método de pago.')],
+        render_kw={'class': 'form-select', 'required': True}
+    )
+    observaciones = TextAreaField(
+        'Referencia o nota',
+        validators=[Optional(), Length(max=200)],
+        render_kw={'class': 'form-control', 'rows': 1}
+    )
     submit = SubmitField(
-        'Emitir Factura',
-        render_kw={
-            'class': 'btn btn-caramelo px-4 py-2 text-white shadow-sm'
-        }
+        'Registrar abono y emitir comprobante',
+        render_kw={'class': 'btn btn-caramelo text-white'}
     )
