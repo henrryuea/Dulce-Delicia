@@ -3,6 +3,8 @@ import re
 import os
 from unittest.mock import patch
 
+from cryptography.fernet import Fernet
+
 import app as aplicacion
 from models import User
 
@@ -89,6 +91,55 @@ class CursorTotpPendienteIlegibleFalso:
 class ConexionTotpPendienteIlegibleFalsa:
     def __init__(self):
         self.cursor_falso = CursorTotpPendienteIlegibleFalso()
+        self.confirmada = False
+        self.revertida = False
+
+    def cursor(self):
+        return self.cursor_falso
+
+    def commit(self):
+        self.confirmada = True
+
+    def rollback(self):
+        self.revertida = True
+
+    def close(self):
+        pass
+
+
+class CursorTotpActivoIlegibleFalso:
+    def __init__(self, password, secreto='token-cifrado-con-una-clave-anterior'):
+        self.password = password
+        self.secreto = secreto
+        self.consulta = ''
+        self.parametros = None
+        self.rowcount = 0
+        self.actualizado = False
+
+    def execute(self, consulta, parametros=None):
+        self.consulta = consulta
+        self.parametros = parametros
+        if 'UPDATE usuarios' in consulta:
+            self.rowcount = 1
+            self.actualizado = True
+
+    def fetchone(self):
+        if self.actualizado:
+            return None
+        return {
+            'password': self.password,
+            'dos_factores_activo': True,
+            'dos_factores_secreto': self.secreto,
+            'dos_factores_secreto_pendiente': None,
+        }
+
+    def close(self):
+        pass
+
+
+class ConexionTotpActivoIlegibleFalsa:
+    def __init__(self, password, secreto='token-cifrado-con-una-clave-anterior'):
+        self.cursor_falso = CursorTotpActivoIlegibleFalso(password, secreto)
         self.confirmada = False
         self.revertida = False
 
@@ -287,11 +338,86 @@ class SeguridadCuentaTests(unittest.TestCase):
 
         contenido = respuesta.get_data(as_text=True)
         self.assertEqual(respuesta.status_code, 200)
-        self.assertIn('Puedes iniciar una nueva configuración', contenido)
+        self.assertIn('Se eliminó una configuración 2FA pendiente', contenido)
         self.assertIn('Configurar aplicación autenticadora', contenido)
         self.assertTrue(conexion.confirmada)
         self.assertIn('dos_factores_secreto_pendiente = NULL', conexion.cursor_falso.consulta)
         self.assertIn('dos_factores_activo = FALSE', conexion.cursor_falso.consulta)
+
+    def test_muestra_recuperacion_si_el_secreto_totp_activo_no_se_descifra(self):
+        conexion = ConexionTotpActivoIlegibleFalsa(self.usuario.password)
+        with patch.dict(aplicacion.app.config, {'WTF_CSRF_ENABLED': False}):
+            with patch.dict(os.environ, {'TOTP_ENCRYPTION_KEY': ''}):
+                with patch.object(aplicacion.login_manager, '_user_callback', return_value=self.usuario):
+                    with patch.object(aplicacion, 'get_db_connection', return_value=conexion):
+                        with self.cliente.session_transaction() as sesion:
+                            sesion['_user_id'] = str(self.usuario.id)
+                            sesion['_fresh'] = True
+                        respuesta = self.cliente.get('/cuenta/seguridad')
+
+        contenido = respuesta.get_data(as_text=True)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn('name="accion" value="recuperar_2fa"', contenido)
+        self.assertIn('Restablecer segundo factor', contenido)
+        self.assertNotIn('Restaura la clave TOTP_ENCRYPTION_KEY', contenido)
+
+    def test_recupera_totp_activo_ilegible_con_password_actual(self):
+        conexion = ConexionTotpActivoIlegibleFalsa(self.usuario.password)
+        with patch.dict(aplicacion.app.config, {'WTF_CSRF_ENABLED': False}):
+            with patch.dict(os.environ, {'TOTP_ENCRYPTION_KEY': ''}):
+                with patch.object(aplicacion.login_manager, '_user_callback', return_value=self.usuario):
+                    with patch.object(aplicacion, 'get_db_connection', return_value=conexion):
+                        with patch.object(aplicacion, 'registrar_log'):
+                            with self.cliente.session_transaction() as sesion:
+                                sesion['_user_id'] = str(self.usuario.id)
+                                sesion['_fresh'] = True
+                            respuesta = self.cliente.post(
+                                '/cuenta/seguridad',
+                                data={'accion': 'recuperar_2fa', 'password': self.password_original},
+                            )
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertTrue(conexion.confirmada)
+        self.assertIn('dos_factores_secreto = NULL', conexion.cursor_falso.consulta)
+        self.assertIn('dos_factores_activo = FALSE', conexion.cursor_falso.consulta)
+
+    def test_no_recupera_totp_activo_con_password_incorrecto(self):
+        conexion = ConexionTotpActivoIlegibleFalsa(self.usuario.password)
+        with patch.dict(aplicacion.app.config, {'WTF_CSRF_ENABLED': False}):
+            with patch.dict(os.environ, {'TOTP_ENCRYPTION_KEY': ''}):
+                with patch.object(aplicacion.login_manager, '_user_callback', return_value=self.usuario):
+                    with patch.object(aplicacion, 'get_db_connection', return_value=conexion):
+                        with self.cliente.session_transaction() as sesion:
+                            sesion['_user_id'] = str(self.usuario.id)
+                            sesion['_fresh'] = True
+                        respuesta = self.cliente.post(
+                            '/cuenta/seguridad',
+                            data={'accion': 'recuperar_2fa', 'password': 'Wrong-password'},
+                        )
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertFalse(conexion.confirmada)
+        self.assertFalse(conexion.cursor_falso.actualizado)
+
+    def test_no_restablece_totp_activo_si_la_clave_actual_si_lo_descifra(self):
+        clave = Fernet.generate_key().decode('ascii')
+        secreto_cifrado = Fernet(clave.encode('ascii')).encrypt(b'JBSWY3DPEHPK3PXP').decode('ascii')
+        conexion = ConexionTotpActivoIlegibleFalsa(self.usuario.password, secreto_cifrado)
+        with patch.dict(aplicacion.app.config, {'WTF_CSRF_ENABLED': False}):
+            with patch.dict(os.environ, {'TOTP_ENCRYPTION_KEY': clave}):
+                with patch.object(aplicacion.login_manager, '_user_callback', return_value=self.usuario):
+                    with patch.object(aplicacion, 'get_db_connection', return_value=conexion):
+                        with self.cliente.session_transaction() as sesion:
+                            sesion['_user_id'] = str(self.usuario.id)
+                            sesion['_fresh'] = True
+                        respuesta = self.cliente.post(
+                            '/cuenta/seguridad',
+                            data={'accion': 'recuperar_2fa', 'password': self.password_original},
+                        )
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertFalse(conexion.confirmada)
+        self.assertFalse(conexion.cursor_falso.actualizado)
 
     def test_cambio_password_desde_pantalla_con_token_csrf_valido(self):
         with patch.dict(aplicacion.app.config, {'WTF_CSRF_ENABLED': True, 'DEBUG': True}):

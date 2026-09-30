@@ -2679,6 +2679,74 @@ def configurar_dos_factores():
                     flash('Tu contraseña se actualizó correctamente.', 'success')
                 return redirect(url_for('configurar_dos_factores'))
 
+            if accion == 'recuperar_2fa':
+                password = request.form.get('password') or ''
+                cursor.execute(
+                    '''SELECT password, dos_factores_activo, dos_factores_secreto
+                       FROM usuarios WHERE id = %s FOR UPDATE''',
+                    (current_user.id,)
+                )
+                fila_recuperacion = cursor.fetchone()
+                if (
+                    not fila_recuperacion
+                    or not fila_recuperacion['dos_factores_activo']
+                    or not fila_recuperacion['dos_factores_secreto']
+                ):
+                    conn.rollback()
+                    flash('No hay un segundo factor irrecuperable para restablecer.', 'info')
+                    return redirect(url_for('configurar_dos_factores'))
+
+                verificador = User(
+                    id=current_user.id,
+                    usuario=current_user.usuario,
+                    correo=current_user.correo,
+                    password=fila_recuperacion['password'],
+                    rol_id=current_user.rol_id,
+                    rol_nombre=current_user.rol_nombre,
+                )
+                if not verificador.check_password(password):
+                    conn.rollback()
+                    flash('La contraseña actual no es correcta.', 'danger')
+                    return redirect(url_for('configurar_dos_factores'))
+
+                try:
+                    descifrar_secreto_totp(fila_recuperacion['dos_factores_secreto'])
+                except InvalidToken:
+                    cursor.execute(
+                        '''UPDATE usuarios
+                           SET dos_factores_activo = FALSE,
+                               dos_factores_secreto = NULL,
+                               dos_factores_secreto_pendiente = NULL,
+                               dos_factores_intentos = 0,
+                               dos_factores_bloqueo_hasta = NULL,
+                               dos_factores_ultimo_periodo = NULL
+                           WHERE id = %s AND dos_factores_activo = TRUE
+                             AND dos_factores_secreto = %s''',
+                        (current_user.id, fila_recuperacion['dos_factores_secreto'])
+                    )
+                    if cursor.rowcount != 1:
+                        conn.rollback()
+                        flash('No se pudo restablecer el segundo factor. Vuelve a cargar la página.', 'danger')
+                        return redirect(url_for('configurar_dos_factores'))
+
+                    conn.commit()
+                    registrar_log(
+                        'RESTABLECER_TOTP_NO_DESCIFRABLE',
+                        f'Se restableció el segundo factor irrecuperable de {current_user.usuario}.'
+                    )
+                    flash(
+                        'El segundo factor anterior se restableció. Puedes configurar una nueva aplicación.',
+                        'success'
+                    )
+                else:
+                    conn.rollback()
+                    flash(
+                        'El segundo factor todavía se puede verificar; no se modificó. '
+                        'Usa el código actual para desactivarlo.',
+                        'info'
+                    )
+                return redirect(url_for('configurar_dos_factores'))
+
             if accion == 'iniciar':
                 cursor.execute(
                     'SELECT dos_factores_activo FROM usuarios WHERE id = %s FOR UPDATE',
@@ -2810,9 +2878,8 @@ def configurar_dos_factores():
             conn.rollback()
             app.logger.exception('No se pudo descifrar el secreto TOTP de la cuenta %s.', current_user.id)
             flash(
-                'No se pudo descifrar la configuración 2FA. Restaura la clave TOTP_ENCRYPTION_KEY '
-                'original antes de volver a intentarlo.',
-                'danger'
+                'La configuración 2FA requiere recuperación. Revisa las opciones disponibles en esta página.',
+                'warning'
             )
         except (psycopg2.Error, ValueError):
             conn.rollback()
@@ -2826,7 +2893,8 @@ def configurar_dos_factores():
     fila = None
     try:
         cursor.execute(
-            '''SELECT dos_factores_activo, dos_factores_secreto_pendiente
+            '''SELECT dos_factores_activo, dos_factores_secreto,
+                      dos_factores_secreto_pendiente
                FROM usuarios WHERE id = %s''',
             (current_user.id,)
         )
@@ -2834,6 +2902,21 @@ def configurar_dos_factores():
         if not fila:
             flash('No se encontró la cuenta de usuario.', 'danger')
             return redirect(url_for('dashboard'))
+        if fila['dos_factores_activo'] and fila['dos_factores_secreto']:
+            try:
+                descifrar_secreto_totp(fila['dos_factores_secreto'])
+            except InvalidToken:
+                app.logger.exception(
+                    'No se pudo descifrar el secreto TOTP activo de la cuenta %s.',
+                    current_user.id
+                )
+                return render_template(
+                    'configurar_2fa.html',
+                    activo=True,
+                    secreto=None,
+                    uri=None,
+                    totp_recovery=True,
+                )
         secreto_pendiente = (
             descifrar_secreto_totp(fila['dos_factores_secreto_pendiente'])
             if fila['dos_factores_secreto_pendiente'] else None
@@ -2842,7 +2925,8 @@ def configurar_dos_factores():
             'configurar_2fa.html',
             activo=fila['dos_factores_activo'],
             secreto=secreto_pendiente,
-            uri=uri_configuracion_totp(secreto_pendiente, current_user.usuario) if secreto_pendiente else None
+            uri=uri_configuracion_totp(secreto_pendiente, current_user.usuario) if secreto_pendiente else None,
+            totp_recovery=False,
         )
     except RuntimeError as error:
         app.logger.exception('La clave de cifrado TOTP no está disponible para la cuenta %s.', current_user.id)
@@ -2856,7 +2940,7 @@ def configurar_dos_factores():
         ), 503
     except InvalidToken:
         app.logger.exception('No se pudo descifrar el secreto TOTP pendiente de la cuenta %s.', current_user.id)
-        if fila and not fila['dos_factores_activo'] and fila['dos_factores_secreto_pendiente']:
+        if fila and fila['dos_factores_secreto_pendiente']:
             try:
                 cursor.execute(
                     '''UPDATE usuarios
@@ -2870,13 +2954,12 @@ def configurar_dos_factores():
                 if cursor.rowcount == 1:
                     conn.commit()
                     flash(
-                        'La configuración 2FA pendiente anterior ya no se podía recuperar y se eliminó. '
-                        'Puedes iniciar una nueva configuración.',
+                        'Se eliminó una configuración 2FA pendiente que ya no podía recuperarse.',
                         'warning'
                     )
                     return render_template(
                         'configurar_2fa.html',
-                        activo=False,
+                        activo=fila['dos_factores_activo'],
                         secreto=None,
                         uri=None,
                     )
@@ -2888,19 +2971,19 @@ def configurar_dos_factores():
                 )
             else:
                 conn.rollback()
+            flash('No se pudo actualizar la configuración 2FA. Recarga la página e inténtalo nuevamente.', 'danger')
+            return redirect(url_for('configurar_dos_factores'))
 
-        mensaje = (
-            'No se pudo descifrar la configuración 2FA. Restaura la clave TOTP_ENCRYPTION_KEY '
-            'original antes de volver a intentarlo.'
-        )
+        mensaje = 'No se pudo verificar la configuración de seguridad. Contacta al administrador.'
         flash(mensaje, 'danger')
         return render_template(
             'configurar_2fa.html',
             activo=fila['dos_factores_activo'] if fila else False,
             secreto=None,
             uri=None,
-            totp_error=mensaje,
-        ), 503
+            totp_recovery=bool(fila and fila['dos_factores_activo']),
+            totp_error=not bool(fila and fila['dos_factores_activo']) and mensaje,
+        ), 200 if fila and fila['dos_factores_activo'] else 503
     except (psycopg2.Error, ValueError):
         app.logger.exception('No se pudo cargar la configuración TOTP del usuario %s.', current_user.id)
         mensaje = 'No se pudo cargar la configuración de seguridad. Revisa la conexión y vuelve a intentarlo.'

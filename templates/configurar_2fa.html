@@ -60,7 +60,20 @@
 
                 <div class="card border-0 shadow-sm rounded-4">
                     <div class="card-body p-4 p-md-5">
-                        {% if totp_error %}
+                        {% if totp_recovery %}
+                        <div class="alert alert-warning border-0 rounded-3 mb-4" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            No se puede verificar la aplicación autenticadora guardada. Confirma tu contraseña para restablecerla y configurar una nueva.
+                        </div>
+                        <form method="post" class="security-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="accion" value="recuperar_2fa">
+                            <label for="passwordRecuperacion2fa" class="form-label small fw-semibold">Contraseña actual</label>
+                            <input type="password" id="passwordRecuperacion2fa" name="password" class="form-control"
+                                   autocomplete="current-password" required>
+                            <button type="submit" class="btn btn-outline-danger mt-3">Restablecer segundo factor</button>
+                        </form>
+                        {% elif totp_error %}
                         <div class="alert alert-warning border-0 rounded-3 mb-0" role="alert">
                             <i class="bi bi-exclamation-triangle me-2"></i>{{ totp_error }}
                         </div>

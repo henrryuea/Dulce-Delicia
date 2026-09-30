@@ -73,10 +73,13 @@ el motivo y no permite iniciar la configuración 2FA hasta corregirla; en
 producción, `SECRET_KEY` es obligatoria y proporciona esa alternativa.
 Si una configuración todavía pendiente no se puede descifrar, se descarta para
 permitir iniciar el registro de nuevo. Esto no desactiva ni modifica un segundo
-factor que ya estuviera activo; para ese caso se debe restaurar la clave original.
+factor que ya estuviera activo. Si el secreto activo no se puede descifrar, la
+persona con una sesión iniciada puede restablecer 2FA confirmando su contraseña;
+el factor anterior se desactiva y deberá configurarse de nuevo.
 
 No cambies ni regeneres el valor de esta variable después de activar 2FA. Si no
 la defines, tampoco cambies la `SECRET_KEY`: la clave anterior es necesaria para
-descifrar los factores ya registrados. Para entornos locales, crea una clave
-Fernet una sola vez con `Fernet.generate_key()` y guárdala en `.env`, que no se
-sube a Git.
+descifrar los factores ya registrados. Si ya no conservas la clave anterior, el
+restablecimiento descrito arriba permite recuperar el acceso a la configuración
+2FA sin exponer secretos. Para entornos locales, crea una clave Fernet una sola
+vez con `Fernet.generate_key()` y guárdala en `.env`, que no se sube a Git.
