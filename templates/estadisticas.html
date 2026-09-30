@@ -67,8 +67,8 @@
                         <span class="bakery-kpi-card__icon bakery-kpi-card__icon--rose"><i class="bi bi-trophy"></i></span>
                         <div class="bakery-kpi-card__label">{{ 'Tu producto más comprado del mes' if es_cliente else 'Más vendido (unidades)' }}</div>
                         <div class="bakery-kpi-feature">
-                            {% if producto_estrella_mes and producto_estrella_mes.imagen %}
-                            <img src="{{ producto_estrella_mes.imagen }}" alt="" loading="lazy">
+                            {% if producto_estrella_mes %}
+                            <img src="{{ url_for('imagen_producto', producto_id=producto_estrella_mes.producto_id) }}" alt="" loading="lazy">
                             {% else %}
                             <span class="bakery-kpi-feature__placeholder"><i class="bi bi-cake2"></i></span>
                             {% endif %}
@@ -97,8 +97,13 @@
                     <div class="card-body p-4">
                         <span class="bakery-kpi-card__icon bakery-kpi-card__icon--honey"><i class="bi bi-bread-slice"></i></span>
                         <div class="bakery-kpi-card__label">Estado de producción</div>
-                        <h2 class="h6 fw-bold text-navy mt-3 mb-1">Sin registro de horneadas</h2>
-                        <p class="small text-muted mb-0">Aún no hay producción relacionada con ventas para calcular este indicador.</p>
+                        {% if resumen_produccion and resumen_produccion.lotes %}
+                        <h2 class="h6 fw-bold text-navy mt-3 mb-1">{{ resumen_produccion.producidas }} unidades horneadas</h2>
+                        <p class="small text-muted mb-0">{{ resumen_produccion.lotes }} lotes registrados este mes.</p>
+                        {% else %}
+                        <h2 class="h6 fw-bold text-navy mt-3 mb-1">Sin lotes este mes</h2>
+                        <p class="small text-muted mb-0">Registra horneadas para vincular la producción con sus ventas.</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -172,11 +177,7 @@
                                     </td>
                                     <td class="py-3">
                                         <div class="d-flex align-items-center gap-2">
-                                            {% if fila.imagen %}
-                                            <img class="bakery-product-thumb" src="{{ fila.imagen }}" alt="" loading="lazy">
-                                            {% else %}
-                                            <span class="bakery-product-thumb bakery-product-thumb--empty"><i class="bi bi-cake2"></i></span>
-                                            {% endif %}
+                                            <img class="bakery-product-thumb" src="{{ url_for('imagen_producto', producto_id=fila.producto_id) }}" alt="" loading="lazy">
                                             <span class="fw-bold text-navy">{{ fila.producto }}</span>
                                         </div>
                                     </td>
@@ -249,8 +250,17 @@
                     </div>
                     <div class="card-body d-flex flex-column justify-content-center text-center p-4">
                         <span class="bakery-detail-card__icon"><i class="bi bi-calendar-date"></i></span>
-                        <p class="fw-semibold text-navy mb-1">Aún no disponible</p>
-                        <p class="small text-muted mb-0">Las facturas guardan la fecha, pero no la hora de emisión. Se requiere registrar también la hora para construir este gráfico.</p>
+                        {% if hora_pico %}
+                        <p class="fw-semibold text-navy mb-1">
+                            {{ '%02d'|format(hora_pico.hora) }}:00–{{ '%02d'|format((hora_pico.hora + 1) % 24) }}:00
+                        </p>
+                        <p class="small text-muted mb-0">
+                            {{ hora_pico.pedidos }} pedidos registrados en esa franja durante este mes.
+                        </p>
+                        {% else %}
+                        <p class="fw-semibold text-navy mb-1">Sin pedidos con hora registrada</p>
+                        <p class="small text-muted mb-0">Las nuevas facturas guardan la hora local de emisión y alimentarán este indicador.</p>
+                        {% endif %}
                     </div>
                 </section>
             </div>
@@ -262,8 +272,23 @@
                     </div>
                     <div class="card-body d-flex flex-column justify-content-center text-center p-4">
                         <span class="bakery-detail-card__icon"><i class="bi bi-basket"></i></span>
-                        <p class="fw-semibold text-navy mb-1">Sin datos de producción</p>
-                        <p class="small text-muted mb-0">El sistema aún no relaciona lotes horneados y sobrantes con las ventas; no se estima un porcentaje de merma.</p>
+                        {% if resumen_produccion and resumen_produccion.lotes %}
+                        <p class="fw-semibold text-navy mb-1">
+                            Merma: {{ ('%.2f'|format(merma_porcentaje)).replace('.', ',') }}%
+                        </p>
+                        <p class="small text-muted mb-1">
+                            {{ resumen_produccion.merma }} merma de {{ resumen_produccion.producidas }} unidades horneadas.
+                        </p>
+                        <p class="small text-muted mb-2">
+                            {{ resumen_produccion.vendidas }} vendidas · {{ resumen_produccion.disponibles }} aún disponibles.
+                        </p>
+                        {% else %}
+                        <p class="fw-semibold text-navy mb-1">Sin lotes registrados este mes</p>
+                        <p class="small text-muted mb-2">La merma se calcula con las salidas declaradas de cada lote.</p>
+                        {% endif %}
+                        <a href="{{ url_for('produccion') }}" class="btn btn-sm btn-outline-success rounded-pill align-self-center">
+                            <i class="bi bi-bread-slice me-1"></i>Gestionar producción
+                        </a>
                     </div>
                 </section>
             </div>

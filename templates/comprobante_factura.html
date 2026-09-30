@@ -57,7 +57,14 @@
                         <small class="text-muted d-block font-monospace" style="font-size: 0.75rem;">Doc. Ref: {{ factura.numero }}</small>
                     {% endif %}
 
-                    <p class="text-muted small mb-1"><strong>Fecha de emisión:</strong> {{ factura.fecha }}</p>
+                    <p class="text-muted small mb-1">
+                        <strong>Fecha y hora de emisión:</strong>
+                        {% if factura.fecha_hora_emision %}
+                            {{ factura.fecha_hora_emision.strftime('%d/%m/%Y %H:%M') }}
+                        {% else %}
+                            {{ factura.fecha }}
+                        {% endif %}
+                    </p>
                     {% if not es_cotizacion %}
                     <p class="text-muted small mb-0">Documento comercial; no sustituye un comprobante tributario autorizado.</p>
                     {% endif %}
@@ -197,16 +204,21 @@
                             <span class="text-muted small">Subtotal:</span>
                             <span class="fw-semibold text-navy">${{ "%.2f"|format(factura.subtotal or factura.monto) }}</span>
                         </div>
+                        {% if factura.get('impuestos_detalle') %}
+                            {% for impuesto in factura.impuestos_detalle %}
+                            <div class="d-flex justify-content-between py-1 border-bottom">
+                                <span class="text-muted small">
+                                    {{ impuesto.nombre }} ({{ ('%.2f'|format(impuesto.porcentaje)).replace('.', ',') }}%):
+                                </span>
+                                <span class="fw-semibold text-navy">${{ "%.2f"|format(impuesto.monto) }}</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
                         <div class="d-flex justify-content-between py-1 border-bottom">
-                            <span class="text-muted small">Impuestos:</span>
+                            <span class="text-muted small">IVA registrado:</span>
                             <span class="fw-semibold text-navy">${{ "%.2f"|format(factura.iva or 0.0) }}</span>
                         </div>
-                        {% for impuesto in factura.get('impuestos_detalle', []) %}
-                        <div class="d-flex justify-content-between py-1 small text-muted">
-                            <span>{{ impuesto.nombre }} ({{ "%.4g"|format(impuesto.porcentaje) }}%):</span>
-                            <span>${{ "%.2f"|format(impuesto.monto) }}</span>
-                        </div>
-                        {% endfor %}
+                        {% endif %}
 
                         <div class="d-flex justify-content-between py-2 border-bottom">
                             <span class="fw-bold text-navy">TOTAL {{ 'DE LA PROPUESTA' if es_cotizacion else 'GENERAL' }}:</span>

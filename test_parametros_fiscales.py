@@ -134,6 +134,26 @@ class ParametrosFiscalesTests(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 302)
         self.assertTrue(self.conexion.confirmada)
 
+    def test_acepta_porcentaje_iva_con_coma_decimal(self):
+        respuesta = self.cliente.post(
+            '/parametros-fiscales',
+            data={'accion': 'actualizar_iva', 'valor': '15,00'},
+        )
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertTrue(self.conexion.confirmada)
+        self.assertEqual(self.conexion.cursor_falso.consultas[-1][1], (15.0,))
+
+    def test_rechaza_tasa_con_mas_de_dos_decimales(self):
+        respuesta = self.cliente.post(
+            '/parametros-fiscales',
+            data={'accion': 'actualizar_iva', 'valor': '15,125'},
+        )
+
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertFalse(self.conexion.confirmada)
+        self.assertEqual(self.conexion.cursor_falso.consultas, [])
+
 
 if __name__ == '__main__':
     unittest.main()

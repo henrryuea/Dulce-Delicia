@@ -133,14 +133,14 @@
                                     </span>
                                 </td>
                                 <td class="py-3 text-center pe-3">
-                                    <div class="d-inline-flex gap-1 flex-wrap justify-content-center">
-                                        <a href="{{ url_for('editar_cliente', cedula=cliente.cedula) }}" class="btn btn-outline-primary btn-sm rounded-circle" title="Editar cliente">
-                                            <i class="bi bi-pencil-square"></i>
+                                    <div class="table-row-actions">
+                                        <a href="{{ url_for('editar_cliente', cedula=cliente.cedula) }}" class="btn btn-outline-primary table-action table-action-edit" aria-label="Editar cliente {{ cliente.nombre }}">
+                                            <i class="bi bi-pencil-square" aria-hidden="true"></i><span>Editar</span>
                                         </a>
                                         <form method="POST" action="{{ url_for('eliminar_cliente', cedula=cliente.cedula) }}" onsubmit="return confirm('¿Estás seguro de que deseas eliminar a &quot;{{ cliente.nombre }}&quot;?');" class="d-inline">
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm rounded-circle" title="Eliminar cliente">
-                                                <i class="bi bi-trash-fill"></i>
+                                            <button type="submit" class="btn btn-outline-danger table-action table-action-delete" aria-label="Eliminar cliente {{ cliente.nombre }}">
+                                                <i class="bi bi-trash-fill" aria-hidden="true"></i><span>Eliminar</span>
                                             </button>
                                         </form>
                                     </div>

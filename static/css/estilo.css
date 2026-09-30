@@ -577,6 +577,18 @@ th,
     border-radius: 0;
 }
 
+.table {
+    border-color: #e2e8f0;
+}
+
+.table > :not(caption) > * > * {
+    vertical-align: middle;
+}
+
+.table thead th {
+    white-space: nowrap;
+}
+
 @supports not (scrollbar-color: auto) {
     .table-responsive::-webkit-scrollbar {
         height: 7px;
@@ -657,6 +669,48 @@ th,
 .table-builder td {
     padding: 0.75rem 0.5rem;
     vertical-align: middle;
+}
+
+.table td.text-end,
+.table th.text-end {
+    white-space: nowrap;
+}
+
+.kardex-valuation-table {
+    min-width: 1505px;
+    table-layout: fixed;
+    border-color: #dbe4ee;
+}
+
+.kardex-valuation-table th,
+.kardex-valuation-table td {
+    white-space: nowrap;
+    padding: 0.7rem 0.55rem;
+    border-right: 1px solid #e2e8f0;
+}
+
+.kardex-valuation-table thead th {
+    color: #18334f;
+    background: #f1f5f9;
+    vertical-align: middle;
+}
+
+.kardex-valuation-table tbody tr:nth-child(even) {
+    background: #fbfdff;
+}
+
+.kardex-valuation-table .kardex-concept-cell {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.kardex-valuation-table tfoot td {
+    white-space: nowrap;
+    background: #f1f5f9;
+}
+
+.production-lots-table {
+    min-width: 1000px;
 }
 
 /* Inputs de Facturación con Anchos Amplios (Sin recortes) */
@@ -790,6 +844,61 @@ input[type="number"] {
     min-width: 0;
     text-align: right;
     font-variant-numeric: tabular-nums;
+}
+
+.table-row-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    flex-wrap: wrap;
+}
+
+.table-row-actions .table-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .35rem;
+    min-height: 34px;
+    padding: .35rem .65rem;
+    border-radius: .65rem;
+    font-size: .78rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.table-row-actions .table-action-edit {
+    color: var(--dd-caramel-dark);
+    border-color: var(--dd-caramel);
+    background: #fff;
+}
+
+.table-row-actions .table-action-edit:hover {
+    color: #fff;
+    background: var(--dd-caramel);
+}
+
+.table-row-actions .table-action-delete {
+    color: #a52834;
+    border-color: #e7b7bc;
+    background: #fff;
+}
+
+.table-row-actions .table-action-delete:hover {
+    color: #fff;
+    border-color: #a52834;
+    background: #a52834;
+}
+
+.table-row-actions .table-action:focus-visible {
+    outline: 3px solid rgba(40, 101, 126, .3);
+    outline-offset: 2px;
+}
+
+@media (max-width: 575.98px) {
+    .table-row-actions {
+        flex-direction: column;
+    }
 }
 
 /* Identidad visual unificada de Dulce Delicia */
@@ -1857,6 +1966,31 @@ a:hover {
 .billing-list-card .custom-table .btn {
     white-space: nowrap;
 }
+
+.billing-actions-toggle {
+    width: 2.5rem;
+    height: 2.5rem;
+    display: inline-grid;
+    place-items: center;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, .08);
+}
+
+.billing-actions-menu {
+    min-width: 15rem;
+    max-height: min(70vh, 32rem);
+    overflow-y: auto;
+    z-index: 1080;
+}
+
+.billing-actions-menu .dropdown-item {
+    padding: .55rem .9rem;
+}
+
+.billing-actions-menu .dropdown-item:focus-visible {
+    outline: 2px solid var(--dd-emerald);
+    outline-offset: -2px;
+}
+
 
 .billing-dynamic-form {
     color: var(--dd-text);

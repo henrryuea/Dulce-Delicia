@@ -110,6 +110,14 @@ def ejecutar_pruebas():
             'plazos', 3, '01', 'Documento de prueba para abonos y comprobantes'
         );
     """, (doc_test, id_emitida))
+    cur.execute("""
+        INSERT INTO cuotas_factura (
+            factura_numero, numero_pago, valor_pago, fecha_vencimiento,
+            monto_pagado, saldo_pago, estado
+        ) VALUES
+            (%s, 1, 500.00, CURRENT_DATE, 0.00, 500.00, 'Pendiente'),
+            (%s, 2, 500.00, (CURRENT_DATE + INTERVAL '1 month')::date, 0.00, 500.00, 'Pendiente')
+    """, (doc_test, doc_test))
     conn.commit()
     print(f"-> Documento {doc_test} creado con éxito. Monto total: $1.000,00 | Saldo pendiente: $1.000,00\n")
 
@@ -148,6 +156,13 @@ def ejecutar_pruebas():
     print(f"Comprobante generado: {comp1['numero_comprobante']} por ${comp1['monto_abonado']} (Acumulado: ${comp1['total_acumulado_pagado']}, Saldo pendiente: ${comp1['saldo_pendiente']})")
     assert Decimal(str(comp1['monto_abonado'])) == Decimal("200.00")
     assert Decimal(str(comp1['saldo_pendiente'])) == Decimal("800.00")
+    cur.execute("""
+        SELECT SUM(a.monto_aplicado) AS aplicado
+        FROM aplicaciones_pago a
+        JOIN pagos_factura p ON p.id = a.pago_id AND p.factura_numero = a.factura_numero
+        WHERE p.factura_numero = %s AND p.numero_pago = 1
+    """, (doc_test,))
+    assert Decimal(str(cur.fetchone()['aplicado'])) == Decimal("200.00")
 
     # Verificar que el endpoint de comprobante responde 200 OK
     resp_comp1 = client.get(f"/facturacion/comprobante-pago/{comp1['numero_comprobante']}")
@@ -195,6 +210,15 @@ def ejecutar_pruebas():
     print(f"Segundo Comprobante generado: {comp2['numero_comprobante']} por ${comp2['monto_abonado']} (Acumulado: ${comp2['total_acumulado_pagado']}, Saldo pendiente: ${comp2['saldo_pendiente']})")
     assert Decimal(str(comp2['monto_abonado'])) == Decimal("300.00")
     assert Decimal(str(comp2['saldo_pendiente'])) == Decimal("500.00")
+    cur.execute("""
+        SELECT SUM(a.monto_aplicado) AS aplicado, COUNT(DISTINCT a.pago_id) AS pagos
+        FROM aplicaciones_pago a
+        JOIN cuotas_factura c ON c.id = a.cuota_id AND c.factura_numero = a.factura_numero
+        WHERE c.factura_numero = %s AND c.numero_pago = 1
+    """, (doc_test,))
+    aplicacion_cuota_1 = cur.fetchone()
+    assert Decimal(str(aplicacion_cuota_1['aplicado'])) == Decimal("500.00")
+    assert aplicacion_cuota_1['pagos'] == 2
 
     # Verificar que aún NO genera factura / acceso bloqueado
     resp_fact2 = client.get(f"/facturacion/factura/{doc_test}")
@@ -292,6 +316,12 @@ def ejecutar_pruebas():
     print(f"Tercer Comprobante generado: {comp3['numero_comprobante']} por ${comp3['monto_abonado']} (Acumulado: ${comp3['total_acumulado_pagado']}, Saldo pendiente: ${comp3['saldo_pendiente']})")
     assert Decimal(str(comp3['monto_abonado'])) == Decimal("500.00")
     assert Decimal(str(comp3['saldo_pendiente'])) == Decimal("0.00")
+    cur.execute("""
+        SELECT SUM(a.monto_aplicado) AS aplicado
+        FROM aplicaciones_pago a
+        WHERE a.factura_numero = %s
+    """, (doc_test,))
+    assert Decimal(str(cur.fetchone()['aplicado'])) == Decimal("1000.00")
 
     # Verificar que el comprobante de venta está disponible al liquidar el saldo
     resp_fact3 = client.get(f"/facturacion/comprobante-venta/{doc_test}")

@@ -36,7 +36,7 @@
                     </div>
 
                     <div class="card-body p-4">
-                        <form method="POST" novalidate>
+                        <form method="POST" enctype="multipart/form-data" novalidate>
                             <!-- Token CSRF generado por Flask-WTF -->
                             {{ form.hidden_tag() }}
 
@@ -86,11 +86,11 @@
                                 {{ form.imagen.label(class="form-label fw-semibold text-navy small") }}
                                 <div class="input-group">
                                     <span class="input-group-text bg-light"><i class="bi bi-image"></i></span>
-                                    {{ form.imagen(class="form-control" + (" is-invalid" if form.imagen.errors else ""), placeholder="https://images.unsplash.com/...") }}
+                                    {{ form.imagen(class="form-control" + (" is-invalid" if form.imagen.errors else ""), accept="image/jpeg,image/png,image/webp") }}
                                 </div>
-                                <div class="form-text small text-muted">Usa una URL HTTPS directa a una imagen del producto para que aparezca en el catálogo.</div>
-                                <div id="imagenPreviewContenedor" class="mt-3 d-none">
-                                    <img id="imagenPreview" src="" alt="Vista previa de la imagen del producto"
+                                <div class="form-text small text-muted">Selecciona una imagen JPG, PNG o WEBP de hasta 5 MB. Se guardará en la base de datos.</div>
+                                <div id="imagenPreviewContenedor" class="mt-3 {% if not editando %}d-none{% endif %}">
+                                    <img id="imagenPreview" src="{% if editando %}{{ url_for('imagen_producto', producto_id=id) }}{% endif %}" alt="Vista previa de la imagen del producto"
                                          class="img-fluid rounded-3 border shadow-sm" style="max-height: 180px; width: 100%; object-fit: cover;">
                                     <small id="imagenPreviewEstado" class="text-muted d-block mt-1"></small>
                                 </div>
@@ -167,27 +167,30 @@
     const estado = document.getElementById('imagenPreviewEstado');
     if (!campo || !contenedor || !preview) return;
 
+    let vistaPreviaLocal = null;
     const actualizarVistaPrevia = () => {
-        const url = campo.value.trim();
-        if (!url) {
+        const archivo = campo.files && campo.files[0];
+        if (!archivo) {
+            if (vistaPreviaLocal) URL.revokeObjectURL(vistaPreviaLocal);
+            vistaPreviaLocal = null;
+            {% if editando %}
+            preview.src = "{{ url_for('imagen_producto', producto_id=id) }}";
+            contenedor.classList.remove('d-none');
+            estado.textContent = 'Imagen local guardada actualmente.';
+            {% else %}
             contenedor.classList.add('d-none');
             preview.removeAttribute('src');
+            {% endif %}
             return;
         }
-        preview.src = url;
+        if (vistaPreviaLocal) URL.revokeObjectURL(vistaPreviaLocal);
+        vistaPreviaLocal = URL.createObjectURL(archivo);
+        preview.src = vistaPreviaLocal;
         contenedor.classList.remove('d-none');
-        estado.textContent = 'Vista previa del enlace ingresado.';
+        estado.textContent = 'Vista previa de la imagen seleccionada.';
     };
 
-    preview.addEventListener('load', () => {
-        estado.textContent = 'Imagen cargada correctamente.';
-        estado.className = 'text-success d-block mt-1';
-    });
-    preview.addEventListener('error', () => {
-        estado.textContent = 'El enlace no devuelve una imagen directamente; se guardará el enlace para que puedas corregirlo o usar una URL directa.';
-        estado.className = 'text-warning d-block mt-1';
-    });
-    campo.addEventListener('input', actualizarVistaPrevia);
+    campo.addEventListener('change', actualizarVistaPrevia);
     actualizarVistaPrevia();
 })();
 </script>

@@ -65,13 +65,12 @@ INSERT INTO catalogo_inicial_pruebas (categoria, nombre, precio, descripcion, di
      'Selección surtida de bocados salados para reuniones y eventos, presentación referencial de 25 unidades. Precio de muestra; confirmar menú, cantidad y precio antes de ofrecer.', FALSE);
 
 INSERT INTO productos (
-    categoria_producto_id, nombre, precio_base, imagen, descripcion, disponible
+    categoria_producto_id, nombre, precio_base, descripcion, disponible
 )
 SELECT
     categoria.id,
     catalogo.nombre,
     catalogo.precio,
-    NULL,
     catalogo.descripcion,
     catalogo.disponible
 FROM catalogo_inicial_pruebas AS catalogo

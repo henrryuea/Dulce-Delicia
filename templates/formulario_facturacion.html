@@ -80,6 +80,17 @@
                                         <div class="text-danger small mt-1">{{ error }}</div>
                                     {% endfor %}
                                 </div>
+                                <div class="col-md-6">
+                                    {{ form.hora_emision.label(class="form-label fw-semibold text-navy small") }}
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light"><i class="bi bi-clock"></i></span>
+                                        {{ form.hora_emision(class="form-control" + (" is-invalid" if form.hora_emision.errors else ""), type="time", id="inputHoraEmision", required=true) }}
+                                    </div>
+                                    {% for error in form.hora_emision.errors %}
+                                        <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                    <small class="text-muted">Hora local de emisión (Ecuador).</small>
+                                </div>
 
                                 <!-- Cliente identificado por cédula o RUC -->
                                 <div class="col-md-12">
@@ -457,7 +468,7 @@
                             <!-- pagos y Obligación Comercial (Requisito 8: Liquidación Comercial completa) -->
                             <div class="p-3 bg-light rounded-3 border mb-3 small" id="boxDetalleObligacion">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="text-muted">pagos pagadas:</span>
+                                    <span class="text-muted">pagos pagados:</span>
                                     <span class="fw-bold text-emerald" id="lblpagosPagadas">0</span>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center mb-1">

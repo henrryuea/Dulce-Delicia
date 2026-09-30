@@ -85,7 +85,6 @@ ALTER TABLE usuarios
     ADD COLUMN IF NOT EXISTS dos_factores_bloqueo_hasta TIMESTAMP,
     ADD COLUMN IF NOT EXISTS dos_factores_ultimo_periodo BIGINT;
 
-UPDATE usuarios SET dos_factores_activo = FALSE;
 ALTER TABLE usuarios
     ALTER COLUMN dos_factores_activo SET DEFAULT FALSE,
     DROP COLUMN IF EXISTS dos_factores_codigo,

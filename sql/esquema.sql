@@ -48,12 +48,18 @@ CREATE TABLE productos (
     categoria_producto_id INT NOT NULL REFERENCES categorias_producto(id),
     nombre VARCHAR(150) NOT NULL,
     precio_base NUMERIC(12,2) NOT NULL CHECK (precio_base > 0),
-    imagen TEXT,
     descripcion TEXT NOT NULL,
     disponible BOOLEAN NOT NULL DEFAULT TRUE,
     stock_actual INTEGER NOT NULL DEFAULT 0,
     stock_minimo INTEGER NOT NULL DEFAULT 0,
     es_insumo BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE TABLE imagenes_productos (
+    producto_id INT PRIMARY KEY REFERENCES productos(id) ON DELETE CASCADE,
+    contenido BYTEA NOT NULL,
+    tipo_contenido VARCHAR(30) NOT NULL DEFAULT 'image/jpeg',
+    actualizado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
  
 CREATE TABLE estados_proveedor (
@@ -110,10 +116,10 @@ CREATE TABLE facturacion (
     tipo VARCHAR(50) NOT NULL,
     cliente_cedula VARCHAR(20) NOT NULL REFERENCES clientes(cedula) ON UPDATE CASCADE,
     fecha DATE NOT NULL,
+    fecha_hora_emision TIMESTAMP,
     validez VARCHAR(50),
     subtotal NUMERIC(12,2),
     iva NUMERIC(12,2),
-    impuestos_detalle JSONB NOT NULL DEFAULT '[]'::jsonb,
     monto NUMERIC(12,2) NOT NULL,
     anticipo NUMERIC(12,2) DEFAULT 0,
     saldo_pendiente NUMERIC(12,2) DEFAULT 0,
@@ -124,6 +130,7 @@ CREATE TABLE facturacion (
     tipo_pago VARCHAR(20) DEFAULT 'contado',
     plazo_meses INT DEFAULT 1,
     total_abonado NUMERIC(12,2) DEFAULT 0,
+    -- Datos historicos del cliente al emitir; no sustituyen la ficha maestra.
     cliente_nombre_snapshot VARCHAR(150),
     cliente_apellido_snapshot VARCHAR(100),
     cliente_correo_snapshot VARCHAR(150),
@@ -142,6 +149,22 @@ CREATE TABLE facturacion (
 -- Clave candidata para validar en comprobantes la pareja factura/cliente.
 ALTER TABLE facturacion ADD CONSTRAINT uq_facturacion_numero_cliente
     UNIQUE (numero, cliente_cedula);
+
+-- Cada impuesto aplicado se relaciona con su parametro y conserva la tasa y
+-- el valor historicos usados al emitir el documento.
+CREATE TABLE impuestos_factura (
+    id SERIAL PRIMARY KEY,
+    factura_numero VARCHAR(30) NOT NULL
+        REFERENCES facturacion(numero) ON DELETE CASCADE ON UPDATE CASCADE,
+    orden SMALLINT NOT NULL CHECK (orden > 0),
+    parametro_id INT REFERENCES parametros(id) ON DELETE SET NULL,
+    codigo VARCHAR(50) NOT NULL,
+    nombre VARCHAR(100) NOT NULL,
+    descripcion VARCHAR(300),
+    porcentaje NUMERIC(7,4) NOT NULL CHECK (porcentaje >= 0 AND porcentaje <= 100),
+    monto NUMERIC(12,2) NOT NULL CHECK (monto >= 0),
+    CONSTRAINT uq_impuesto_factura_orden UNIQUE (factura_numero, orden)
+);
  
 CREATE TABLE detalle_factura (
     id SERIAL PRIMARY KEY,
@@ -174,6 +197,7 @@ CREATE TABLE pagos_factura (
     registrado_por VARCHAR(100),
     notas TEXT,
     fecha_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    exige_aplicacion BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT uq_pago_id_factura UNIQUE (id, factura_numero)
 );
 
@@ -217,9 +241,134 @@ CREATE TABLE cuotas_factura (
     saldo_pago NUMERIC(12,2) NOT NULL,
     estado VARCHAR(30) NOT NULL DEFAULT 'Pendiente',
     fecha_pago DATE,
+    exige_aplicacion BOOLEAN NOT NULL DEFAULT FALSE,
+    CONSTRAINT uq_cuota_id_factura UNIQUE (id, factura_numero),
     CONSTRAINT uq_cuota_factura UNIQUE (factura_numero, numero_pago),
-    CONSTRAINT ck_cuota_importes CHECK (valor_pago >= 0 AND monto_pagado <= valor_pago AND saldo_pago >= 0)
+    CONSTRAINT ck_cuota_importes CHECK (
+        valor_pago >= 0 AND monto_pagado >= 0
+        AND monto_pagado <= valor_pago
+        AND saldo_pago = valor_pago - monto_pagado
+    )
 );
+
+-- Un pago puede cubrir varias cuotas y una cuota puede recibir varios pagos.
+-- La factura forma parte de ambas FK para impedir asignaciones entre facturas.
+CREATE TABLE aplicaciones_pago (
+    pago_id INT NOT NULL,
+    cuota_id INT NOT NULL,
+    factura_numero VARCHAR(30) NOT NULL,
+    monto_aplicado NUMERIC(12,2) NOT NULL CHECK (monto_aplicado > 0),
+    fecha_aplicacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (pago_id, cuota_id),
+    CONSTRAINT fk_aplicaciones_pago_pago_factura
+        FOREIGN KEY (pago_id, factura_numero)
+        REFERENCES pagos_factura(id, factura_numero) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_aplicaciones_pago_cuota_factura
+        FOREIGN KEY (cuota_id, factura_numero)
+        REFERENCES cuotas_factura(id, factura_numero) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX idx_aplicaciones_pago_cuota
+    ON aplicaciones_pago (factura_numero, cuota_id);
+
+CREATE OR REPLACE FUNCTION fn_validar_integridad_aplicaciones() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    pago_ids INTEGER[] := ARRAY[]::INTEGER[];
+    cuota_ids INTEGER[] := ARRAY[]::INTEGER[];
+    id_actual INTEGER;
+    monto_esperado NUMERIC(12,2);
+    monto_aplicado_total NUMERIC(12,2);
+    requiere_aplicacion BOOLEAN;
+BEGIN
+    IF TG_TABLE_NAME = 'aplicaciones_pago' THEN
+        IF TG_OP <> 'INSERT' THEN
+            pago_ids := array_append(pago_ids, OLD.pago_id);
+            cuota_ids := array_append(cuota_ids, OLD.cuota_id);
+        END IF;
+        IF TG_OP <> 'DELETE' THEN
+            pago_ids := array_append(pago_ids, NEW.pago_id);
+            cuota_ids := array_append(cuota_ids, NEW.cuota_id);
+        END IF;
+    ELSIF TG_TABLE_NAME = 'pagos_factura' THEN
+        IF TG_OP <> 'INSERT' THEN
+            pago_ids := array_append(pago_ids, OLD.id);
+        END IF;
+        IF TG_OP <> 'DELETE' THEN
+            pago_ids := array_append(pago_ids, NEW.id);
+        END IF;
+    ELSE
+        IF TG_OP <> 'INSERT' THEN
+            cuota_ids := array_append(cuota_ids, OLD.id);
+        END IF;
+        IF TG_OP <> 'DELETE' THEN
+            cuota_ids := array_append(cuota_ids, NEW.id);
+        END IF;
+    END IF;
+
+    FOREACH id_actual IN ARRAY pago_ids LOOP
+        SELECT p.monto, p.exige_aplicacion
+        INTO monto_esperado, requiere_aplicacion
+        FROM pagos_factura p
+        WHERE p.id = id_actual
+        FOR UPDATE;
+
+        IF FOUND THEN
+            SELECT COALESCE(SUM(a.monto_aplicado), 0)
+            INTO monto_aplicado_total
+            FROM aplicaciones_pago a
+            WHERE a.pago_id = id_actual;
+
+            IF monto_aplicado_total > monto_esperado
+               OR (requiere_aplicacion AND monto_aplicado_total <> monto_esperado) THEN
+                RAISE EXCEPTION
+                    'Aplicaciones del pago % suman %, pero el pago es %',
+                    id_actual, monto_aplicado_total, monto_esperado
+                    USING ERRCODE = '23514';
+            END IF;
+        END IF;
+    END LOOP;
+
+    FOREACH id_actual IN ARRAY cuota_ids LOOP
+        SELECT c.monto_pagado, c.exige_aplicacion
+        INTO monto_esperado, requiere_aplicacion
+        FROM cuotas_factura c
+        WHERE c.id = id_actual
+        FOR UPDATE;
+
+        IF FOUND THEN
+            SELECT COALESCE(SUM(a.monto_aplicado), 0)
+            INTO monto_aplicado_total
+            FROM aplicaciones_pago a
+            WHERE a.cuota_id = id_actual;
+
+            IF monto_aplicado_total > monto_esperado
+               OR (requiere_aplicacion AND monto_aplicado_total <> monto_esperado) THEN
+                RAISE EXCEPTION
+                    'Aplicaciones de la cuota % suman %, pero el monto pagado es %',
+                    id_actual, monto_aplicado_total, monto_esperado
+                    USING ERRCODE = '23514';
+            END IF;
+        END IF;
+    END LOOP;
+
+    RETURN NULL;
+END; $$;
+
+CREATE CONSTRAINT TRIGGER ct_aplicaciones_pago_integridad
+    AFTER INSERT OR UPDATE OR DELETE ON aplicaciones_pago
+    DEFERRABLE INITIALLY DEFERRED
+    FOR EACH ROW EXECUTE FUNCTION fn_validar_integridad_aplicaciones();
+
+CREATE CONSTRAINT TRIGGER ct_pagos_factura_aplicaciones
+    AFTER INSERT OR UPDATE OR DELETE ON pagos_factura
+    DEFERRABLE INITIALLY DEFERRED
+    FOR EACH ROW EXECUTE FUNCTION fn_validar_integridad_aplicaciones();
+
+CREATE CONSTRAINT TRIGGER ct_cuotas_factura_aplicaciones
+    AFTER INSERT OR UPDATE OR DELETE ON cuotas_factura
+    DEFERRABLE INITIALLY DEFERRED
+    FOR EACH ROW EXECUTE FUNCTION fn_validar_integridad_aplicaciones();
 
 CREATE TABLE roles (
     id SERIAL PRIMARY KEY,
@@ -313,8 +462,7 @@ CREATE TABLE solicitudes_acceso (
     motivo TEXT,
     fecha_solicitud TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     fecha_decision TIMESTAMP,
-    decidido_por VARCHAR(150),
-    UNIQUE (usuario_id, rol_id)
+    decidido_por VARCHAR(150)
 );
 
 CREATE INDEX idx_solicitudes_acceso_estado
@@ -324,13 +472,24 @@ CREATE OR REPLACE FUNCTION fn_registrar_solicitud_acceso() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
     IF OLD.aprobado IS DISTINCT FROM NEW.aprobado THEN
-        INSERT INTO solicitudes_acceso (usuario_id, rol_id, estado, fecha_decision)
-        VALUES (NEW.id, NEW.rol_id, CASE WHEN NEW.aprobado THEN 'Aprobada' ELSE 'Pendiente' END,
-                CASE WHEN NEW.aprobado THEN CURRENT_TIMESTAMP ELSE NULL END)
-        ON CONFLICT (usuario_id, rol_id) DO UPDATE
-            SET estado = EXCLUDED.estado,
-                fecha_decision = EXCLUDED.fecha_decision,
-                decidido_por = EXCLUDED.decidido_por;
+        IF NEW.aprobado THEN
+            UPDATE solicitudes_acceso
+            SET estado = 'Aprobada', fecha_decision = CURRENT_TIMESTAMP
+            WHERE id = (
+                SELECT id FROM solicitudes_acceso
+                WHERE usuario_id = NEW.id AND rol_id = NEW.rol_id AND estado = 'Pendiente'
+                ORDER BY fecha_solicitud DESC, id DESC
+                LIMIT 1
+            );
+
+            IF NOT FOUND THEN
+                INSERT INTO solicitudes_acceso (usuario_id, rol_id, estado, fecha_decision)
+                VALUES (NEW.id, NEW.rol_id, 'Aprobada', CURRENT_TIMESTAMP);
+            END IF;
+        ELSE
+            INSERT INTO solicitudes_acceso (usuario_id, rol_id, estado, fecha_decision)
+            VALUES (NEW.id, NEW.rol_id, 'Rechazada', CURRENT_TIMESTAMP);
+        END IF;
     END IF;
     RETURN NEW;
 END; $$;
@@ -352,6 +511,33 @@ CREATE TABLE kardex_movimientos (
     factura_numero VARCHAR(30) REFERENCES facturacion(numero) ON DELETE SET NULL,
     fecha TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     costo_unitario NUMERIC(12,2)
+);
+
+CREATE TABLE lotes_produccion (
+    id SERIAL PRIMARY KEY,
+    producto_id INTEGER NOT NULL REFERENCES productos(id) ON DELETE RESTRICT,
+    movimiento_produccion_id INTEGER NOT NULL UNIQUE
+        REFERENCES kardex_movimientos(id) ON DELETE RESTRICT,
+    cantidad_producida INTEGER NOT NULL CHECK (cantidad_producida > 0),
+    creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE ventas_lote (
+    id SERIAL PRIMARY KEY,
+    lote_id INTEGER NOT NULL REFERENCES lotes_produccion(id) ON DELETE CASCADE,
+    detalle_factura_id INTEGER NOT NULL
+        REFERENCES detalle_factura(id) ON DELETE CASCADE,
+    cantidad INTEGER NOT NULL CHECK (cantidad > 0),
+    CONSTRAINT uq_venta_lote_detalle UNIQUE (lote_id, detalle_factura_id)
+);
+
+CREATE TABLE mermas_lote (
+    id SERIAL PRIMARY KEY,
+    lote_id INTEGER NOT NULL REFERENCES lotes_produccion(id) ON DELETE CASCADE,
+    movimiento_merma_id INTEGER NOT NULL UNIQUE
+        REFERENCES kardex_movimientos(id) ON DELETE RESTRICT,
+    cantidad INTEGER NOT NULL CHECK (cantidad > 0),
+    registrado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE logs_actividad (
@@ -575,6 +761,11 @@ BEGIN
 END $$;
 CREATE INDEX IF NOT EXISTS idx_facturacion_usuario ON facturacion (usuario_id);
 CREATE INDEX IF NOT EXISTS idx_facturacion_iva ON facturacion (iva_id);
+CREATE INDEX IF NOT EXISTS idx_facturacion_fecha_hora ON facturacion (fecha_hora_emision);
+CREATE INDEX IF NOT EXISTS idx_lotes_produccion_producto_fecha
+    ON lotes_produccion (producto_id, creado_en, id);
+CREATE INDEX IF NOT EXISTS idx_ventas_lote_detalle ON ventas_lote (detalle_factura_id);
+CREATE INDEX IF NOT EXISTS idx_mermas_lote_lote ON mermas_lote (lote_id);
 
 -- Cada línea conserva el IVA aplicado y el parámetro del que proviene.
 ALTER TABLE detalle_factura ADD COLUMN IF NOT EXISTS iva_id INT;
@@ -593,7 +784,6 @@ CREATE INDEX IF NOT EXISTS idx_detalle_iva ON detalle_factura (iva_id);
 
 -- Quién registra el pago y qué pago abonó cada cuota.
 ALTER TABLE pagos_factura ADD COLUMN IF NOT EXISTS usuario_id INT;
-ALTER TABLE cuotas_factura ADD COLUMN IF NOT EXISTS pago_id INT;
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -603,16 +793,8 @@ BEGIN
         ALTER TABLE pagos_factura ADD CONSTRAINT fk_pagos_factura_usuario_id
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL;
     END IF;
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint
-        WHERE conrelid = 'cuotas_factura'::regclass AND conname = 'fk_cuotas_factura_pago_id'
-    ) THEN
-        ALTER TABLE cuotas_factura ADD CONSTRAINT fk_cuotas_factura_pago_id
-            FOREIGN KEY (pago_id) REFERENCES pagos_factura(id) ON DELETE SET NULL;
-    END IF;
 END $$;
 CREATE INDEX IF NOT EXISTS idx_pagos_usuario ON pagos_factura (usuario_id);
-CREATE INDEX IF NOT EXISTS idx_cuotas_pago ON cuotas_factura (pago_id);
 
 -- Quién solicita, a qué categoría pertenece y qué cuenta la respalda.
 ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS usuario_id INT;

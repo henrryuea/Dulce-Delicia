@@ -1,13 +1,16 @@
 import base64
 import os
+import re
 import unittest
 from datetime import date
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from cryptography.fernet import Fernet, InvalidToken
+from models import User
 from app import (
     app,
+    asegurar_relaciones_solicitudes,
     puede_ver_productos_futuros,
     registro_es_automatizado,
     rol_requiere_aprobacion,
@@ -201,6 +204,105 @@ class CatalogVisibilityTests(unittest.TestCase):
         self.assertIn('Parque+La+Carolina%2C+Quito%2C+Ecuador', contenido)
         self.assertIn('referencia, no dirección del local', contenido)
         self.assertIn('rel="noopener noreferrer"', contenido)
+
+    def test_esquema_contacto_agrega_relaciones_sin_borrar_datos(self):
+        cursor = Mock()
+        conn = Mock()
+        conn.cursor.return_value = cursor
+
+        with patch('app.get_db_connection', return_value=conn):
+            asegurar_relaciones_solicitudes()
+
+        consultas = [llamada.args[0] for llamada in cursor.execute.call_args_list]
+        self.assertIn('ADD COLUMN IF NOT EXISTS usuario_id INT', consultas[0])
+        self.assertIn('ADD COLUMN IF NOT EXISTS categoria_producto_id INT', consultas[0])
+        self.assertIn('FOREIGN KEY (usuario_id)', consultas[1])
+        self.assertIn('FOREIGN KEY (categoria_producto_id)', consultas[1])
+        self.assertTrue(any('idx_solicitudes_usuario' in consulta for consulta in consultas))
+        conn.commit.assert_called_once()
+        cursor.close.assert_called_once()
+        conn.close.assert_called_once()
+
+    def test_bandeja_repostero_incluye_solicitudes_publicas_sin_asignar(self):
+        cursor = Mock()
+        cursor.fetchall.return_value = []
+        conn = Mock()
+        conn.cursor.return_value = cursor
+        usuario = User(
+            id=18,
+            usuario='repostero_prueba',
+            correo='repostero@example.test',
+            password='irrelevante',
+            rol_id=3,
+            rol_nombre='Repostero',
+        )
+        cliente = app.test_client()
+
+        with patch.object(app.login_manager, '_user_callback', return_value=usuario):
+            with patch('app.get_db_connection', return_value=conn):
+                with patch('app.registrar_log'):
+                    with cliente.session_transaction() as sesion:
+                        sesion['_user_id'] = str(usuario.id)
+                        sesion['_fresh'] = True
+                    respuesta = cliente.get('/solicitudes')
+
+        self.assertEqual(respuesta.status_code, 200)
+        consulta = cursor.execute.call_args_list[0].args[0]
+        self.assertIn('s.responsable_id IS NULL', consulta)
+
+    def test_csrf_rechazado_en_contacto_responde_json_y_no_html(self):
+        cliente = app.test_client()
+        with patch.dict(app.config, {'WTF_CSRF_ENABLED': True}):
+            respuesta = cliente.post(
+                '/api/solicitudes',
+                json={
+                    'nombre': 'Ana Perez',
+                    'correo': 'ana@example.com',
+                    'telefono': '0991234567',
+                    'tipo_producto': 'Cheesecake',
+                    'mensaje': 'Quisiera consultar por un pedido para mi evento.'
+                },
+                headers={'Accept': 'application/json'}
+            )
+
+        self.assertEqual(respuesta.status_code, 400)
+        self.assertTrue(respuesta.is_json)
+        self.assertFalse(respuesta.get_json()['ok'])
+        self.assertIn('sesión del formulario', respuesta.get_json()['mensaje'])
+
+    def test_consulta_de_contacto_se_envia_con_csrf_y_no_asigna_al_cliente_como_responsable(self):
+        cursor = Mock()
+        cursor.fetchall.side_effect = [[], []]
+        cursor.fetchone.side_effect = [{'id': 3}, None, {'id': 41}]
+        conn = Mock()
+        conn.cursor.return_value = cursor
+        cliente = app.test_client()
+
+        with patch('app.get_db_connection', return_value=conn):
+            portada = cliente.get('/')
+            token_match = re.search(
+                r'<input type="hidden" name="csrf_token" value="([^"]+)"',
+                portada.get_data(as_text=True)
+            )
+            self.assertIsNotNone(token_match)
+            respuesta = cliente.post(
+                '/api/solicitudes',
+                json={
+                    'nombre': 'Ana Perez',
+                    'correo': 'ana@example.com',
+                    'telefono': '0991234567',
+                    'tipo_producto': 'Cheesecake',
+                    'mensaje': 'Quisiera consultar por un pedido para mi evento.'
+                },
+                headers={'X-CSRFToken': token_match.group(1)}
+            )
+
+        self.assertEqual(respuesta.status_code, 201)
+        self.assertEqual(respuesta.get_json(), {'ok': True, 'id': 41})
+        consulta_insert = cursor.execute.call_args_list[-1].args[0]
+        self.assertIn('usuario_id, categoria_producto_id)', consulta_insert)
+        self.assertNotIn('responsable_id', consulta_insert)
+        self.assertEqual(conn.commit.call_count, 2)
 
     def test_catalogo_pagina_de_doce_productos(self):
         cursor = Mock()

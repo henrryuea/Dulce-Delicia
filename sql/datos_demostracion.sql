@@ -122,7 +122,7 @@ FROM nuevas_entradas
 WHERE p.id = nuevas_entradas.producto_id;
 
 INSERT INTO facturacion (
-    numero, tipo, cliente_cedula, fecha, validez, subtotal, iva, impuestos_detalle,
+    numero, tipo, cliente_cedula, fecha, validez, subtotal, iva,
     monto, anticipo, saldo_pendiente, estado_id, notas, numero_factura,
     forma_pago, tipo_pago, plazo_meses, total_abonado,
     fecha_entrega, modalidad_entrega, ubicacion_entrega,
@@ -132,10 +132,6 @@ INSERT INTO facturacion (
 SELECT venta.numero, venta.tipo, cliente.cedula, CURRENT_DATE - venta.dias_atras,
        CASE WHEN venta.tipo = 'Cotizacion' THEN '15 dias' ELSE '30 dias' END,
        venta.subtotal, calculo.impuesto,
-       jsonb_build_array(jsonb_build_object(
-           'codigo', tasa.codigo, 'nombre', tasa.nombre, 'porcentaje', tasa.valor,
-           'descripcion', tasa.descripcion, 'monto', calculo.impuesto
-       )),
        calculo.total,
        CASE WHEN venta.estado_nombre = 'Pagada' THEN calculo.total ELSE venta.anticipo END,
        CASE WHEN venta.estado_nombre = 'Pagada' THEN 0
@@ -169,6 +165,20 @@ CROSS JOIN LATERAL (
 WHERE NOT EXISTS (
     SELECT 1 FROM facturacion f WHERE f.numero = venta.numero
 );
+
+INSERT INTO impuestos_factura (
+    factura_numero, orden, parametro_id, codigo, nombre, descripcion, porcentaje, monto
+)
+SELECT venta.numero, 1, tasa.id, tasa.codigo, tasa.nombre, tasa.descripcion,
+       tasa.valor, ROUND(venta.subtotal * tasa.valor / 100, 2)
+FROM facturacion venta
+CROSS JOIN LATERAL (
+    SELECT id, codigo, nombre, valor, descripcion FROM parametros
+    WHERE activo = TRUE AND LOWER(codigo) = 'iva'
+    ORDER BY id LIMIT 1
+) tasa
+WHERE venta.numero LIKE 'DEMO-%'
+ON CONFLICT (factura_numero, orden) DO NOTHING;
 
 INSERT INTO detalle_factura (
     factura_numero, producto_id, nombre_producto, cantidad, precio_base, ajuste, total,

@@ -91,7 +91,7 @@
                             <tr>
                                 <th class="ps-3 py-3" style="min-width: 140px;">Documento</th>
                                 <th class="py-3" style="min-width: 180px;">Cliente / Razón Social</th>
-                                <th class="py-3 text-nowrap" style="min-width: 110px;">Fecha Emisión</th>
+                                <th class="py-3 text-nowrap" style="min-width: 150px;">Emisión</th>
                                 <th class="py-3 text-end text-nowrap" style="min-width: 100px;">Total</th>
                                 <th class="py-3 text-end text-nowrap" style="min-width: 110px;">Total Abonado</th>
                                 <th class="py-3 text-end text-nowrap" style="min-width: 120px;">Saldo Pendiente</th>
@@ -146,6 +146,9 @@
                                 <!-- Fecha Emisión -->
                                 <td class="py-3 text-muted small text-nowrap">
                                     <i class="bi bi-calendar3 me-1"></i>{{ doc.fecha }}
+                                    {% if doc.fecha_hora_emision %}
+                                    <small class="d-block ms-4"><i class="bi bi-clock me-1"></i>{{ doc.fecha_hora_emision.strftime('%H:%M') }}</small>
+                                    {% endif %}
                                 </td>
 
                                 <!-- Total -->
@@ -238,138 +241,122 @@
                                     {% endif %}
                                 </td>
 
-                                <!-- Acciones Separadas -->
+                                <!-- Acciones del documento en un menu compacto -->
                                 <td class="py-3 text-center pe-3">
-                                    <div class="d-inline-flex gap-1 flex-wrap justify-content-center">
-                                        
-                                        <!-- Acción 1: Registrar Abono (Solo para Factura / Venta con saldo > 0) -->
+                                    <div class="dropdown">
+                                    <button type="button"
+                                            class="btn btn-outline-primary btn-sm rounded-circle billing-actions-toggle"
+                                            data-bs-toggle="dropdown"
+                                            data-bs-boundary="viewport"
+                                            aria-expanded="false"
+                                            aria-label="Acciones para {{ doc.numero }}"
+                                            title="Acciones del documento">
+                                        <i class="bi bi-pencil-fill" aria-hidden="true"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 py-2 billing-actions-menu">
+                                        <li class="dropdown-header text-uppercase small fw-bold text-navy">
+                                            Acciones · {{ doc.numero }}
+                                        </li>
+
                                         {% if doc.tipo != 'Cotizacion' and saldo > 0 and current_user.has_role('Administrador', 'Encargado', 'Vendedor') and current_user.has_permission('facturas.ver') %}
-                                        <button type="button" class="btn btn-verde btn-sm rounded-pill btn-abono-modal"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#modalRegistrarAbono"
-                                                data-numero="{{ doc.numero }}"
-                                                data-cliente="{{ doc.cliente_nombre }}"
-                                                data-total="{{ '%.2f'|format(total_obligacion) }}"
-                                                data-abonado="{{ '%.2f'|format(doc.total_abonado or doc.anticipo or 0.0) }}"
-                                                data-saldo="{{ '%.2f'|format(saldo) }}"
-                                                title="Registrar Abono o Pago Parcial">
-                                            <i class="bi bi-cash-coin me-1"></i>Abonar
-                                        </button>
-                                        {% endif %}
-
-                                        <!-- Acción 2: Ver Comprobante (De los abonos registrados uno por uno) -->
-                                        {% if doc.tipo != 'Cotizacion' and doc.comprobantes and doc.comprobantes|length > 0 %}
-                                            {% if doc.comprobantes|length == 1 %}
-                                                <a href="{{ url_for('ver_comprobante_pago', numero_comprobante=doc.comprobantes[0].numero_comprobante) }}"
-                                                   class="btn btn-outline-success btn-sm rounded-pill"
-                                                   title="Ver e imprimir Comprobante de Pago {{ doc.comprobantes[0].numero_comprobante }}">
-                                                    <i class="bi bi-receipt-cutoff me-1"></i>Comprobante
-                                                </a>
-                                            {% else %}
-                                                <div class="dropdown d-inline-block">
-                                                    <button class="btn btn-outline-success btn-sm rounded-pill dropdown-toggle"
-                                                            type="button"
-                                                            data-bs-toggle="dropdown"
-                                                            aria-expanded="false"
-                                                            title="Ver los {{ doc.comprobantes|length }} comprobantes emitidos uno por uno">
-                                                        <i class="bi bi-receipt-cutoff me-1"></i>Recibos ({{ doc.comprobantes|length }})
-                                                    </button>
-                                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 py-2" style="min-width: 250px;">
-                                                        <li class="dropdown-header text-uppercase small fw-bold text-navy px-3 py-1">
-                                                            <i class="bi bi-receipt me-1"></i>Comprobantes Emitidos
-                                                        </li>
-                                                        <li><hr class="dropdown-divider my-1"></li>
-                                                        {% for cp in doc.comprobantes %}
-                                                        <li>
-                                                            <a class="dropdown-item d-flex justify-content-between align-items-center gap-2 px-3 py-2"
-                                                               href="{{ url_for('ver_comprobante_pago', numero_comprobante=cp.numero_comprobante) }}"
-                                                               target="_blank">
-                                                                <div>
-                                                                    <span class="font-monospace fw-bold text-success d-block small">
-                                                                        <i class="bi bi-file-earmark-check me-1"></i>{{ cp.numero_comprobante }}
-                                                                    </span>
-                                                                    <small class="text-muted d-block" style="font-size: 0.72rem;">{{ cp.fecha }}</small>
-                                                                </div>
-                                                                <span class="badge bg-light text-dark font-monospace border">${{ "%.2f"|format(cp.monto_abonado) }}</span>
-                                                            </a>
-                                                        </li>
-                                                        {% endfor %}
-                                                    </ul>
-                                                </div>
-                                            {% endif %}
-                                        {% endif %}
-
-                                        <!-- Acción 3: Ver Plan de Pagos / pagos -->
-                                        {% if doc.tipo != 'Cotizacion' and doc.pagos and doc.pagos|length > 0 %}
-                                        <button type="button" class="btn btn-outline-info btn-sm rounded-pill btn-ver-pagos"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#modalPlanPagos"
-                                                data-numero="{{ doc.numero }}"
-                                                data-cliente="{{ doc.cliente_nombre }}"
-                                                data-pagos='{{ doc.pagos|tojson }}'
-                                                title="Ver Plan de Pagos / pagos">
-                                            <i class="bi bi-calendar3 me-1"></i>pagos
-                                        </button>
-                                        {% endif %}
-
-                                        <!-- Acción 4: Ver comprobante de venta liquidado -->
-                                        {% if doc.tipo != 'Cotizacion' %}
-                                            {% if es_pagada %}
-                                                <a href="{{ url_for('ver_comprobante_venta', numero=doc.numero) }}"
-                                                   class="btn btn-navy text-white btn-sm rounded-pill shadow-sm"
-                                                   style="background-color: #0A2540 !important; color: #ffffff !important; border: 1px solid #0A2540 !important; font-weight: 600;"
-                                                   title="Ver e imprimir comprobante de venta">
-                                                    <i class="bi bi-file-earmark-check-fill me-1 text-white"></i>Factura
-                                                </a>
-                                            {% else %}
-                                                <button type="button" class="btn btn-sm rounded-pill"
-                                                        disabled
-                                                        data-bs-toggle="tooltip"
-                                                        data-bs-placement="top"
-                                                        style="background-color: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; cursor: not-allowed;"
-                                                        title="El comprobante final estará disponible cuando el saldo sea $0.00 (Pendiente: ${{ '%.2f'|format(saldo) }})">
-                                                    <i class="bi bi-lock-fill me-1"></i>Factura
-                                                </button>
-                                            {% endif %}
-                                        {% else %}
-                                            <!-- Si es cotización, ver cotización -->
-                                            <a href="{{ url_for('ver_comprobante', numero=doc.numero) }}" class="btn btn-outline-info btn-sm rounded-pill" title="Ver Cotización Comercial">
-                                                <i class="bi bi-file-earmark-text me-1"></i>Cotización
-                                            </a>
-                                        {% endif %}
-
-                                        <!-- Botón Historial de Pagos -->
-                                        {% if doc.tipo != 'Cotizacion' and doc.pagos and doc.pagos|length > 0 %}
-                                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill btn-ver-historial"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#modalHistorialPagos"
-                                                data-numero="{{ doc.numero }}"
-                                                data-cliente="{{ doc.cliente_nombre }}"
-                                                data-total="{{ '%.2f'|format(total_obligacion) }}"
-                                                data-abonado="{{ '%.2f'|format(doc.total_abonado or doc.anticipo or 0.0) }}"
-                                                data-saldo="{{ '%.2f'|format(saldo) }}"
-                                                data-pagos='{{ doc.pagos|tojson }}'
-                                                title="Ver Historial de Abonos">
-                                            <i class="bi bi-clock-history"></i>
-                                        </button>
-                                        {% endif %}
-
-                                        <!-- Editar (Admin y Gestor) -->
-                                        {% if current_user.has_role('Administrador', 'Encargado') and current_user.has_permission('facturas.editar') %}
-                                        <a href="{{ url_for('editar_factura', numero=doc.numero) }}" class="btn btn-outline-primary btn-sm rounded-circle" title="Editar Documento">
-                                            <i class="bi bi-pencil-square"></i>
-                                        </a>
-                                        {% endif %}
-
-                                        <!-- Eliminar (Solo Admin) -->
-                                        {% if current_user.has_role('Administrador') and current_user.has_permission('facturas.eliminar') %}
-                                        <form method="POST" action="{{ url_for('eliminar_factura', numero=doc.numero) }}" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este registro comercial?');" class="d-inline">
-                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm rounded-circle" title="Eliminar Registro">
-                                                <i class="bi bi-trash-fill"></i>
+                                        <li>
+                                            <button type="button" class="dropdown-item btn-abono-modal"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#modalRegistrarAbono"
+                                                    data-numero="{{ doc.numero }}"
+                                                    data-cliente="{{ doc.cliente_nombre }}"
+                                                    data-total="{{ '%.2f'|format(total_obligacion) }}"
+                                                    data-abonado="{{ '%.2f'|format(doc.total_abonado or doc.anticipo or 0.0) }}"
+                                                    data-saldo="{{ '%.2f'|format(saldo) }}">
+                                                <i class="bi bi-cash-coin text-success me-2"></i>Registrar abono
                                             </button>
-                                        </form>
+                                        </li>
                                         {% endif %}
+
+                                        {% if doc.tipo != 'Cotizacion' and doc.comprobantes %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li class="dropdown-header small text-muted">Comprobantes de pago</li>
+                                        {% for cp in doc.comprobantes %}
+                                        <li>
+                                            <a class="dropdown-item d-flex justify-content-between align-items-center gap-3"
+                                               href="{{ url_for('ver_comprobante_pago', numero_comprobante=cp.numero_comprobante) }}"
+                                               target="_blank" rel="noopener">
+                                                <span><i class="bi bi-receipt-cutoff text-success me-2"></i>{{ cp.numero_comprobante }}</span>
+                                                <span class="small text-muted">${{ "%.2f"|format(cp.monto_abonado) }}</span>
+                                            </a>
+                                        </li>
+                                        {% endfor %}
+                                        {% endif %}
+
+                                        {% if doc.tipo != 'Cotizacion' and doc.pagos %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <button type="button" class="dropdown-item btn-ver-pagos"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#modalPlanPagos"
+                                                    data-numero="{{ doc.numero }}"
+                                                    data-cliente="{{ doc.cliente_nombre }}"
+                                                    data-pagos='{{ doc.pagos|tojson }}'>
+                                                <i class="bi bi-calendar3 text-info me-2"></i>Ver plan de pagos
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button type="button" class="dropdown-item btn-ver-historial"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#modalHistorialPagos"
+                                                    data-numero="{{ doc.numero }}"
+                                                    data-cliente="{{ doc.cliente_nombre }}"
+                                                    data-total="{{ '%.2f'|format(total_obligacion) }}"
+                                                    data-abonado="{{ '%.2f'|format(doc.total_abonado or doc.anticipo or 0.0) }}"
+                                                    data-saldo="{{ '%.2f'|format(saldo) }}"
+                                                    data-pagos='{{ doc.pagos|tojson }}'>
+                                                <i class="bi bi-clock-history text-secondary me-2"></i>Historial de pagos
+                                            </button>
+                                        </li>
+                                        {% endif %}
+
+                                        {% if doc.tipo == 'Cotizacion' %}
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('ver_comprobante', numero=doc.numero) }}">
+                                                <i class="bi bi-file-earmark-text text-info me-2"></i>Ver cotización
+                                            </a>
+                                        </li>
+                                        {% elif es_pagada %}
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('ver_comprobante_venta', numero=doc.numero) }}">
+                                                <i class="bi bi-file-earmark-check text-success me-2"></i>Ver comprobante de venta
+                                            </a>
+                                        </li>
+                                        {% else %}
+                                        <li>
+                                            <span class="dropdown-item-text text-muted small"
+                                                  title="El comprobante final estará disponible cuando el saldo sea cero.">
+                                                <i class="bi bi-lock me-2"></i>Factura disponible al liquidar
+                                            </span>
+                                        </li>
+                                        {% endif %}
+
+                                        {% if current_user.has_role('Administrador', 'Encargado') and current_user.has_permission('facturas.editar') %}
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('editar_factura', numero=doc.numero) }}">
+                                                <i class="bi bi-pencil-square text-primary me-2"></i>Editar documento
+                                            </a>
+                                        </li>
+                                        {% endif %}
+
+                                        {% if current_user.has_role('Administrador') and current_user.has_permission('facturas.eliminar') %}
+                                        <li>
+                                            <form method="POST" action="{{ url_for('eliminar_factura', numero=doc.numero) }}"
+                                                  onsubmit="return confirm('¿Estás seguro de que deseas eliminar este registro comercial?');">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="dropdown-item text-danger">
+                                                    <i class="bi bi-trash-fill me-2"></i>Eliminar documento
+                                                </button>
+                                            </form>
+                                        </li>
+                                        {% endif %}
+                                    </ul>
                                     </div>
                                 </td>
                             </tr>
@@ -498,12 +485,6 @@
                                 <option value="Tarjeta de crédito">Tarjeta de crédito</option>
                                 <option value="Depósito bancario">Depósito bancario</option>
                             </select>
-                        </div>
-
-                        <!-- Referencia / N° Comprobante Bancario -->
-                        <div class="col-12">
-                            <label class="form-label fw-semibold text-navy small mb-1">Referencia / N° Transacción (Opcional)</label>
-                            <input type="text" class="form-control font-monospace" id="inputReferenciaAbono" name="referencia" placeholder="Ej: Transf. Pichincha #12345678">
                         </div>
 
                         <!-- Notas / Observaciones -->

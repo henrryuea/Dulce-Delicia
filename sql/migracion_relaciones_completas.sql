@@ -14,7 +14,7 @@
 --   proveedores ──< productos (proveedor del insumo)
 --   facturacion ──< detalle_factura / pagos_factura / cuotas_factura
 --              ──< comprobantes_pago / kardex_movimientos
---   pagos_factura ──< comprobantes_pago , cuotas_factura.pago_id
+--   pagos_factura ──< comprobantes_pago / aplicaciones_pago
 --
 -- Equivalencias con el modelo de referencia: donde allí aparecen `servicios`
 -- y `tipos_servicio`, aquí el catálogo es `productos` y `categorias_producto`.
@@ -38,9 +38,6 @@ ALTER TABLE pagos_factura ADD COLUMN IF NOT EXISTS usuario_id INTEGER;
 ALTER TABLE facturacion ADD COLUMN IF NOT EXISTS iva_id INTEGER;
 ALTER TABLE detalle_factura ADD COLUMN IF NOT EXISTS iva_id INTEGER;
 ALTER TABLE detalle_factura ADD COLUMN IF NOT EXISTS iva_valor NUMERIC(7,4);
-
--- Qué pago abonó cada cuota.
-ALTER TABLE cuotas_factura ADD COLUMN IF NOT EXISTS pago_id INTEGER;
 
 -- Quién realizó la solicitud y a qué categoría de producto corresponde.
 ALTER TABLE solicitudes ADD COLUMN IF NOT EXISTS usuario_id INTEGER;
@@ -119,7 +116,6 @@ BEGIN
         'facturacion.iva_id|parametros.id|SET NULL',
         'pagos_factura.usuario_id|usuarios.id|SET NULL',
         'detalle_factura.iva_id|parametros.id|SET NULL',
-        'cuotas_factura.pago_id|pagos_factura.id|SET NULL',
         'solicitudes.usuario_id|usuarios.id|SET NULL',
         'solicitudes.categoria_producto_id|categorias_producto.id|SET NULL',
         'productos.proveedor_id|proveedores.id|SET NULL'
@@ -156,7 +152,6 @@ CREATE INDEX IF NOT EXISTS idx_facturacion_cliente ON facturacion (cliente_cedul
 CREATE INDEX IF NOT EXISTS idx_pagos_usuario ON pagos_factura (usuario_id);
 CREATE INDEX IF NOT EXISTS idx_detalle_producto ON detalle_factura (producto_id);
 CREATE INDEX IF NOT EXISTS idx_detalle_iva ON detalle_factura (iva_id);
-CREATE INDEX IF NOT EXISTS idx_cuotas_pago ON cuotas_factura (pago_id);
 CREATE INDEX IF NOT EXISTS idx_solicitudes_usuario ON solicitudes (usuario_id);
 CREATE INDEX IF NOT EXISTS idx_productos_proveedor ON productos (proveedor_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_clientes_usuario_unico

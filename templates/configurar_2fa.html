@@ -60,6 +60,11 @@
 
                 <div class="card border-0 shadow-sm rounded-4">
                     <div class="card-body p-4 p-md-5">
+                        {% if totp_error %}
+                        <div class="alert alert-warning border-0 rounded-3 mb-0" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i>{{ totp_error }}
+                        </div>
+                        {% else %}
                         {% if activo %}
                         <div class="d-flex align-items-start gap-3 mb-4">
                             <span class="security-status security-status-on"><i class="bi bi-shield-check"></i></span>
@@ -119,6 +124,7 @@
                             <input type="hidden" name="accion" value="iniciar">
                             <button type="submit" class="btn btn-verde">Configurar aplicación autenticadora</button>
                         </form>
+                        {% endif %}
                         {% endif %}
                         <a href="{{ url_for('dashboard') }}" class="btn btn-link px-0 mt-3">Volver al panel</a>
                     </div>

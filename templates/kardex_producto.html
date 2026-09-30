@@ -67,10 +67,16 @@
                 <small class="text-muted fw-normal">Stock actual registrado: {{ producto.stock_actual }} unidades</small>
             </div>
             <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle mb-0 text-center">
+                <table class="table table-sm table-hover align-middle mb-0 text-center kardex-valuation-table">
+                    <colgroup>
+                        <col style="width: 155px;">
+                        <col style="width: 170px;">
+                        <col style="width: 280px;">
+                        {% for _ in range(9) %}<col style="width: 100px;">{% endfor %}
+                    </colgroup>
                     <thead class="table-light">
                         <tr>
-                            <th class="ps-3 text-start" rowspan="2">Fecha</th>
+                            <th class="ps-3 text-start" rowspan="2">Fecha y hora</th>
                             <th class="text-start" rowspan="2">Referencia</th>
                             <th class="text-start" rowspan="2">Concepto</th>
                             <th colspan="3" class="border-start">Entradas</th>
@@ -79,13 +85,13 @@
                         </tr>
                         <tr>
                             <th class="border-start">Cant.</th>
-                            <th>C. Unit.</th>
+                            <th>Costo unitario</th>
                             <th>Total</th>
                             <th class="border-start">Cant.</th>
-                            <th>C. Unit.</th>
+                            <th>Costo unitario</th>
                             <th>Total</th>
                             <th class="border-start">Cant.</th>
-                            <th>C. Unit.</th>
+                            <th>Costo unitario</th>
                             <th class="pe-3">Valor</th>
                         </tr>
                     </thead>
@@ -93,9 +99,9 @@
                         {% for fila in filas %}
                         {% set mv = fila.movimiento %}
                         <tr>
-                            <td class="ps-3 text-start font-monospace small text-nowrap">{{ mv.fecha.strftime('%Y-%m-%d %H:%M') if mv.fecha else '-' }}</td>
-                            <td class="text-start small">{{ mv.factura_numero or mv.referencia or '-' }}</td>
-                            <td class="text-start small">
+                            <td class="ps-3 text-start font-monospace small text-nowrap">{{ mv.fecha.strftime('%d/%m/%Y %H:%M') if mv.fecha else '-' }}</td>
+                            <td class="text-start small text-nowrap">{{ mv.factura_numero or mv.referencia or '-' }}</td>
+                            <td class="text-start small kardex-concept-cell">
                                 {{ mv.descripcion or ('Entrada de inventario' if mv.tipo == 'entrada' else 'Salida de inventario') }}
                                 {% if mv.automatico %}
                                 <i class="bi bi-lock-fill text-muted ms-1" title="Generado por el sistema"></i>
@@ -104,15 +110,15 @@
                                 <small class="d-block text-muted">{{ mv.usuario_nombre }}</small>
                                 {% endif %}
                             </td>
-                            <td class="border-start {% if fila.entrada_cantidad %}fw-semibold text-success{% endif %}">{{ fila.entrada_cantidad if fila.entrada_cantidad is not none else '' }}</td>
-                            <td>{{ '$%.2f'|format(fila.entrada_costo) if fila.entrada_costo is not none else '' }}</td>
-                            <td>{{ '$%.2f'|format(fila.entrada_total) if fila.entrada_total is not none else '' }}</td>
-                            <td class="border-start {% if fila.salida_cantidad %}fw-semibold text-danger{% endif %}">{{ fila.salida_cantidad if fila.salida_cantidad is not none else '' }}</td>
-                            <td>{{ '$%.2f'|format(fila.salida_costo) if fila.salida_costo is not none else '' }}</td>
-                            <td>{{ '$%.2f'|format(fila.salida_total) if fila.salida_total is not none else '' }}</td>
-                            <td class="border-start fw-bold text-navy">{{ fila.saldo_cantidad }}</td>
-                            <td>${{ '%.2f'|format(fila.saldo_costo) }}</td>
-                            <td class="pe-3 fw-semibold">${{ '%.2f'|format(fila.saldo_valor) }}</td>
+                            <td class="border-start text-nowrap {% if fila.entrada_cantidad %}fw-semibold text-success{% endif %}">{{ fila.entrada_cantidad if fila.entrada_cantidad is not none else '' }}</td>
+                            <td class="text-nowrap">{{ '$%.2f'|format(fila.entrada_costo) if fila.entrada_costo is not none else '' }}</td>
+                            <td class="text-nowrap">{{ '$%.2f'|format(fila.entrada_total) if fila.entrada_total is not none else '' }}</td>
+                            <td class="border-start text-nowrap {% if fila.salida_cantidad %}fw-semibold text-danger{% endif %}">{{ fila.salida_cantidad if fila.salida_cantidad is not none else '' }}</td>
+                            <td class="text-nowrap">{{ '$%.2f'|format(fila.salida_costo) if fila.salida_costo is not none else '' }}</td>
+                            <td class="text-nowrap">{{ '$%.2f'|format(fila.salida_total) if fila.salida_total is not none else '' }}</td>
+                            <td class="border-start text-nowrap fw-bold text-navy">{{ fila.saldo_cantidad }}</td>
+                            <td class="text-nowrap">${{ '%.2f'|format(fila.saldo_costo) }}</td>
+                            <td class="pe-3 text-nowrap fw-semibold">${{ '%.2f'|format(fila.saldo_valor) }}</td>
                         </tr>
                         {% else %}
                         <tr>

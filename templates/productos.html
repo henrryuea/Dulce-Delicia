@@ -151,15 +151,7 @@
                 <div class="card h-100 product-card shadow-sm border-0 d-flex flex-column">
                     <!-- Imagen del producto y precio -->
                     <div class="card-img-wrapper">
-                        {% if producto.imagen %}
-                        <img src="{{ producto.imagen }}" alt="{{ producto.nombre }}" loading="lazy">
-                        {% elif loop.index0 % 3 == 1 %}
-                            <img src="{{ url_for('static', filename='img/MOUSSE.png') }}" alt="Mousse de chocolate artesanal" loading="lazy">
-                        {% elif loop.index0 % 3 == 2 %}
-                            <img src="{{ url_for('static', filename='img/TARTADEFRUTA.png') }}" alt="Tarta artesanal de frutas" loading="lazy">
-                        {% else %}
-                            <img src="{{ url_for('static', filename='img/CHEESCAKE.png') }}" alt="Cheesecake artesanal con frutos rojos" loading="lazy">
-                        {% endif %}
+                        <img src="{{ url_for('imagen_producto', producto_id=producto.id) }}" alt="{{ producto.nombre }}" loading="lazy">
                         
                         <div class="price-tag">
                             ${{ "%.2f"|format(producto.precio_base or 0.0) }} <span>USD</span>

@@ -65,6 +65,13 @@ class FacturacionForm(FlaskForm):
             Length(min=8, max=10, message='Formato de fecha no válido.')
         ]
     )
+    hora_emision = StringField(
+        'Hora de emisión',
+        validators=[
+            DataRequired(message='La hora de emisión es obligatoria.'),
+            Regexp(r'^\d{2}:\d{2}$', message='Ingresa una hora válida.')
+        ]
+    )
 
     # Plazo de vigencia de la oferta comercial (aplica principalmente para cotizaciones)
     validez = StringField(

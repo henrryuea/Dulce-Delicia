@@ -27,14 +27,11 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 import psycopg2
 from PIL import Image, ImageOps, UnidentifiedImageError
-from html.parser import HTMLParser
 from functools import wraps
-from datetime import date, datetime, timedelta
-from urllib.parse import urljoin, urlparse
-from urllib.request import Request, urlopen
+from datetime import date, datetime, timedelta, timezone
 import click
-from flask import Flask, render_template, redirect, url_for, flash, request, session, jsonify
-from flask_wtf.csrf import CSRFProtect
+from flask import Flask, render_template, redirect, url_for, flash, request, session, jsonify, send_file
+from flask_wtf.csrf import CSRFError, CSRFProtect
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.exceptions import HTTPException
 import bcrypt
@@ -67,62 +64,8 @@ from security.totp import (
     uri_configuracion_totp,
 )
 
+ZONA_HORARIA_LOCAL = timezone(timedelta(hours=-5))
 
-class _ImagenMetaParser(HTMLParser):
-    """Obtiene la imagen principal declarada por una página web."""
-
-    def __init__(self):
-        super().__init__()
-        self.imagen_url = None
-
-    def handle_starttag(self, tag, attrs):
-        if tag.lower() != 'meta' or self.imagen_url:
-            return
-
-        atributos = {clave.lower(): valor for clave, valor in attrs}
-        referencia = (atributos.get('property') or atributos.get('name') or '').lower()
-        if referencia in ('og:image', 'og:image:url', 'twitter:image', 'twitter:image:src'):
-            self.imagen_url = atributos.get('content')
-
-
-def resolver_url_imagen(valor):
-    """Resuelve una imagen, conservando enlaces HTTPS válidos como respaldo."""
-    url = (valor or '').strip()
-    partes = urlparse(url)
-    if partes.scheme not in ('http', 'https') or not partes.netloc:
-        return None
-
-    try:
-        solicitud = Request(url, headers={'User-Agent': 'Dulce Delicia/1.0'})
-        with urlopen(solicitud, timeout=8) as respuesta:
-            tipo_contenido = respuesta.headers.get_content_type().lower()
-            if tipo_contenido.startswith('image/'):
-                return url
-
-            if tipo_contenido in ('application/octet-stream', 'binary/octet-stream') and \
-                    partes.path.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif')):
-                return url
-
-            if not (tipo_contenido.startswith('text/html') or tipo_contenido == 'application/xhtml+xml'):
-                return None
-
-            contenido = respuesta.read(2_000_000).decode(
-                respuesta.headers.get_content_charset() or 'utf-8',
-                errors='replace'
-            )
-            parser = _ImagenMetaParser()
-            parser.feed(contenido)
-            if parser.imagen_url:
-                imagen = urljoin(url, parser.imagen_url.strip())
-                imagen_partes = urlparse(imagen)
-                if imagen_partes.scheme in ('http', 'https') and imagen_partes.netloc:
-                    return imagen
-    except Exception:
-        # El enlace puede ser válido aunque el servidor remoto bloquee la
-        # verificación desde backend. El navegador aún puede cargarlo.
-        return url
-
-    return url
 
 # ------------------------------------------------------------------------------
 # INICIALIZACIÓN DE LA APLICACIÓN FLASK
@@ -254,6 +197,56 @@ def asegurar_inventario_base():
         cur.execute("""
             ALTER TABLE productos
             ADD COLUMN IF NOT EXISTS es_insumo BOOLEAN NOT NULL DEFAULT FALSE
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS imagenes_productos (
+                producto_id INTEGER PRIMARY KEY REFERENCES productos(id) ON DELETE CASCADE,
+                contenido BYTEA NOT NULL,
+                tipo_contenido VARCHAR(30) NOT NULL DEFAULT 'image/jpeg',
+                actualizado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS lotes_produccion (
+                id SERIAL PRIMARY KEY,
+                producto_id INTEGER NOT NULL REFERENCES productos(id) ON DELETE RESTRICT,
+                movimiento_produccion_id INTEGER NOT NULL UNIQUE
+                    REFERENCES kardex_movimientos(id) ON DELETE RESTRICT,
+                cantidad_producida INTEGER NOT NULL CHECK (cantidad_producida > 0),
+                creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS ventas_lote (
+                id SERIAL PRIMARY KEY,
+                lote_id INTEGER NOT NULL REFERENCES lotes_produccion(id) ON DELETE CASCADE,
+                detalle_factura_id INTEGER NOT NULL
+                    REFERENCES detalle_factura(id) ON DELETE CASCADE,
+                cantidad INTEGER NOT NULL CHECK (cantidad > 0),
+                CONSTRAINT uq_venta_lote_detalle UNIQUE (lote_id, detalle_factura_id)
+            )
+        """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS mermas_lote (
+                id SERIAL PRIMARY KEY,
+                lote_id INTEGER NOT NULL REFERENCES lotes_produccion(id) ON DELETE CASCADE,
+                movimiento_merma_id INTEGER NOT NULL UNIQUE
+                    REFERENCES kardex_movimientos(id) ON DELETE RESTRICT,
+                cantidad INTEGER NOT NULL CHECK (cantidad > 0),
+                registrado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_lotes_produccion_producto_fecha
+            ON lotes_produccion (producto_id, creado_en, id)
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_ventas_lote_detalle
+            ON ventas_lote (detalle_factura_id)
+        """)
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_mermas_lote_lote
+            ON mermas_lote (lote_id)
         """)
         conn.commit()
     finally:
@@ -459,9 +452,6 @@ def asegurar_parametros_fiscales():
         cur.execute(
             "UPDATE parametros SET activo = FALSE WHERE codigo <> 'iva' AND activo = TRUE"
         )
-        cur.execute(
-            "ALTER TABLE facturacion ADD COLUMN IF NOT EXISTS impuestos_detalle JSONB NOT NULL DEFAULT '[]'::jsonb"
-        )
         conn.commit()
     finally:
         cur.close()
@@ -481,6 +471,13 @@ def asegurar_detalles_factura():
             "ALTER TABLE detalle_factura ADD COLUMN IF NOT EXISTS es_adicional BOOLEAN NOT NULL DEFAULT FALSE"
         )
         cur.execute(
+            "ALTER TABLE facturacion ADD COLUMN IF NOT EXISTS fecha_hora_emision TIMESTAMP"
+        )
+        cur.execute(
+            '''CREATE INDEX IF NOT EXISTS idx_facturacion_fecha_hora
+               ON facturacion (fecha_hora_emision)'''
+        )
+        cur.execute(
             '''SELECT data_type FROM information_schema.columns
                WHERE table_schema = 'public' AND table_name = 'detalle_factura'
                  AND column_name = 'cantidad' '''
@@ -494,6 +491,57 @@ def asegurar_detalles_factura():
     finally:
         cur.close()
         conn.close()
+
+
+def registrar_ventas_en_lotes(cursor, factura_numero):
+    """Asigna cada línea de venta a lotes disponibles anteriores a su emisión."""
+    cursor.execute(
+        '''SELECT d.id, d.producto_id, d.cantidad, f.fecha_hora_emision
+           FROM detalle_factura d
+           JOIN facturacion f ON f.numero = d.factura_numero
+           JOIN estados_documento e ON e.id = f.estado_id
+           WHERE d.factura_numero = %s
+             AND d.producto_id IS NOT NULL
+             AND d.es_adicional = FALSE
+             AND f.tipo = 'Factura'
+             AND f.fecha_hora_emision IS NOT NULL
+             AND POSITION('cancel' IN LOWER(e.nombre)) = 0
+             AND POSITION('anulad' IN LOWER(e.nombre)) = 0
+           ORDER BY d.id''',
+        (factura_numero,)
+    )
+    lineas = cursor.fetchall()
+    for linea in lineas:
+        cursor.execute(
+            '''SELECT l.id, l.cantidad_producida,
+                      COALESCE((SELECT SUM(v.cantidad) FROM ventas_lote v
+                                WHERE v.lote_id = l.id), 0) AS cantidad_vendida,
+                      COALESCE((SELECT SUM(m.cantidad) FROM mermas_lote m
+                                WHERE m.lote_id = l.id), 0) AS cantidad_merma
+               FROM lotes_produccion l
+               WHERE l.producto_id = %s AND l.creado_en <= %s
+               ORDER BY l.creado_en, l.id
+               FOR UPDATE''',
+            (linea['producto_id'], linea['fecha_hora_emision'])
+        )
+        lotes = cursor.fetchall()
+        pendiente = max(0, int(linea['cantidad']))
+        for lote in lotes:
+            disponible = (
+                int(lote['cantidad_producida'])
+                - int(lote['cantidad_vendida'])
+                - int(lote['cantidad_merma'])
+            )
+            asignar = min(pendiente, max(0, disponible))
+            if asignar:
+                cursor.execute(
+                    '''INSERT INTO ventas_lote (lote_id, detalle_factura_id, cantidad)
+                       VALUES (%s, %s, %s)''',
+                    (lote['id'], linea['id'], asignar)
+                )
+                pendiente -= asignar
+            if pendiente == 0:
+                break
 
 
 def asegurar_campos_cliente():
@@ -532,6 +580,76 @@ def asegurar_snapshots_documentos():
         conn.close()
 
 
+def asegurar_campos_seguridad_cuenta():
+    """Prepara las columnas de contraseña/2FA para bases existentes."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute('''
+            ALTER TABLE usuarios
+                ADD COLUMN IF NOT EXISTS dos_factores_activo BOOLEAN NOT NULL DEFAULT FALSE,
+                ADD COLUMN IF NOT EXISTS dos_factores_secreto TEXT,
+                ADD COLUMN IF NOT EXISTS dos_factores_secreto_pendiente TEXT,
+                ADD COLUMN IF NOT EXISTS dos_factores_intentos SMALLINT NOT NULL DEFAULT 0,
+                ADD COLUMN IF NOT EXISTS dos_factores_bloqueo_hasta TIMESTAMP,
+                ADD COLUMN IF NOT EXISTS dos_factores_ultimo_periodo BIGINT
+        ''')
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+
+def asegurar_relaciones_solicitudes():
+    """Prepara los vínculos relacionales usados por el formulario público."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute('''
+            ALTER TABLE solicitudes
+                ADD COLUMN IF NOT EXISTS usuario_id INT,
+                ADD COLUMN IF NOT EXISTS categoria_producto_id INT
+        ''')
+        cur.execute('''
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conrelid = 'public.solicitudes'::regclass
+                      AND conname = 'fk_solicitudes_usuario_id'
+                ) THEN
+                    ALTER TABLE solicitudes
+                        ADD CONSTRAINT fk_solicitudes_usuario_id
+                        FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE SET NULL;
+                END IF;
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conrelid = 'public.solicitudes'::regclass
+                      AND conname = 'fk_solicitudes_categoria_producto_id'
+                ) THEN
+                    ALTER TABLE solicitudes
+                        ADD CONSTRAINT fk_solicitudes_categoria_producto_id
+                        FOREIGN KEY (categoria_producto_id)
+                        REFERENCES categorias_producto(id) ON DELETE SET NULL;
+                END IF;
+            END $$
+        ''')
+        cur.execute('''
+            CREATE INDEX IF NOT EXISTS idx_solicitudes_usuario
+            ON solicitudes (usuario_id)
+        ''')
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        cur.close()
+        conn.close()
+
+
 def obtener_impuestos_activos(cursor):
     """Devuelve tasas tributarias vigentes para el cálculo de un nuevo documento."""
     cursor.execute(
@@ -562,6 +680,23 @@ def calcular_impuestos(subtotal, impuestos):
         for impuesto in impuestos
     ]
     return round(sum(impuesto['monto'] for impuesto in desglose), 2), desglose
+
+
+def guardar_impuestos_factura(cursor, factura_numero, impuestos):
+    """Guarda el desglose fiscal como filas ligadas al documento emitido."""
+    cursor.execute(
+        'DELETE FROM impuestos_factura WHERE factura_numero = %s',
+        (factura_numero,)
+    )
+    for orden, impuesto in enumerate(impuestos, start=1):
+        cursor.execute(
+            '''INSERT INTO impuestos_factura
+               (factura_numero, orden, parametro_id, codigo, nombre, descripcion, porcentaje, monto)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)''',
+            (factura_numero, orden, impuesto.get('id'), impuesto['codigo'],
+             impuesto['nombre'], impuesto.get('descripcion'),
+             impuesto['porcentaje'], impuesto['monto'])
+        )
 
 
 def rol_requiere_aprobacion(rol_nombre):
@@ -607,24 +742,12 @@ def vincular_cliente_con_usuario(cursor, cedula, correo):
 
 def registrar_solicitud_acceso(cursor, usuario_id, rol_id, aprobado):
     """Deja constancia de la solicitud de acceso para que el Administrador la resuelva."""
-    try:
-        cursor.execute('SAVEPOINT solicitud_acceso')
-        cursor.execute(
-            '''INSERT INTO solicitudes_acceso (usuario_id, rol_id, estado, fecha_decision)
-               VALUES (%s, %s, %s, %s)
-               ON CONFLICT (usuario_id, rol_id) DO UPDATE
-                   SET estado = EXCLUDED.estado, fecha_decision = EXCLUDED.fecha_decision''',
-            (usuario_id, rol_id, 'Aprobada' if aprobado else 'Pendiente',
-             datetime.now() if aprobado else None)
-        )
-        cursor.execute('RELEASE SAVEPOINT solicitud_acceso')
-    except psycopg2.Error:
-        # Si la tabla de solicitudes aún no existe, la cuenta ya quedó guardada:
-        # la aprobación manual sigue disponible desde el panel de usuarios.
-        try:
-            cursor.execute('ROLLBACK TO SAVEPOINT solicitud_acceso')
-        except psycopg2.Error:
-            pass
+    cursor.execute(
+        '''INSERT INTO solicitudes_acceso (usuario_id, rol_id, estado, fecha_decision)
+           VALUES (%s, %s, %s, %s)''',
+        (usuario_id, rol_id, 'Aprobada' if aprobado else 'Pendiente',
+         datetime.now() if aprobado else None)
+    )
 
 
 def puede_ver_productos_futuros(usuario):
@@ -770,8 +893,14 @@ def auditar_esquema():
         ('detalle_factura', 'factura_numero', 'facturacion'),
         ('detalle_factura', 'producto_id', 'productos'),
         ('detalle_factura', 'iva_id', 'parametros'),
+        ('impuestos_factura', 'factura_numero', 'facturacion'),
+        ('impuestos_factura', 'parametro_id', 'parametros'),
         ('pagos_factura', 'factura_numero', 'facturacion'), ('pagos_factura', 'usuario_id', 'usuarios'),
-        ('cuotas_factura', 'factura_numero', 'facturacion'), ('cuotas_factura', 'pago_id', 'pagos_factura'),
+        ('cuotas_factura', 'factura_numero', 'facturacion'),
+        ('aplicaciones_pago', 'pago_id', 'pagos_factura'),
+        ('aplicaciones_pago', 'cuota_id', 'cuotas_factura'),
+        ('aplicaciones_pago', 'factura_numero', 'pagos_factura'),
+        ('aplicaciones_pago', 'factura_numero', 'cuotas_factura'),
         ('comprobantes_pago', 'pago_id', 'pagos_factura'),
         ('comprobantes_pago', 'factura_numero', 'facturacion'),
         ('comprobantes_pago', 'cliente_cedula', 'clientes'),
@@ -791,6 +920,10 @@ def auditar_esquema():
         ('detalle_factura', 'iva_valor'), ('facturacion', 'proxima_pago_fecha'),
         ('facturacion', 'proxima_pago_monto'), ('cuotas_factura', 'numero_pago'),
         ('cuotas_factura', 'valor_pago'), ('cuotas_factura', 'saldo_pago'),
+        ('cuotas_factura', 'exige_aplicacion'),
+        ('pagos_factura', 'exige_aplicacion'), ('aplicaciones_pago', 'monto_aplicado'),
+        ('impuestos_factura', 'orden'), ('impuestos_factura', 'porcentaje'),
+        ('impuestos_factura', 'monto'),
         ('permisos', 'activo'),
     ]
 
@@ -808,6 +941,49 @@ def auditar_esquema():
     existentes = {(f['tabla'], f['columna'], f['referencia']) for f in cur.fetchall()}
     faltantes = [v for v in esperadas if v not in existentes]
 
+    compuestas_esperadas = {
+        'fk_aplicaciones_pago_pago_factura':
+            'FOREIGN KEY (pago_id, factura_numero) REFERENCES pagos_factura(id, factura_numero)',
+        'fk_aplicaciones_pago_cuota_factura':
+            'FOREIGN KEY (cuota_id, factura_numero) REFERENCES cuotas_factura(id, factura_numero)',
+    }
+    cur.execute("SELECT to_regclass('public.cuotas_factura') IS NOT NULL AS existe")
+    cuotas_existen = cur.fetchone()['existe']
+    if cuotas_existen:
+        cur.execute("""
+            SELECT pg_get_constraintdef(oid) AS definicion
+            FROM pg_constraint
+            WHERE conrelid = 'cuotas_factura'::regclass
+              AND conname = 'ck_cuota_importes'
+        """)
+        cuota_constraint = cur.fetchone()
+    else:
+        cuota_constraint = None
+    cuota_constraint_ok = bool(
+        cuota_constraint
+        and 'saldo_pago=(valor_pago-monto_pagado)'
+        in re.sub(r'\s+', '', cuota_constraint['definicion']).lower()
+    )
+
+    cur.execute("SELECT to_regclass('public.aplicaciones_pago') IS NOT NULL AS existe")
+    aplicaciones_existen = cur.fetchone()['existe']
+    if aplicaciones_existen:
+        cur.execute("""
+            SELECT conname, pg_get_constraintdef(oid) AS definicion
+            FROM pg_constraint
+            WHERE conrelid = 'aplicaciones_pago'::regclass AND contype = 'f'
+        """)
+        relaciones_compuestas = {
+            f['conname']: f['definicion'] for f in cur.fetchall()
+        }
+        faltantes_compuestas = [
+            nombre for nombre, definicion in compuestas_esperadas.items()
+            if definicion not in relaciones_compuestas.get(nombre, '')
+        ]
+
+    else:
+        faltantes_compuestas = list(compuestas_esperadas)
+
     cur.execute("""
         SELECT table_name, column_name FROM information_schema.columns
         WHERE table_schema = 'public' AND column_name = ANY(%s)
@@ -821,6 +997,42 @@ def auditar_esquema():
           AND tgname NOT IN ('trg_solicitud_acceso')
     """)
     triggers = [f['tgname'] for f in cur.fetchall()]
+    if aplicaciones_existen:
+        cur.execute("""
+            SELECT COUNT(*) AS total
+            FROM (
+                SELECT p.id
+                FROM pagos_factura p
+                LEFT JOIN aplicaciones_pago a ON a.pago_id = p.id
+                GROUP BY p.id, p.monto, p.exige_aplicacion
+                HAVING COALESCE(SUM(a.monto_aplicado), 0) > p.monto
+                    OR (p.exige_aplicacion
+                        AND COALESCE(SUM(a.monto_aplicado), 0) <> p.monto)
+                UNION ALL
+                SELECT c.id
+                FROM cuotas_factura c
+                LEFT JOIN aplicaciones_pago a ON a.cuota_id = c.id
+                GROUP BY c.id, c.monto_pagado, c.exige_aplicacion
+                HAVING COALESCE(SUM(a.monto_aplicado), 0) > c.monto_pagado
+                    OR (c.exige_aplicacion
+                        AND COALESCE(SUM(a.monto_aplicado), 0) <> c.monto_pagado)
+            ) inconsistencias
+        """)
+        asignaciones_inconsistentes = cur.fetchone()['total']
+    else:
+        asignaciones_inconsistentes = 0
+    if cuotas_existen:
+        cur.execute("""
+            SELECT COUNT(*) AS total
+            FROM cuotas_factura
+            WHERE valor_pago IS NULL OR monto_pagado IS NULL OR saldo_pago IS NULL
+               OR valor_pago < 0 OR monto_pagado < 0
+               OR monto_pagado > valor_pago
+               OR saldo_pago <> valor_pago - monto_pagado
+        """)
+        cuotas_inconsistentes = cur.fetchone()['total']
+    else:
+        cuotas_inconsistentes = 0
     cur.close()
     conn.close()
 
@@ -830,11 +1042,22 @@ def auditar_esquema():
     click.echo(f'Columnas verificadas: {len(columnas_esperadas) - len(faltantes_columnas)}/{len(columnas_esperadas)}')
     for tabla, columna in faltantes_columnas:
         click.echo(f'  FALTA  {tabla}.{columna}')
+    click.echo(f'Relaciones pago-cuota compuestas verificadas: {len(compuestas_esperadas) - len(faltantes_compuestas)}/{len(compuestas_esperadas)}')
+    for nombre in faltantes_compuestas:
+        click.echo(f'  FALTA  {nombre}: relacion debe incluir pago/cuota y factura')
+    click.echo(f'Integridad del saldo de cuotas: {"OK" if cuota_constraint_ok else "FALTA"}')
+    if not cuota_constraint_ok:
+        click.echo('  FALTA  ck_cuota_importes debe validar saldo_pago = valor_pago - monto_pagado')
+    click.echo(f'Aplicaciones pago-cuota inconsistentes: {asignaciones_inconsistentes}')
+    click.echo(f'Cuotas con saldo inconsistente: {cuotas_inconsistentes}')
     click.echo(f'Triggers de usuarios: {", ".join(triggers) or "ninguno"}')
     if triggers != ['trg_cifrar_password']:
         click.echo('  AVISO  debe existir un solo trigger de cifrado: trg_cifrar_password')
 
-    if faltantes or faltantes_columnas:
+    if (
+        faltantes or faltantes_columnas or faltantes_compuestas
+        or not cuota_constraint_ok or asignaciones_inconsistentes or cuotas_inconsistentes
+    ):
         click.echo('\nAplica las migraciones de la carpeta sql/ en orden.')
         raise SystemExit(1)
     click.echo('\nLa base de datos está completa y relacionada.')
@@ -1301,13 +1524,16 @@ def health():
                  AND table_name IN (
                      'roles', 'usuarios', 'clientes', 'productos',
                      'tipos_cliente', 'facturacion', 'detalle_factura', 'solicitudes',
-                     'proveedores'
+                     'proveedores', 'pagos_factura', 'cuotas_factura',
+                     'aplicaciones_pago', 'impuestos_factura'
                  )'''
         )
         tablas = {fila['table_name'] for fila in cursor.fetchall()}
         tablas_requeridas = {
             'roles', 'usuarios', 'clientes', 'productos', 'tipos_cliente',
-            'facturacion', 'detalle_factura', 'solicitudes', 'proveedores'
+            'facturacion', 'detalle_factura', 'solicitudes', 'proveedores',
+            'pagos_factura', 'cuotas_factura', 'aplicaciones_pago',
+            'impuestos_factura'
         }
         faltantes = sorted(tablas_requeridas - tablas)
         if faltantes:
@@ -1334,6 +1560,17 @@ def health():
                      OR
                      (table_name = 'facturacion' AND column_name IN
                         ('fecha_entrega', 'modalidad_entrega', 'ubicacion_entrega'))
+                     OR
+                     (table_name = 'aplicaciones_pago' AND column_name IN
+                        ('pago_id', 'cuota_id', 'factura_numero', 'monto_aplicado'))
+                     OR
+                     (table_name = 'pagos_factura' AND column_name = 'exige_aplicacion')
+                     OR
+                     (table_name = 'cuotas_factura' AND column_name = 'exige_aplicacion')
+                     OR
+                     (table_name = 'impuestos_factura' AND column_name IN
+                        ('orden', 'parametro_id', 'codigo', 'nombre',
+                         'descripcion', 'porcentaje', 'monto'))
                  )'''
         )
         columnas = {(fila['table_name'], fila['column_name']) for fila in cursor.fetchall()}
@@ -1353,7 +1590,20 @@ def health():
             ('usuarios', 'dos_factores_ultimo_periodo'),
             ('facturacion', 'fecha_entrega'),
             ('facturacion', 'modalidad_entrega'),
-            ('facturacion', 'ubicacion_entrega')
+            ('facturacion', 'ubicacion_entrega'),
+            ('pagos_factura', 'exige_aplicacion'),
+            ('cuotas_factura', 'exige_aplicacion'),
+            ('impuestos_factura', 'orden'),
+            ('impuestos_factura', 'parametro_id'),
+            ('impuestos_factura', 'codigo'),
+            ('impuestos_factura', 'nombre'),
+            ('impuestos_factura', 'descripcion'),
+            ('impuestos_factura', 'porcentaje'),
+            ('impuestos_factura', 'monto'),
+            ('aplicaciones_pago', 'pago_id'),
+            ('aplicaciones_pago', 'cuota_id'),
+            ('aplicaciones_pago', 'factura_numero'),
+            ('aplicaciones_pago', 'monto_aplicado')
         }
         columnas_faltantes = sorted(
             f'{tabla}.{columna}'
@@ -1779,6 +2029,62 @@ def guardar_foto_perfil(archivo, usuario_id):
     return f'uploads/perfiles/{nombre}', ruta_archivo
 
 
+def guardar_imagen_producto(archivo):
+    """Valida y optimiza una imagen local antes de guardarla en PostgreSQL."""
+    contenido = archivo.stream.read(5 * 1024 * 1024 + 1)
+    if len(contenido) > 5 * 1024 * 1024:
+        raise ValueError('La imagen del producto debe pesar como máximo 5 MB.')
+
+    try:
+        with Image.open(io.BytesIO(contenido)) as imagen:
+            if imagen.format not in {'JPEG', 'PNG', 'WEBP'}:
+                raise ValueError('Elige una imagen JPG, PNG o WEBP.')
+            if imagen.width * imagen.height > 20_000_000:
+                raise ValueError('La imagen tiene demasiada resolución.')
+            imagen.verify()
+        with Image.open(io.BytesIO(contenido)) as imagen:
+            imagen = ImageOps.exif_transpose(imagen)
+            if imagen.mode in {'RGBA', 'LA'}:
+                capa = imagen.convert('RGBA')
+                fondo = Image.new('RGB', capa.size, 'white')
+                fondo.paste(capa, mask=capa.getchannel('A'))
+                imagen = fondo
+            else:
+                imagen = imagen.convert('RGB')
+            imagen.thumbnail((1200, 1200))
+            salida = io.BytesIO()
+            imagen.save(salida, format='JPEG', quality=86, optimize=True)
+            return salida.getvalue()
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as error:
+        raise ValueError('No se pudo leer esa imagen. Elige un archivo JPG, PNG o WEBP válido.') from error
+
+
+@app.route('/productos/<int:producto_id>/imagen')
+def imagen_producto(producto_id):
+    """Sirve la imagen local del catálogo guardada en la base de datos."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        'SELECT contenido, tipo_contenido FROM imagenes_productos WHERE producto_id = %s',
+        (producto_id,)
+    )
+    imagen = cur.fetchone()
+    cur.close()
+    conn.close()
+    if not imagen:
+        return send_file(
+            os.path.join(app.static_folder, 'img', 'MOUSSE.png'),
+            mimetype='image/png',
+            max_age=3600
+        )
+    return send_file(
+        io.BytesIO(bytes(imagen['contenido'])),
+        mimetype=imagen['tipo_contenido'],
+        download_name=f'producto-{producto_id}.jpg',
+        max_age=3600
+    )
+
+
 def eliminar_foto_perfil(ruta_relativa):
     """Elimina únicamente fotos generadas por esta función."""
     coincidencia = re.fullmatch(r'uploads/perfiles/usuario-\d+-[a-f0-9]{32}\.jpg', ruta_relativa or '')
@@ -1835,6 +2141,227 @@ def inventario():
         pagina_movimientos=pagina_movimientos,
         paginas_movimientos=paginas_movimientos
     )
+
+
+@app.route('/produccion')
+@login_required
+@role_required('Administrador', 'Encargado', 'Repostero')
+def produccion():
+    """Muestra lotes horneados y existencias aún disponibles para registrar merma."""
+    asegurar_inventario_base()
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        '''SELECT id, nombre
+           FROM productos
+           WHERE es_insumo = FALSE
+           ORDER BY nombre'''
+    )
+    productos_producibles = cur.fetchall()
+    cur.execute(
+        '''SELECT l.id, l.producto_id, p.nombre AS producto, l.cantidad_producida,
+                  l.creado_en,
+                  COALESCE(v.vendidas, 0) AS cantidad_vendida,
+                  COALESCE(m.merma, 0) AS cantidad_merma,
+                  l.cantidad_producida - COALESCE(v.vendidas, 0)
+                    - COALESCE(m.merma, 0) AS cantidad_disponible
+           FROM lotes_produccion l
+           JOIN productos p ON p.id = l.producto_id
+           LEFT JOIN LATERAL (
+               SELECT SUM(cantidad) AS vendidas
+               FROM ventas_lote WHERE lote_id = l.id
+           ) v ON TRUE
+           LEFT JOIN LATERAL (
+               SELECT SUM(cantidad) AS merma
+               FROM mermas_lote WHERE lote_id = l.id
+           ) m ON TRUE
+           ORDER BY l.creado_en DESC, l.id DESC
+           LIMIT 100'''
+    )
+    lotes = cur.fetchall()
+    cur.close()
+    conn.close()
+    return render_template(
+        'produccion.html',
+        productos_producibles=productos_producibles,
+        lotes=lotes
+    )
+
+
+@app.route('/produccion/lote', methods=['POST'])
+@login_required
+@role_required('Administrador', 'Encargado', 'Repostero')
+def registrar_lote_produccion():
+    """Registra una horneada como entrada de inventario y crea su lote."""
+    asegurar_inventario_base()
+    producto_id = request.form.get('producto_id', type=int)
+    cantidad = request.form.get('cantidad', type=int)
+    costo_crudo = (request.form.get('costo_unitario') or '').strip().replace(',', '.')
+    referencia = (request.form.get('referencia') or '').strip()[:120]
+    if not producto_id or not cantidad or cantidad <= 0:
+        flash('Selecciona un producto y una cantidad válida para la horneada.', 'danger')
+        return redirect(url_for('produccion'))
+
+    costo_unitario = None
+    if costo_crudo:
+        try:
+            costo_unitario = Decimal(costo_crudo)
+        except InvalidOperation:
+            flash('El costo unitario no tiene un formato válido.', 'danger')
+            return redirect(url_for('produccion'))
+        if not costo_unitario.is_finite() or costo_unitario < 0:
+            flash('El costo unitario debe ser un monto válido y no negativo.', 'danger')
+            return redirect(url_for('produccion'))
+
+    ahora_local = datetime.now(ZONA_HORARIA_LOCAL).replace(tzinfo=None)
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        '''SELECT id, nombre, stock_actual, es_insumo
+           FROM productos WHERE id = %s FOR UPDATE''',
+        (producto_id,)
+    )
+    producto = cur.fetchone()
+    if not producto or producto['es_insumo']:
+        conn.rollback()
+        cur.close()
+        conn.close()
+        flash('El producto elegido no es un producto válido para hornear.', 'danger')
+        return redirect(url_for('produccion'))
+
+    cur.execute(
+        '''INSERT INTO kardex_movimientos
+           (producto_id, tipo, cantidad, referencia, descripcion, usuario_id,
+            costo_unitario, fecha)
+           VALUES (%s, 'entrada', %s, %s, %s, %s, %s, %s)
+           RETURNING id''',
+        (
+            producto_id, cantidad, referencia or 'Producción',
+            'Ingreso por lote de producción', current_user.id,
+            costo_unitario, ahora_local
+        )
+    )
+    movimiento_id = cur.fetchone()['id']
+    cur.execute(
+        'UPDATE productos SET stock_actual = stock_actual + %s WHERE id = %s',
+        (cantidad, producto_id)
+    )
+    cur.execute(
+        '''INSERT INTO lotes_produccion
+           (producto_id, movimiento_produccion_id, cantidad_producida, creado_en)
+           VALUES (%s, %s, %s, %s)''',
+        (producto_id, movimiento_id, cantidad, ahora_local)
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+    registrar_log(
+        'REGISTRAR_LOTE_PRODUCCION',
+        f'Lote de {cantidad} unidades de {producto["nombre"]} registrado por {current_user.usuario}'
+    )
+    flash('La horneada quedó registrada en el lote y en el Kardex.', 'success')
+    return redirect(url_for('produccion'))
+
+
+@app.route('/produccion/lote/<int:lote_id>/merma', methods=['POST'])
+@login_required
+@role_required('Administrador', 'Encargado', 'Repostero')
+def registrar_merma_lote(lote_id):
+    """Registra producto no vendible, reduce el stock y lo relaciona con su lote."""
+    asegurar_inventario_base()
+    cantidad = request.form.get('cantidad', type=int)
+    if not cantidad or cantidad <= 0:
+        flash('Ingresa una cantidad de merma válida.', 'danger')
+        return redirect(url_for('produccion'))
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT producto_id FROM lotes_produccion WHERE id = %s', (lote_id,))
+    lote_producto = cur.fetchone()
+    if not lote_producto:
+        conn.rollback()
+        cur.close()
+        conn.close()
+        flash('El lote seleccionado no existe.', 'danger')
+        return redirect(url_for('produccion'))
+    cur.execute(
+        'SELECT id FROM productos WHERE id = %s FOR UPDATE',
+        (lote_producto['producto_id'],)
+    )
+    if not cur.fetchone():
+        conn.rollback()
+        cur.close()
+        conn.close()
+        flash('El producto de ese lote ya no está disponible.', 'danger')
+        return redirect(url_for('produccion'))
+    cur.execute(
+        '''SELECT l.id, l.producto_id, l.cantidad_producida, p.nombre,
+                  p.stock_actual,
+                  COALESCE((SELECT SUM(v.cantidad) FROM ventas_lote v
+                            WHERE v.lote_id = l.id), 0) AS cantidad_vendida,
+                  COALESCE((SELECT SUM(m.cantidad) FROM mermas_lote m
+                            WHERE m.lote_id = l.id), 0) AS cantidad_merma
+           FROM lotes_produccion l
+           JOIN productos p ON p.id = l.producto_id
+           WHERE l.id = %s
+           FOR UPDATE OF l''',
+        (lote_id,)
+    )
+    lote = cur.fetchone()
+    if not lote:
+        conn.rollback()
+        cur.close()
+        conn.close()
+        flash('El lote seleccionado no existe.', 'danger')
+        return redirect(url_for('produccion'))
+
+    disponible = (
+        int(lote['cantidad_producida'])
+        - int(lote['cantidad_vendida'])
+        - int(lote['cantidad_merma'])
+    )
+    if cantidad > disponible or cantidad > int(lote['stock_actual']):
+        conn.rollback()
+        cur.close()
+        conn.close()
+        flash(
+            f'La merma no puede superar las {max(0, min(disponible, int(lote["stock_actual"])))} '
+            'unidades disponibles del lote y del inventario.',
+            'danger'
+        )
+        return redirect(url_for('produccion'))
+
+    ahora_local = datetime.now(ZONA_HORARIA_LOCAL).replace(tzinfo=None)
+    cur.execute(
+        '''INSERT INTO kardex_movimientos
+           (producto_id, tipo, cantidad, referencia, descripcion, usuario_id, fecha)
+           VALUES (%s, 'salida', %s, %s, %s, %s, %s)
+           RETURNING id''',
+        (
+            lote['producto_id'], cantidad, f'LOTE-{lote_id}',
+            'Merma registrada del lote de producción', current_user.id, ahora_local
+        )
+    )
+    movimiento_id = cur.fetchone()['id']
+    cur.execute(
+        'UPDATE productos SET stock_actual = stock_actual - %s WHERE id = %s',
+        (cantidad, lote['producto_id'])
+    )
+    cur.execute(
+        '''INSERT INTO mermas_lote
+           (lote_id, movimiento_merma_id, cantidad, registrado_en)
+           VALUES (%s, %s, %s, %s)''',
+        (lote_id, movimiento_id, cantidad, ahora_local)
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+    registrar_log(
+        'REGISTRAR_MERMA_PRODUCCION',
+        f'Merma de {cantidad} unidades del lote {lote_id} ({lote["nombre"]})'
+    )
+    flash('La merma quedó registrada y descontada del inventario.', 'success')
+    return redirect(url_for('produccion'))
 
 
 @app.route('/inventario/movimiento', methods=['POST'])
@@ -1902,6 +2429,21 @@ def editar_movimiento_inventario(movimiento_id):
     if movimiento['automatico']:
         cur.close(); conn.close()
         flash('Los movimientos automáticos de venta no se pueden editar.', 'warning')
+        return redirect(url_for('inventario'))
+    cur.execute(
+        '''SELECT EXISTS (
+               SELECT 1 FROM lotes_produccion
+               WHERE movimiento_produccion_id = %s
+               UNION ALL
+               SELECT 1 FROM mermas_lote
+               WHERE movimiento_merma_id = %s
+           ) AS protegido''',
+        (movimiento_id, movimiento_id)
+    )
+    if cur.fetchone()['protegido']:
+        cur.close()
+        conn.close()
+        flash('Los movimientos que pertenecen a lotes o mermas no se pueden editar por separado.', 'warning')
         return redirect(url_for('inventario'))
 
     cur.execute('SELECT id, nombre FROM productos ORDER BY nombre')
@@ -2011,6 +2553,17 @@ def kardex_producto(producto_id):
 @login_required
 def configurar_dos_factores():
     """Permite activar o desactivar TOTP con contraseña y, al desactivar, el TOTP actual."""
+    try:
+        asegurar_campos_seguridad_cuenta()
+    except psycopg2.Error:
+        app.logger.exception('No se pudo preparar el esquema de seguridad de la cuenta.')
+        return render_template(
+            '500.html',
+            codigo_http=503,
+            titulo_error='Seguridad de la cuenta temporalmente no disponible',
+            mensaje_error='No se pudo preparar el almacenamiento de seguridad. Contacta al administrador del sistema.',
+        ), 503
+
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -2192,15 +2745,28 @@ def configurar_dos_factores():
 
             conn.rollback()
             flash('La acción de seguridad solicitada no es válida.', 'danger')
-        except (psycopg2.Error, RuntimeError, InvalidToken, ValueError):
+        except RuntimeError as error:
+            conn.rollback()
+            app.logger.exception('La clave de cifrado TOTP no está disponible para la cuenta %s.', current_user.id)
+            flash(str(error), 'danger')
+        except InvalidToken:
+            conn.rollback()
+            app.logger.exception('No se pudo descifrar el secreto TOTP de la cuenta %s.', current_user.id)
+            flash(
+                'No se pudo descifrar la configuración 2FA. Restaura la clave TOTP_ENCRYPTION_KEY '
+                'original antes de volver a intentarlo.',
+                'danger'
+            )
+        except (psycopg2.Error, ValueError):
             conn.rollback()
             app.logger.exception('Falló la gestión TOTP de la cuenta %s.', current_user.id)
-            flash('No se pudo actualizar la autenticación en dos pasos. Verifica la clave de cifrado y vuelve a intentarlo.', 'danger')
+            flash('No se pudo actualizar la configuración de seguridad. Revisa los datos e inténtalo nuevamente.', 'danger')
         finally:
             cursor.close()
             conn.close()
         return redirect(url_for('configurar_dos_factores'))
 
+    fila = None
     try:
         cursor.execute(
             '''SELECT dos_factores_activo, dos_factores_secreto_pendiente
@@ -2221,10 +2787,41 @@ def configurar_dos_factores():
             secreto=secreto_pendiente,
             uri=uri_configuracion_totp(secreto_pendiente, current_user.usuario) if secreto_pendiente else None
         )
-    except (psycopg2.Error, RuntimeError, InvalidToken, ValueError):
+    except RuntimeError as error:
+        app.logger.exception('La clave de cifrado TOTP no está disponible para la cuenta %s.', current_user.id)
+        flash(str(error), 'danger')
+        return render_template(
+            'configurar_2fa.html',
+            activo=fila['dos_factores_activo'] if fila else False,
+            secreto=None,
+            uri=None,
+            totp_error=str(error),
+        ), 503
+    except InvalidToken:
+        app.logger.exception('No se pudo descifrar el secreto TOTP pendiente de la cuenta %s.', current_user.id)
+        mensaje = (
+            'No se pudo descifrar la configuración 2FA. Restaura la clave TOTP_ENCRYPTION_KEY '
+            'original antes de volver a intentarlo.'
+        )
+        flash(mensaje, 'danger')
+        return render_template(
+            'configurar_2fa.html',
+            activo=fila['dos_factores_activo'] if fila else False,
+            secreto=None,
+            uri=None,
+            totp_error=mensaje,
+        ), 503
+    except (psycopg2.Error, ValueError):
         app.logger.exception('No se pudo cargar la configuración TOTP del usuario %s.', current_user.id)
-        flash('No se pudo cargar la configuración de seguridad. Revisa TOTP_ENCRYPTION_KEY y la conexión.', 'danger')
-        return redirect(url_for('dashboard'))
+        mensaje = 'No se pudo cargar la configuración de seguridad. Revisa la conexión y vuelve a intentarlo.'
+        flash(mensaje, 'danger')
+        return render_template(
+            'configurar_2fa.html',
+            activo=fila['dos_factores_activo'] if fila else False,
+            secreto=None,
+            uri=None,
+            totp_error=mensaje,
+        ), 503
     finally:
         cursor.close()
         conn.close()
@@ -2476,9 +3073,13 @@ def admin_aprobar_usuario(id):
     if aprobada:
         cur.execute(
             '''UPDATE solicitudes_acceso
-               SET estado = 'Aprobada', fecha_decision = %s, decidido_por = %s, motivo = NULL
-               WHERE usuario_id = %s''',
-            (datetime.now(), current_user.usuario, id)
+               SET fecha_decision = %s, decidido_por = %s, motivo = NULL
+               WHERE id = (
+                   SELECT id FROM solicitudes_acceso
+                   WHERE usuario_id = %s AND rol_id = %s AND estado = 'Aprobada'
+                   ORDER BY fecha_solicitud DESC, id DESC LIMIT 1
+               )''',
+            (datetime.now(), current_user.usuario, id, user.rol_id)
         )
     conn.commit()
     cur.close()
@@ -2529,8 +3130,12 @@ def admin_rechazar_usuario(id):
     cur.execute(
         '''UPDATE solicitudes_acceso
            SET estado = 'Rechazada', fecha_decision = %s, decidido_por = %s, motivo = %s
-           WHERE usuario_id = %s''',
-        (datetime.now(), current_user.usuario, motivo, id)
+           WHERE id = (
+               SELECT id FROM solicitudes_acceso
+               WHERE usuario_id = %s AND rol_id = %s AND estado = 'Pendiente'
+               ORDER BY fecha_solicitud DESC, id DESC LIMIT 1
+           )''',
+        (datetime.now(), current_user.usuario, motivo, id, user.rol_id)
     )
     conn.commit()
     cur.close()
@@ -2670,7 +3275,7 @@ def solicitudes():
             FROM solicitudes s
             LEFT JOIN usuarios u ON u.id = s.responsable_id
             LEFT JOIN usuarios r ON r.id = s.entregado_por_id
-            WHERE s.responsable_id = %s
+            WHERE s.responsable_id = %s OR s.responsable_id IS NULL
             ORDER BY s.fecha DESC, s.id DESC
         ''', (current_user.id,))
     else:
@@ -2732,6 +3337,7 @@ def crear_solicitud():
     conn = None
     cursor = None
     try:
+        asegurar_relaciones_solicitudes()
         conn = get_db_connection()
         cursor = conn.cursor()
         # La solicitud queda relacionada con la categoría del producto, con la
@@ -2743,14 +3349,13 @@ def crear_solicitud():
                        (correo,))
         solicitante = cursor.fetchone()
         solicitante_id = solicitante['id'] if solicitante else None
-        remitente_id = current_user.id if current_user.is_authenticated else None
         cursor.execute('''
             INSERT INTO solicitudes (nombre, correo, telefono, tipo_producto, mensaje,
-                                     usuario_id, categoria_producto_id, responsable_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                                     usuario_id, categoria_producto_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         ''', (nombre, correo, telefono, tipo_producto, mensaje,
-              solicitante_id, categoria['id'] if categoria else None, remitente_id))
+              solicitante_id, categoria['id'] if categoria else None))
         solicitud_id = cursor.fetchone()['id']
         conn.commit()
         return {'ok': True, 'id': solicitud_id}, 201
@@ -3027,10 +3632,15 @@ def parametros_fiscales():
         accion = request.form.get('accion', '')
         try:
             if accion == 'actualizar_iva':
-                porcentaje = float(request.form.get('valor', ''))
-                if not math.isfinite(porcentaje) or not 0 <= porcentaje <= 100:
-                    flash('El IVA debe ser un número entre 0 y 100.', 'danger')
+                valor_ingresado = (request.form.get('valor', '') or '').strip().replace(',', '.')
+                if not re.fullmatch(r'\d{1,3}(?:\.\d{1,2})?', valor_ingresado):
+                    flash('Ingresa el IVA con un máximo de dos decimales, por ejemplo 15,00.', 'danger')
+                    porcentaje = None
                 else:
+                    porcentaje = float(valor_ingresado)
+                if porcentaje is not None and (not math.isfinite(porcentaje) or not 0 <= porcentaje <= 100):
+                    flash('El IVA debe ser un número entre 0 y 100.', 'danger')
+                elif porcentaje is not None:
                     cursor.execute(
                         '''UPDATE parametros
                            SET valor = %s, activo = TRUE, actualizado_en = CURRENT_TIMESTAMP
@@ -3077,6 +3687,7 @@ def facturacion():
     - Cliente: ve únicamente sus propios pedidos y cotizaciones.
     Carga documentos con historial de pagos, comprobantes y estado de amortización.
     """
+    asegurar_detalles_factura()
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -3650,6 +4261,7 @@ def nuevo_producto():
     Registra un nuevo producto en el catálogo, asociado a una categoría (categoria_producto_id).
     Acceso para Administrador y Encargado.
     """
+    asegurar_inventario_base()
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT * FROM categorias_producto ORDER BY nombre')
@@ -3659,14 +4271,30 @@ def nuevo_producto():
     form.categoria_producto_id.choices = [(t['id'], t['nombre']) for t in tipos]
 
     if form.validate_on_submit():
-        imagen_ingresada = form.imagen.data.strip() if form.imagen.data else ''
-        imagen_url = resolver_url_imagen(imagen_ingresada) if imagen_ingresada else None
+        try:
+            imagen_bytes = (
+                guardar_imagen_producto(form.imagen.data)
+                if form.imagen.data and form.imagen.data.filename else None
+            )
+        except ValueError as error:
+            form.imagen.errors.append(str(error))
+            cursor.close()
+            conn.close()
+            return render_template('formulario_producto.html', form=form, editando=False)
         cursor.execute(
-            '''INSERT INTO productos (categoria_producto_id, nombre, precio_base, imagen, descripcion, disponible, es_insumo)
-               VALUES (%s, %s, %s, %s, %s, %s, %s)''',
+            '''INSERT INTO productos (categoria_producto_id, nombre, precio_base, descripcion, disponible, es_insumo)
+               VALUES (%s, %s, %s, %s, %s, %s)
+               RETURNING id''',
             (form.categoria_producto_id.data, form.nombre.data.strip(), float(form.precio.data),
-             imagen_url, form.descripcion.data.strip(), form.disponible.data, bool(form.es_insumo.data))
+             form.descripcion.data.strip(), form.disponible.data, bool(form.es_insumo.data))
         )
+        producto_id = cursor.fetchone()['id']
+        if imagen_bytes:
+            cursor.execute(
+                '''INSERT INTO imagenes_productos (producto_id, contenido)
+                   VALUES (%s, %s)''',
+                (producto_id, psycopg2.Binary(imagen_bytes))
+            )
         conn.commit()
         cursor.close()
         conn.close()
@@ -3713,8 +4341,19 @@ def editar_producto(id):
         form.stock_entrada.data = 0
 
     if form.validate_on_submit():
-        imagen_ingresada = form.imagen.data.strip() if form.imagen.data else ''
-        imagen_url = resolver_url_imagen(imagen_ingresada) if imagen_ingresada else producto['imagen']
+        try:
+            imagen_bytes = (
+                guardar_imagen_producto(form.imagen.data)
+                if form.imagen.data and form.imagen.data.filename else None
+            )
+        except ValueError as error:
+            form.imagen.errors.append(str(error))
+            cursor.close()
+            conn.close()
+            return render_template(
+                'formulario_producto.html', form=form, editando=True, id=id,
+                stock_actual=producto['stock_actual'] or 0
+            )
         entrada_stock = int(form.stock_entrada.data or 0)
         cursor.execute('SELECT stock_actual FROM productos WHERE id = %s FOR UPDATE', (id,))
         producto_bloqueado = cursor.fetchone()
@@ -3726,11 +4365,21 @@ def editar_producto(id):
             return redirect(url_for('productos'))
         stock_actual = int(producto_bloqueado['stock_actual'] or 0)
         cursor.execute(
-            '''UPDATE productos SET categoria_producto_id=%s, nombre=%s, precio_base=%s, imagen=%s, descripcion=%s, disponible=%s, es_insumo=%s
+            '''UPDATE productos SET categoria_producto_id=%s, nombre=%s, precio_base=%s, descripcion=%s, disponible=%s, es_insumo=%s
                WHERE id=%s''',
             (form.categoria_producto_id.data, form.nombre.data.strip(), float(form.precio.data),
-             imagen_url, form.descripcion.data.strip(), form.disponible.data, bool(form.es_insumo.data), id)
+             form.descripcion.data.strip(), form.disponible.data, bool(form.es_insumo.data), id)
         )
+        if imagen_bytes:
+            cursor.execute(
+                '''INSERT INTO imagenes_productos (producto_id, contenido)
+                   VALUES (%s, %s)
+                   ON CONFLICT (producto_id) DO UPDATE
+                   SET contenido = EXCLUDED.contenido,
+                       tipo_contenido = EXCLUDED.tipo_contenido,
+                       actualizado_en = CURRENT_TIMESTAMP''',
+                (id, psycopg2.Binary(imagen_bytes))
+            )
         if entrada_stock:
             cursor.execute(
                 '''INSERT INTO kardex_movimientos
@@ -4357,7 +5006,9 @@ def nueva_factura():
         else:
             form.validez.data = "30 días"
             form.estado_id.data = id_por_nombre.get('Pendiente', 2)
-        form.fecha.data = str(date.today())
+        ahora_local = datetime.now(ZONA_HORARIA_LOCAL)
+        form.fecha.data = str(ahora_local.date())
+        form.hora_emision.data = ahora_local.strftime('%H:%M')
         form.anticipo.data = 0.00
         form.saldo_pendiente.data = 0.00
         form.tipo_pago.data = 'contado'
@@ -4455,8 +5106,14 @@ def nueva_factura():
 
         try:
             fecha_emision = datetime.strptime(str(form.fecha.data), '%Y-%m-%d').date()
+            hora_emision = datetime.strptime(str(form.hora_emision.data), '%H:%M').time()
         except (ValueError, TypeError):
-            fecha_emision = date.today()
+            conn.rollback()
+            cursor.close()
+            conn.close()
+            flash('La fecha y hora de emisión no son válidas.', 'danger')
+            return redirect(url_for('nueva_factura', tipo=tipo_doc))
+        fecha_hora_emision = datetime.combine(fecha_emision, hora_emision)
 
         entrega = validar_datos_entrega(form, tipo_doc, fecha_emision)
         if isinstance(entrega, str):
@@ -4497,17 +5154,17 @@ def nueva_factura():
         # Inserción con autogeneración secuencial atómica
         cursor.execute(
             '''INSERT INTO facturacion
-               (numero, tipo, cliente_cedula, fecha, validez, subtotal, iva, impuestos_detalle, monto, anticipo, saldo_pendiente, estado_id, notas,
+               (numero, tipo, cliente_cedula, fecha, fecha_hora_emision, validez, subtotal, iva, monto, anticipo, saldo_pendiente, estado_id, notas,
                 numero_factura, forma_pago, tipo_pago, plazo_meses, total_abonado,
                 fecha_entrega, modalidad_entrega, ubicacion_entrega,
                 cliente_nombre_snapshot, cliente_apellido_snapshot, cliente_correo_snapshot,
                 cliente_telefono_snapshot, cliente_direccion_snapshot, cliente_ciudad_snapshot,
                 usuario_id, iva_id)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                RETURNING numero''',
-            (numero_param, tipo_doc, form.cliente_cedula.data, str(fecha_emision),
+            (numero_param, tipo_doc, form.cliente_cedula.data, str(fecha_emision), fecha_hora_emision,
              form.validez.data.strip() if form.validez.data else "15 días",
-             subtotal_val, iva_val, json.dumps(impuestos_detalle), total_original, anticipo_val, saldo_val, estado_id_final, notas_final,
+             subtotal_val, iva_val, total_original, anticipo_val, saldo_val, estado_id_final, notas_final,
              numero_factura_final, forma_pago, tipo_pago, plazo_meses, anticipo_val,
              fecha_entrega, modalidad_entrega, ubicacion_entrega,
              cliente_snapshot['nombre'], cliente_snapshot.get('apellido'), cliente_snapshot['correo'],
@@ -4517,6 +5174,7 @@ def nueva_factura():
         )
         row_insertado = cursor.fetchone()
         numero_limpio = row_insertado['numero']
+        guardar_impuestos_factura(cursor, numero_limpio, impuestos_detalle)
 
         # Insertar líneas de detalle
         for item in productos_detalle:
@@ -4543,6 +5201,7 @@ def nueva_factura():
                 conn.close()
                 flash(error_stock, 'danger')
                 return redirect(url_for('nueva_factura', tipo=tipo_doc))
+            registrar_ventas_en_lotes(cursor, numero_limpio)
 
         # El esquema legado de pagos se usa aquí para guardar solo los dos hitos acordados.
         if tipo_doc != 'Cotizacion' and tipo_pago == 'plazos' and plazo_meses >= 2:
@@ -4552,8 +5211,10 @@ def nueva_factura():
             )
             for numero_pago_plan, monto_plan, fecha_plan, monto_pagado_plan, saldo_plan, estado_plan in pagos_programados:
                 cursor.execute(
-                    '''INSERT INTO cuotas_factura (factura_numero, numero_pago, valor_pago, fecha_vencimiento, monto_pagado, saldo_pago, estado)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s)''',
+                    '''INSERT INTO cuotas_factura (
+                           factura_numero, numero_pago, valor_pago, fecha_vencimiento,
+                           monto_pagado, saldo_pago, estado, exige_aplicacion
+                       ) VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE)''',
                     (
                         numero_limpio, numero_pago_plan, monto_plan, fecha_plan,
                         monto_pagado_plan, saldo_plan, estado_plan
@@ -4566,13 +5227,15 @@ def nueva_factura():
             cursor.execute('''
                 INSERT INTO pagos_factura (
                     factura_numero, numero_pago, monto, fecha, metodo_pago, referencia,
-                    saldo_anterior, saldo_posterior, total_acumulado, registrado_por, notas, usuario_id
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    saldo_anterior, saldo_posterior, total_acumulado, registrado_por, notas,
+                    usuario_id, exige_aplicacion
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             ''', (
                 numero_limpio, 1, anticipo_val, str(fecha_emision), forma_pago,
                 'Anticipo inicial', total_original, saldo_val, anticipo_val, current_user.usuario, 'Abono inicial registrado',
-                current_user.id if current_user.is_authenticated else None
+                current_user.id if current_user.is_authenticated else None,
+                tipo_pago == 'plazos' and plazo_meses >= 2
             ))
             pago_id = cursor.fetchone()['id']
 
@@ -4596,9 +5259,12 @@ def nueva_factura():
             # La cuota cubierta por el anticipo queda ligada a su pago, para que
             # la trazabilidad cuota -> pago -> comprobante sea completa.
             cursor.execute(
-                '''UPDATE cuotas_factura SET pago_id = %s
-                   WHERE factura_numero = %s AND numero_pago = 1 AND estado = 'Pagada'
-                     AND pago_id IS NULL''',
+                '''INSERT INTO aplicaciones_pago
+                   (pago_id, cuota_id, factura_numero, monto_aplicado)
+                   SELECT %s, id, factura_numero, monto_pagado
+                   FROM cuotas_factura
+                   WHERE factura_numero = %s AND numero_pago = 1
+                     AND estado = 'Pagada' AND monto_pagado > 0''',
                 (pago_id, numero_limpio)
             )
 
@@ -4728,6 +5394,8 @@ def editar_factura(numero):
         plazos_validos = {valor for valor, _ in form.plazo_meses.choices}
         form.plazo_meses.data = plazo_guardado if plazo_guardado in plazos_validos else 2
         form.productos_json.data = json.dumps(factura['productos_detalle'])
+        if factura.get('fecha_hora_emision'):
+            form.hora_emision.data = factura['fecha_hora_emision'].strftime('%H:%M')
 
     formulario_valido = form.validate_on_submit()
     if formulario_valido and not identificacion_valida_para_tipo(
@@ -4799,8 +5467,14 @@ def editar_factura(numero):
 
         try:
             fecha_emision = datetime.strptime(str(form.fecha.data), '%Y-%m-%d').date()
+            hora_emision = datetime.strptime(str(form.hora_emision.data), '%H:%M').time()
         except (ValueError, TypeError):
-            fecha_emision = date.today()
+            conn.rollback()
+            cursor.close()
+            conn.close()
+            flash('La fecha y hora de emisión no son válidas.', 'danger')
+            return redirect(url_for('editar_factura', numero=numero))
+        fecha_hora_emision = datetime.combine(fecha_emision, hora_emision)
 
         entrega = validar_datos_entrega(form, tipo_doc, fecha_emision)
         if isinstance(entrega, str):
@@ -4852,21 +5526,22 @@ def editar_factura(numero):
 
         cursor.execute(
             '''UPDATE facturacion SET
-               tipo=%s, cliente_cedula=%s, fecha=%s, validez=%s,
-               subtotal=%s, iva=%s, impuestos_detalle=%s::jsonb, monto=%s, anticipo=%s, saldo_pendiente=%s, estado_id=%s, notas=%s,
+               tipo=%s, cliente_cedula=%s, fecha=%s, fecha_hora_emision=%s, validez=%s,
+               subtotal=%s, iva=%s, monto=%s, anticipo=%s, saldo_pendiente=%s, estado_id=%s, notas=%s,
                numero_factura=%s, forma_pago=%s, tipo_pago=%s, plazo_meses=%s,
                total_abonado=%s, fecha_entrega=%s, modalidad_entrega=%s, ubicacion_entrega=%s,
                cliente_nombre_snapshot=%s, cliente_apellido_snapshot=%s, cliente_correo_snapshot=%s,
                cliente_telefono_snapshot=%s, cliente_direccion_snapshot=%s, cliente_ciudad_snapshot=%s
                WHERE numero=%s''',
-            (tipo_doc, form.cliente_cedula.data, str(fecha_emision),
+            (tipo_doc, form.cliente_cedula.data, str(fecha_emision), fecha_hora_emision,
              form.validez.data.strip() if form.validez.data else "15 días",
-             subtotal_val, iva_val, json.dumps(impuestos_detalle), total_original, total_abonado, saldo_val, estado_id_final, notas_final,
+             subtotal_val, iva_val, total_original, total_abonado, saldo_val, estado_id_final, notas_final,
              numero_factura_asignado, forma_pago, tipo_pago, plazo_meses,
              total_abonado, fecha_entrega, modalidad_entrega, ubicacion_entrega,
              cliente_snapshot['nombre'], cliente_snapshot.get('apellido'), cliente_snapshot['correo'],
              cliente_snapshot['telefono'], cliente_snapshot.get('direccion'), cliente_snapshot['ciudad'], numero)
         )
+        guardar_impuestos_factura(cursor, numero, impuestos_detalle)
 
         cursor.execute('DELETE FROM detalle_factura WHERE factura_numero = %s', (numero,))
         for item in productos_detalle:
@@ -4881,6 +5556,9 @@ def editar_factura(numero):
                  item.get('descripcion') or None, item.get('unidad_medida') or 'unidad',
                  bool(item.get('es_adicional')))
             )
+
+        if tipo_doc == 'Factura':
+            registrar_ventas_en_lotes(cursor, numero)
 
         conn.commit()
         cursor.close()
@@ -5016,14 +5694,18 @@ def registrar_abono(numero):
         cursor.execute('''
             INSERT INTO pagos_factura (
                 factura_numero, numero_pago, monto, fecha, metodo_pago, referencia,
-                saldo_anterior, saldo_posterior, total_acumulado, registrado_por, notas, usuario_id
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                saldo_anterior, saldo_posterior, total_acumulado, registrado_por, notas,
+                usuario_id, exige_aplicacion
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                EXISTS (SELECT 1 FROM cuotas_factura WHERE factura_numero = %s)
+            )
             RETURNING id
         ''', (
             numero, numero_pago, monto_abono, fecha_pago, metodo_pago,
             referencia.strip() if referencia else None, saldo_anterior, saldo_posterior,
             nuevo_total_abonado, current_user.usuario, notas.strip() if notas else None,
-            current_user.id if current_user.is_authenticated else None
+            current_user.id if current_user.is_authenticated else None, numero
         ))
         pago_id = cursor.fetchone()['id']
 
@@ -5035,7 +5717,7 @@ def registrar_abono(numero):
         # 3. Amortizar pagos pendientes si existen
         cursor.execute('''
             SELECT * FROM cuotas_factura
-            WHERE factura_numero = %s
+            WHERE factura_numero = %s AND saldo_pago > 0
             ORDER BY numero_pago ASC
             FOR UPDATE
         ''', (numero,))
@@ -5047,31 +5729,37 @@ def registrar_abono(numero):
                 continue
             if monto_restante_pago <= 0:
                 break
-            saldo_c = float(c['saldo_pago'])
-            pagado_actual = float(c['monto_pagado'])
-            if monto_restante_pago >= saldo_c:
-                monto_restante_pago = round(monto_restante_pago - saldo_c, 2)
+            saldo_c = Decimal(str(c['saldo_pago'])).quantize(Decimal('0.01'))
+            pagado_actual = Decimal(str(c['monto_pagado'])).quantize(Decimal('0.01'))
+            restante_decimal = Decimal(str(monto_restante_pago)).quantize(Decimal('0.01'))
+            monto_aplicado = min(restante_decimal, saldo_c)
+            if restante_decimal >= saldo_c:
+                monto_restante_pago = float((restante_decimal - saldo_c).quantize(Decimal('0.01')))
                 cursor.execute('''
                     UPDATE cuotas_factura
-                    SET monto_pagado = %s, saldo_pago = 0, estado = 'Pagada', fecha_pago = %s,
-                        pago_id = %s
+                    SET monto_pagado = %s, saldo_pago = 0, estado = 'Pagada', fecha_pago = %s
                     WHERE id = %s
-                ''', (float(c['valor_pago']), fecha_pago, pago_id, c['id']))
+                ''', (float(c['valor_pago']), fecha_pago, c['id']))
             else:
-                nuevo_saldo_c = round(saldo_c - monto_restante_pago, 2)
-                nuevo_pagado_c = round(pagado_actual + monto_restante_pago, 2)
+                nuevo_saldo_c = (saldo_c - restante_decimal).quantize(Decimal('0.01'))
+                nuevo_pagado_c = (pagado_actual + restante_decimal).quantize(Decimal('0.01'))
                 monto_restante_pago = 0.0
                 cursor.execute('''
                     UPDATE cuotas_factura
-                    SET monto_pagado = %s, saldo_pago = %s, estado = 'Parcial', fecha_pago = %s,
-                        pago_id = %s
+                    SET monto_pagado = %s, saldo_pago = %s, estado = 'Parcial', fecha_pago = %s
                     WHERE id = %s
-                ''', (nuevo_pagado_c, nuevo_saldo_c, fecha_pago, pago_id, c['id']))
+                ''', (nuevo_pagado_c, nuevo_saldo_c, fecha_pago, c['id']))
+            cursor.execute(
+                '''INSERT INTO aplicaciones_pago
+                   (pago_id, cuota_id, factura_numero, monto_aplicado)
+                   VALUES (%s, %s, %s, %s)''',
+                (pago_id, c['id'], numero, monto_aplicado)
+            )
 
         # Obtener próxima pago pendiente
         cursor.execute('''
             SELECT * FROM cuotas_factura
-            WHERE factura_numero = %s AND estado != 'Pagada'
+            WHERE factura_numero = %s AND estado != 'Pagada' AND saldo_pago > 0
             ORDER BY numero_pago ASC
             LIMIT 1
         ''', (numero,))
@@ -5214,6 +5902,7 @@ def ver_comprobante_venta(numero):
     """
     Genera el comprobante comercial final cuando la venta está completamente pagada.
     """
+    asegurar_detalles_factura()
     asegurar_campos_cliente()
     asegurar_snapshots_documentos()
     conn = get_db_connection()
@@ -5279,6 +5968,14 @@ def ver_comprobante_venta(numero):
          'es_adicional': bool(d.get('es_adicional'))}
         for d in detalle
     ]
+    cursor.execute(
+        '''SELECT nombre, porcentaje, monto
+           FROM impuestos_factura
+           WHERE factura_numero = %s
+           ORDER BY orden''',
+        (numero,)
+    )
+    factura['impuestos_detalle'] = cursor.fetchall()
 
     cursor.execute('''
         SELECT p.*, cp.numero_comprobante
@@ -5383,6 +6080,14 @@ def ver_comprobante(numero):
 
         cursor.execute('SELECT * FROM detalle_factura WHERE factura_numero = %s', (numero,))
         detalle = cursor.fetchall()
+        cursor.execute(
+            '''SELECT nombre, porcentaje, monto
+               FROM impuestos_factura
+               WHERE factura_numero = %s
+               ORDER BY orden''',
+            (numero,)
+        )
+        factura['impuestos_detalle'] = cursor.fetchall()
         cursor.close()
         conn.close()
         factura['productos_detalle'] = [
@@ -5434,6 +6139,7 @@ def estadisticas():
     Los indicadores de producción y reseñas no se estiman si no tienen registros.
     """
     asegurar_detalles_factura()
+    asegurar_inventario_base()
     conn = get_db_connection()
     cursor = conn.cursor()
     es_cliente = (current_user.rol_nombre == 'Cliente')
@@ -5444,7 +6150,7 @@ def estadisticas():
 
     if es_cliente:
         cursor.execute('''
-            SELECT s.id AS producto_id, s.nombre AS producto, s.imagen,
+            SELECT s.id AS producto_id, s.nombre AS producto,
                    t.nombre AS categoria, SUM(d.cantidad) AS unidades,
                    SUM(d.total) AS ingresos
             FROM detalle_factura d
@@ -5457,12 +6163,12 @@ def estadisticas():
               AND POSITION('cancel' IN LOWER(e.nombre)) = 0
               AND POSITION('anulad' IN LOWER(e.nombre)) = 0
             {filtro_cliente}
-            GROUP BY s.id, s.nombre, s.imagen, t.nombre
+            GROUP BY s.id, s.nombre, t.nombre
             ORDER BY unidades DESC, s.nombre ASC
         '''.format(filtro_cliente=filtro_cliente), parametros_cliente)
     else:
         cursor.execute('''
-            SELECT s.id AS producto_id, s.nombre AS producto, s.imagen,
+            SELECT s.id AS producto_id, s.nombre AS producto,
                    t.nombre AS categoria,
                    SUM(d.cantidad) AS unidades,
                    SUM(d.total) AS ingresos
@@ -5474,7 +6180,7 @@ def estadisticas():
             WHERE f.tipo = 'Factura' AND d.es_adicional = FALSE
               AND POSITION('cancel' IN LOWER(e.nombre)) = 0
               AND POSITION('anulad' IN LOWER(e.nombre)) = 0
-            GROUP BY s.id, s.nombre, s.imagen, t.nombre
+            GROUP BY s.id, s.nombre, t.nombre
             ORDER BY unidades DESC, s.nombre ASC
         ''')
     ranking = cursor.fetchall()
@@ -5493,7 +6199,7 @@ def estadisticas():
     resumen_hoy = cursor.fetchone()
 
     cursor.execute('''
-        SELECT s.nombre AS producto, s.imagen, SUM(d.cantidad) AS unidades
+        SELECT s.nombre AS producto, SUM(d.cantidad) AS unidades
         FROM detalle_factura d
         JOIN facturacion f ON f.numero = d.factura_numero
         JOIN estados_documento e ON e.id = f.estado_id
@@ -5504,14 +6210,14 @@ def estadisticas():
           AND POSITION('cancel' IN LOWER(e.nombre)) = 0
           AND POSITION('anulad' IN LOWER(e.nombre)) = 0
         {filtro_cliente}
-        GROUP BY s.id, s.nombre, s.imagen
+        GROUP BY s.id, s.nombre
         ORDER BY unidades DESC, s.nombre ASC
         LIMIT 1
     '''.format(filtro_cliente=filtro_cliente), parametros_cliente)
     producto_estrella_hoy = cursor.fetchone()
 
     cursor.execute('''
-        SELECT s.nombre AS producto, s.imagen, SUM(d.cantidad) AS unidades
+        SELECT s.id AS producto_id, s.nombre AS producto, SUM(d.cantidad) AS unidades
         FROM detalle_factura d
         JOIN facturacion f ON f.numero = d.factura_numero
         JOIN estados_documento e ON e.id = f.estado_id
@@ -5523,7 +6229,7 @@ def estadisticas():
           AND POSITION('cancel' IN LOWER(e.nombre)) = 0
           AND POSITION('anulad' IN LOWER(e.nombre)) = 0
         {filtro_cliente}
-        GROUP BY s.id, s.nombre, s.imagen
+        GROUP BY s.id, s.nombre
         ORDER BY unidades DESC, s.nombre ASC
         LIMIT 1
     '''.format(filtro_cliente=filtro_cliente), parametros_cliente)
@@ -5581,6 +6287,62 @@ def estadisticas():
         ''')
         alertas_inventario = cursor.fetchall()
 
+    hora_pico = None
+    resumen_produccion = None
+    merma_porcentaje = 0.0
+    if not es_cliente:
+        cursor.execute('''
+            SELECT EXTRACT(HOUR FROM f.fecha_hora_emision)::INTEGER AS hora,
+                   COUNT(*) AS pedidos
+            FROM facturacion f
+            JOIN estados_documento e ON e.id = f.estado_id
+            WHERE f.tipo = 'Factura'
+              AND f.fecha_hora_emision >= date_trunc(
+                    'month', CURRENT_TIMESTAMP AT TIME ZONE 'America/Guayaquil'
+                  )
+              AND f.fecha_hora_emision < date_trunc(
+                    'month', CURRENT_TIMESTAMP AT TIME ZONE 'America/Guayaquil'
+                  ) + INTERVAL '1 month'
+              AND POSITION('cancel' IN LOWER(e.nombre)) = 0
+              AND POSITION('anulad' IN LOWER(e.nombre)) = 0
+            GROUP BY EXTRACT(HOUR FROM f.fecha_hora_emision)
+            ORDER BY pedidos DESC, hora ASC
+            LIMIT 1
+        ''')
+        hora_pico = cursor.fetchone()
+        cursor.execute('''
+            SELECT COUNT(*) AS lotes,
+                   COALESCE(SUM(l.cantidad_producida), 0) AS producidas,
+                   COALESCE(SUM(COALESCE(v.vendidas, 0)), 0) AS vendidas,
+                   COALESCE(SUM(COALESCE(m.merma, 0)), 0) AS merma,
+                   COALESCE(SUM(
+                       GREATEST(l.cantidad_producida
+                           - COALESCE(v.vendidas, 0)
+                           - COALESCE(m.merma, 0), 0)
+                   ), 0) AS disponibles
+            FROM lotes_produccion l
+            LEFT JOIN LATERAL (
+                SELECT SUM(cantidad) AS vendidas
+                FROM ventas_lote WHERE lote_id = l.id
+            ) v ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT SUM(cantidad) AS merma
+                FROM mermas_lote WHERE lote_id = l.id
+            ) m ON TRUE
+            WHERE l.creado_en >= date_trunc(
+                'month', CURRENT_TIMESTAMP AT TIME ZONE 'America/Guayaquil'
+            )
+              AND l.creado_en < date_trunc(
+                'month', CURRENT_TIMESTAMP AT TIME ZONE 'America/Guayaquil'
+            ) + INTERVAL '1 month'
+        ''')
+        resumen_produccion = cursor.fetchone()
+        if resumen_produccion and resumen_produccion['producidas']:
+            merma_porcentaje = (
+                float(resumen_produccion['merma'])
+                / float(resumen_produccion['producidas']) * 100
+            )
+
     cursor.close()
     conn.close()
 
@@ -5609,6 +6371,9 @@ def estadisticas():
         producto_estrella_mes=producto_estrella_mes,
         pedidos_proximos=pedidos_proximos,
         alertas_inventario=alertas_inventario,
+        hora_pico=hora_pico,
+        resumen_produccion=resumen_produccion,
+        merma_porcentaje=merma_porcentaje,
     )
 
 
@@ -5627,6 +6392,22 @@ def error_403(e):
     """Manejo de acceso denegado por falta de permisos o roles."""
     registrar_log('ERROR_403_ACCESO_PROHIBIDO', f"Ruta: {request.path}")
     return render_template('403.html'), 403
+
+
+@app.errorhandler(CSRFError)
+def error_csrf(e):
+    """Conserva respuestas JSON para los envíos AJAX rechazados por CSRF."""
+    if request.path.startswith('/api/') or request.accept_mimetypes.best == 'application/json':
+        return jsonify(
+            ok=False,
+            mensaje='La sesión del formulario venció o no es válida. Recarga la página e inténtalo de nuevo.'
+        ), 400
+    return render_template(
+        '500.html',
+        codigo_http=400,
+        titulo_error='La sesión del formulario venció',
+        mensaje_error='Recarga la página e inténtalo de nuevo.',
+    ), 400
 
 
 @app.errorhandler(psycopg2.Error)
@@ -5701,12 +6482,20 @@ def error_general(e):
             codigo,
             ('Esta página no está disponible por ahora', 'Vuelve al inicio y continúa desde las opciones disponibles.'),
         )
+        if request.path.startswith('/api/'):
+            return jsonify(ok=False, mensaje=mensaje), codigo
         return render_template(
             '500.html',
             codigo_http=codigo,
             titulo_error=titulo,
             mensaje_error=mensaje,
         ), codigo
+    if request.path.startswith('/api/'):
+        app.logger.exception('Error inesperado en el endpoint JSON %s.', request.path)
+        return jsonify(
+            ok=False,
+            mensaje='No se pudo completar la consulta en este momento. Inténtalo nuevamente.'
+        ), 500
     registrar_log('EXCEPCION_NO_CONTROLADA', f"Error en {request.path}: {str(e)}")
     return render_template(
         '500.html',
@@ -5720,13 +6509,24 @@ def error_general(e):
 # PUNTO DE ENTRADA PRINCIPAL DE LA APLICACIÓN
 # ==============================================================================
 
-# Aplica migraciones idempotentes al arrancar para que las consultas que
-# usan columnas nuevas (es_insumo, costo_unitario) no fallen en producción.
+# Prepara de forma idempotente los esquemas operativos y de seguridad al arrancar.
 try:
     with app.app_context():
         asegurar_inventario_base()
 except Exception as error_migracion:
-    app.logger.warning('No se pudo aplicar la migración de inventario al iniciar: %s', error_migracion)
+    app.logger.warning('No se pudo preparar el esquema de inventario al iniciar: %s', error_migracion)
+
+try:
+    with app.app_context():
+        asegurar_campos_seguridad_cuenta()
+except Exception as error_migracion:
+    app.logger.warning('No se pudo preparar el esquema de seguridad al iniciar: %s', error_migracion)
+
+try:
+    with app.app_context():
+        asegurar_relaciones_solicitudes()
+except Exception as error_migracion:
+    app.logger.warning('No se pudo preparar las relaciones de solicitudes al iniciar: %s', error_migracion)
 
 
 if __name__ == '__main__':

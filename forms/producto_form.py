@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, FloatField, IntegerField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms import BooleanField, FileField, FloatField, IntegerField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, NumberRange, Optional
 
 
@@ -25,13 +25,7 @@ class ProductoForm(FlaskForm):
             NumberRange(min=0.01, message='El precio debe ser mayor que cero.'),
         ],
     )
-    imagen = StringField(
-        'URL de imagen (opcional)',
-        validators=[
-            Optional(),
-            Length(max=500, message='La URL no puede exceder 500 caracteres.'),
-        ],
-    )
+    imagen = FileField('Imagen del producto (opcional)', validators=[Optional()])
     descripcion = TextAreaField(
         'Descripción',
         validators=[

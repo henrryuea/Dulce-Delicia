@@ -75,7 +75,15 @@ class AnalisisPasteleriaTests(unittest.TestCase):
             filas=[
                 {'pedidos_hoy': 2, 'ventas_hoy': Decimal('80.00')},
                 {'producto': 'Cheesecake', 'imagen': None, 'unidades': Decimal('2')},
-                {'producto': 'Torta de chocolate', 'imagen': None, 'unidades': Decimal('8')},
+                {'producto_id': 6, 'producto': 'Torta de chocolate', 'imagen': None, 'unidades': Decimal('8')},
+                {'hora': 16, 'pedidos': 5},
+                {
+                    'lotes': 1,
+                    'producidas': 8,
+                    'vendidas': 5,
+                    'merma': 1,
+                    'disponibles': 2,
+                },
             ],
         )
         self.conn = ConexionAnalisisFalsa(self.cursor)
@@ -86,12 +94,13 @@ class AnalisisPasteleriaTests(unittest.TestCase):
             with patch.object(aplicacion.login_manager, '_user_callback', return_value=self.usuario):
                 with patch.object(User, 'has_permission', return_value=True):
                     with patch.object(aplicacion, 'asegurar_detalles_factura'):
-                        with patch.object(aplicacion, 'get_db_connection', return_value=self.conn):
-                            with patch.object(aplicacion, 'registrar_log'):
-                                with cliente.session_transaction() as sesion:
-                                    sesion['_user_id'] = str(self.usuario.id)
-                                    sesion['_fresh'] = True
-                                respuesta = cliente.get('/estadisticas')
+                        with patch.object(aplicacion, 'asegurar_inventario_base'):
+                            with patch.object(aplicacion, 'get_db_connection', return_value=self.conn):
+                                with patch.object(aplicacion, 'registrar_log'):
+                                    with cliente.session_transaction() as sesion:
+                                        sesion['_user_id'] = str(self.usuario.id)
+                                        sesion['_fresh'] = True
+                                    respuesta = cliente.get('/estadisticas')
         return respuesta
 
     def test_panel_usa_datos_relacionados_y_muestra_pendientes_sin_inventarlos(self):
@@ -103,7 +112,8 @@ class AnalisisPasteleriaTests(unittest.TestCase):
         self.assertIn('80.00', respuesta.get_data(as_text=True))
         self.assertIn('Ranking de Productos Estrella', respuesta.get_data(as_text=True))
         self.assertIn('Costo pendiente', respuesta.get_data(as_text=True))
-        self.assertIn('Sin datos de producción', respuesta.get_data(as_text=True))
+        self.assertIn('Merma: 12,50%', respuesta.get_data(as_text=True))
+        self.assertIn('16:00–17:00', respuesta.get_data(as_text=True))
         self.assertIn('FAC-18', respuesta.get_data(as_text=True))
         self.assertIn('Productos por reponer', respuesta.get_data(as_text=True))
         self.assertIn('JOIN categorias_producto', self.cursor.consultas[0][0])
@@ -129,6 +139,8 @@ class AnalisisPasteleriaTests(unittest.TestCase):
             {'pedidos_hoy': 0, 'ventas_hoy': Decimal('0.00')},
             None,
             None,
+            None,
+            {'lotes': 0, 'producidas': 0, 'vendidas': 0, 'merma': 0, 'disponibles': 0},
         ])
 
         respuesta = self.solicitar_panel()
@@ -137,6 +149,8 @@ class AnalisisPasteleriaTests(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertIn('Aún no hay ventas para resumir', contenido)
         self.assertIn('Sin ventas este mes', contenido)
+        self.assertIn('Sin pedidos con hora registrada', contenido)
+        self.assertIn('Sin lotes registrados este mes', contenido)
         self.assertIn('No hay entregas programadas', contenido)
 
 

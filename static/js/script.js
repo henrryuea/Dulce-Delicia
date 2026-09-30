@@ -683,7 +683,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // --------------------------------------------------------------------------
     // PROCESAMIENTO DEL ENVÍO DEL FORMULARIO DE SOLICITUD
     // --------------------------------------------------------------------------
-    formulario.addEventListener("submit", function (e) {
+    formulario.addEventListener("submit", async function (e) {
         e.preventDefault();
 
         const nombreValido = validarNombre();
@@ -721,40 +721,71 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        const botonEnvio = formulario.querySelector('button[type="submit"]');
+        const textoOriginal = botonEnvio ? botonEnvio.innerHTML : "";
+        const tokenCsrf = formulario.querySelector('input[name="csrf_token"]')?.value;
         if (spinner) spinner.classList.remove("d-none");
-        fetch("/api/solicitudes", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({
-                nombre: nombreCliente.value.trim(),
-                correo: correoSolicitud.value.trim(),
-                telefono: normalizarTelefono(),
-                tipo_producto: tipoProducto.value.trim(),
-                mensaje: descripcionSolicitud.value.trim()
-            })
-        })
-            .then(respuesta => respuesta.json().then(datos => ({ok: respuesta.ok, datos})))
-            .then(resultado => {
-                if (!resultado.ok) throw new Error(resultado.datos.mensaje || "No se pudo guardar la petición.");
-                const successModalEl = document.getElementById("solicitudSuccessModal");
-                if (successModalEl && typeof bootstrap !== "undefined") {
-                    bootstrap.Modal.getOrCreateInstance(successModalEl).show();
-                }
-                formulario.reset();
-                mostrarSolicitudes();
-            })
-            .catch(error => {
-                console.error(error);
-                const errorMensaje = document.getElementById("solicitudErrorMensaje");
-                if (errorMensaje) errorMensaje.textContent = error.message;
-                const errorModalEl = document.getElementById("solicitudErrorModal");
-                if (errorModalEl && typeof bootstrap !== "undefined") {
-                    bootstrap.Modal.getOrCreateInstance(errorModalEl).show();
-                }
-            })
-            .finally(() => {
-                if (spinner) spinner.classList.add("d-none");
+        if (botonEnvio) {
+            botonEnvio.disabled = true;
+            botonEnvio.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Enviando consulta...';
+        }
+
+        try {
+            const respuesta = await fetch(formulario.action, {
+                method: "POST",
+                headers: {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    ...(tokenCsrf ? {"X-CSRFToken": tokenCsrf} : {})
+                },
+                body: JSON.stringify({
+                    nombre: nombreCliente.value.trim(),
+                    correo: correoSolicitud.value.trim(),
+                    telefono: normalizarTelefono(),
+                    tipo_producto: tipoProducto.value.trim(),
+                    mensaje: descripcionSolicitud.value.trim()
+                })
             });
+
+            const tipoContenido = respuesta.headers.get("content-type") || "";
+            if (!tipoContenido.includes("application/json")) {
+                throw new Error(
+                    respuesta.status === 400
+                        ? "La sesión del formulario venció. Recarga la página e inténtalo de nuevo."
+                        : `El servidor no devolvió una respuesta válida (${respuesta.status}). Recarga la página e inténtalo de nuevo.`
+                );
+            }
+            const datos = await respuesta.json();
+            if (!respuesta.ok) {
+                throw new Error(datos.mensaje || "No se pudo guardar la consulta. Inténtalo de nuevo.");
+            }
+            if (!datos.ok || !datos.id) {
+                throw new Error(datos.mensaje || "No se confirmó el registro de la consulta. Inténtalo de nuevo.");
+            }
+
+            const successModalEl = document.getElementById("solicitudSuccessModal");
+            if (successModalEl && typeof bootstrap !== "undefined") {
+                bootstrap.Modal.getOrCreateInstance(successModalEl).show();
+            }
+            formulario.reset();
+            [nombreCliente, correoSolicitud, telefonoSolicitud, tipoProducto, descripcionSolicitud]
+                .forEach(campo => campo?.classList.remove("is-valid", "is-invalid"));
+            mostrarSolicitudes();
+        } catch (error) {
+            console.error("No se pudo enviar la consulta de contacto:", error);
+            const errorMensaje = document.getElementById("solicitudErrorMensaje");
+            if (errorMensaje) errorMensaje.textContent = error.message;
+            const errorModalEl = document.getElementById("solicitudErrorModal");
+            if (errorModalEl && typeof bootstrap !== "undefined") {
+                bootstrap.Modal.getOrCreateInstance(errorModalEl).show();
+            }
+        } finally {
+            if (spinner) spinner.classList.add("d-none");
+            if (botonEnvio) {
+                botonEnvio.disabled = false;
+                botonEnvio.innerHTML = textoOriginal;
+            }
+        }
     });
 
     // Renderizar solicitudes iniciales al cargar la página

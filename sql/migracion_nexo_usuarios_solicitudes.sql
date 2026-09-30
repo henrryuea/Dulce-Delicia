@@ -24,9 +24,23 @@ CREATE TABLE IF NOT EXISTS solicitudes_acceso (
     motivo TEXT,
     fecha_solicitud TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     fecha_decision TIMESTAMP,
-    decidido_por VARCHAR(150),
-    UNIQUE (usuario_id, rol_id)
+    decidido_por VARCHAR(150)
 );
+
+DO $$
+DECLARE
+    restriccion RECORD;
+BEGIN
+    FOR restriccion IN
+        SELECT conname
+        FROM pg_constraint
+        WHERE conrelid = 'solicitudes_acceso'::regclass
+          AND contype = 'u'
+          AND pg_get_constraintdef(oid) = 'UNIQUE (usuario_id, rol_id)'
+    LOOP
+        EXECUTE format('ALTER TABLE solicitudes_acceso DROP CONSTRAINT %I', restriccion.conname);
+    END LOOP;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_solicitudes_acceso_estado
     ON solicitudes_acceso (estado, fecha_solicitud DESC);
@@ -36,13 +50,24 @@ CREATE OR REPLACE FUNCTION fn_registrar_solicitud_acceso() RETURNS trigger
 LANGUAGE plpgsql AS $$
 BEGIN
     IF OLD.aprobado IS DISTINCT FROM NEW.aprobado THEN
-        INSERT INTO solicitudes_acceso (usuario_id, rol_id, estado, fecha_decision)
-        VALUES (NEW.id, NEW.rol_id, CASE WHEN NEW.aprobado THEN 'Aprobada' ELSE 'Pendiente' END,
-                CASE WHEN NEW.aprobado THEN CURRENT_TIMESTAMP ELSE NULL END)
-        ON CONFLICT (usuario_id, rol_id) DO UPDATE
-            SET estado = EXCLUDED.estado,
-                fecha_decision = EXCLUDED.fecha_decision,
-                decidido_por = EXCLUDED.decidido_por;
+        IF NEW.aprobado THEN
+            UPDATE solicitudes_acceso
+            SET estado = 'Aprobada', fecha_decision = CURRENT_TIMESTAMP
+            WHERE id = (
+                SELECT id FROM solicitudes_acceso
+                WHERE usuario_id = NEW.id AND rol_id = NEW.rol_id AND estado = 'Pendiente'
+                ORDER BY fecha_solicitud DESC, id DESC
+                LIMIT 1
+            );
+
+            IF NOT FOUND THEN
+                INSERT INTO solicitudes_acceso (usuario_id, rol_id, estado, fecha_decision)
+                VALUES (NEW.id, NEW.rol_id, 'Aprobada', CURRENT_TIMESTAMP);
+            END IF;
+        ELSE
+            INSERT INTO solicitudes_acceso (usuario_id, rol_id, estado, fecha_decision)
+            VALUES (NEW.id, NEW.rol_id, 'Rechazada', CURRENT_TIMESTAMP);
+        END IF;
     END IF;
     RETURN NEW;
 END; $$;
@@ -60,4 +85,8 @@ SELECT u.id, u.rol_id,
        u.fecha_registro,
        CASE WHEN u.aprobado THEN u.fecha_registro ELSE NULL END
 FROM usuarios u
-ON CONFLICT (usuario_id, rol_id) DO NOTHING;
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM solicitudes_acceso s
+    WHERE s.usuario_id = u.id AND s.rol_id = u.rol_id
+);
