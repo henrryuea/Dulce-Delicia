@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block titulo %}Aviso de privacidad - Dulce Delicia{% endblock %}
+
+{% block content %}
+<section class="page-header py-4 text-white">
+    <div class="container">
+        <h1 class="h3 fw-bold mb-1">Aviso de privacidad</h1>
+        <p class="text-light-emerald small mb-0">Información sobre el uso de tus datos personales.</p>
+    </div>
+</section>
+
+<section class="py-5">
+    <div class="container">
+        <article class="card border-0 shadow-sm rounded-4 privacy-notice">
+            <div class="card-body p-4 p-lg-5">
+                <p>
+                    Dulce Delicia trata los datos personales que proporcionas al crear una cuenta
+                    para administrar el acceso, atender pedidos, coordinar entregas, emitir los
+                    documentos comerciales correspondientes y proteger la seguridad del sistema.
+                </p>
+                <h2 class="h5 mt-4">Datos utilizados</h2>
+                <p>
+                    Podemos utilizar tus nombres, apellidos, nombre de usuario, correo electrónico,
+                    teléfono, credenciales protegidas y la información asociada a tus pedidos y
+                    comprobantes. La contraseña se conserva como un hash de seguridad, no en texto
+                    legible.
+                </p>
+                <h2 class="h5 mt-4">Conservación y protección</h2>
+                <p>
+                    Los datos se conservan mientras sean necesarios para prestar el servicio y,
+                    posteriormente, durante los plazos aplicables a obligaciones legales o a la
+                    atención de reclamos. Se aplican controles de acceso y medidas técnicas para
+                    proteger la información.
+                </p>
+                <h2 class="h5 mt-4">Tus derechos</h2>
+                <p>
+                    De acuerdo con la Ley Orgánica de Protección de Datos Personales del Ecuador,
+                    puedes solicitar el ejercicio de los derechos que te correspondan, como acceso,
+                    rectificación, actualización, eliminación, oposición, suspensión o portabilidad.
+                    Para realizar una solicitud, utiliza el
+                    <a href="{{ url_for('inicio') }}#contacto">formulario de contacto</a>.
+                </p>
+                <p class="small text-muted mb-0">
+                    Al marcar la casilla de privacidad en el registro, autorizas el tratamiento
+                    descrito para administrar tu cuenta y tus pedidos. Este aviso no autoriza el
+                    envío de publicidad.
+                </p>
+            </div>
+        </article>
+    </div>
+</section>
+{% endblock %}

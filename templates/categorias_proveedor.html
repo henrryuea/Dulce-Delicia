@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block titulo %}Categorías de proveedor - Dulce Delicia{% endblock %}
+
+{% block content %}
+<!-- ==============================================================================
+     ENCABEZADO DE PÁGINA: CATEGORÍAS DE PROVEEDOR
+     ============================================================================== -->
+<section class="page-header py-5 text-white">
+    <div class="container text-center">
+        <span class="badge bg-emerald mb-2 px-3 py-2 text-uppercase fw-semibold tracking-wider">Catálogo</span>
+        <h1 class="display-5 fw-bold mb-3">Categorías de Proveedor</h1>
+        <p class="lead text-light-emerald mx-auto mb-4" style="max-width: 650px;">
+            Agrupa a tus proveedores según los ingredientes, empaques e insumos que suministran.
+        </p>
+        <div>
+            <a href="{{ url_for('nueva_categoria_proveedor') }}" class="btn btn-verde btn-lg shadow-sm">
+                <i class="bi bi-box me-2"></i>Registrar nueva categoría
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- ==============================================================================
+     TABLA DE CATEGORÍAS DE PROVEEDOR
+     ============================================================================== -->
+<section class="py-4 py-md-5">
+    <div class="container">
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+            <div class="card-header bg-white p-3 p-md-4 border-bottom">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <div>
+                        <h2 class="h4 fw-bold text-navy mb-1">Listado de Categorías</h2>
+                        <p class="text-muted small mb-0">Cada proveedor se clasifica bajo una de estas áreas operativas</p>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span class="badge bg-navy text-white px-3 py-2 rounded-pill">
+                            <i class="bi bi-box me-1"></i><span id="badgeTotalCategorias">{{ categorias|length }}</span> Categorías
+                        </span>
+                        <a href="{{ url_for('proveedores') }}" class="btn btn-outline-secondary btn-sm rounded-pill">
+                            <i class="bi bi-arrow-left me-1"></i>Volver a Proveedores
+                        </a>
+                        <a href="{{ url_for('nueva_categoria_proveedor') }}" class="btn btn-outline-brand btn-sm">
+                            <i class="bi bi-plus-lg me-1"></i>Nueva Categoría
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Buscador de Categorías con Paginación Reactiva -->
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-7 col-lg-6">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light border-end-0 text-muted rounded-start-pill ps-3">
+                                <i class="bi bi-search text-emerald"></i>
+                            </span>
+                            <input type="text" id="buscadorCategoriasProveedor" class="form-control bg-light border-start-0 border-end-0 py-2"
+                                   placeholder="Buscar categoría de proveedor..."
+                                   autocomplete="off">
+                            <button class="btn btn-light border-start-0 rounded-end-pill pe-3 text-muted" type="button" id="btnLimpiarCategoriasProveedor" title="Borrar búsqueda">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-5 col-lg-6 text-md-end">
+                        <small class="text-muted">
+                            Mostrando <strong id="contadorPaginacionCategoriasTexto" class="text-navy">0 - 0</strong> de <strong id="contadorCategoriasProveedor" class="text-navy">{{ categorias|length }}</strong> registros
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body p-0">
+                {% if categorias %}
+                <div class="table-scroll-hint">
+                    <i class="bi bi-arrow-left-right me-1 text-emerald"></i>Desliza horizontalmente para ver todas las columnas
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 custom-table" id="tablaCategoriasProveedorPrincipal">
+                        <thead>
+                            <tr>
+                                <th class="ps-3 py-3" style="min-width: 250px;">Categoría de Proveedor</th>
+                                <th class="py-3 text-center pe-3" style="min-width: 120px;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cuerpoTablaCategoriasProveedor">
+                            {% for categoria in categorias %}
+                            <tr class="fila-categoria-proveedor" data-nombre="{{ (categoria.nombre or '')|lower }}">
+                                <td class="ps-3 py-3">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar-circle flex-shrink-0" style="width: 36px; height: 36px; font-size: 0.95rem;">
+                                            <i class="bi bi-box"></i>
+                                        </div>
+                                        <div>
+                                            <span class="fw-bold text-navy d-block">{{ categoria.nombre }}</span>
+                                            <small class="text-muted"><i class="bi bi-tag text-emerald me-1"></i>Clasificación oficial</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-3 text-center pe-3">
+                                    <div class="d-inline-flex gap-1 flex-wrap justify-content-center">
+                                        <a href="{{ url_for('editar_categoria_proveedor', id=categoria.id) }}" class="btn btn-outline-primary btn-sm rounded-circle" title="Editar categoría">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </a>
+                                        <form method="POST" action="{{ url_for('eliminar_categoria_proveedor', id=categoria.id) }}" onsubmit="return confirm('¿Estás seguro de que deseas eliminar la categoría &quot;{{ categoria.nombre }}&quot;?');" class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm rounded-circle" title="Eliminar categoría">
+                                                <i class="bi bi-trash-fill"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Barra de Paginación Automática -->
+                <div class="p-3 bg-light border-top d-flex justify-content-between align-items-center flex-wrap gap-2" id="contenedorPaginacionCategoriasProveedor">
+                    <div class="small text-muted">
+                        Página <strong id="paginaActualCategoriasTexto" class="text-navy">1</strong> de <strong id="totalPaginasCategoriasTexto" class="text-navy">1</strong>
+                    </div>
+                    <nav aria-label="Navegación de categorías de proveedor">
+                        <ul class="pagination pagination-sm mb-0" id="listaBotonesPaginacionCategoriasProveedor">
+                            <!-- Inyectado dinámicamente -->
+                        </ul>
+                    </nav>
+                </div>
+
+                <!-- Estado sin resultados de búsqueda -->
+                <div id="sinResultadosCategoriasProveedor" class="p-5 text-center d-none">
+                    <div class="mb-3">
+                        <i class="bi bi-search text-emerald" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="fw-bold text-navy mb-1">No se encontraron categorías</h5>
+                    <p class="text-muted small mb-3">No hay categorías que coincidan con los criterios de búsqueda.</p>
+                    <button type="button" id="btnRestablecerCategoriasProveedor" class="btn btn-outline-brand btn-sm rounded-pill px-3">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Limpiar filtros
+                    </button>
+                </div>
+                {% else %}
+                <div class="p-5 text-center">
+                    <div class="mb-3">
+                        <i class="bi bi-box text-muted" style="font-size: 3rem;"></i>
+                    </div>
+                    <h4 class="text-navy fw-bold">No existen categorías registradas</h4>
+                    <p class="text-muted">Crea una antes de registrar proveedores.</p>
+                    <a href="{{ url_for('nueva_categoria_proveedor') }}" class="btn btn-verde mt-2">
+                        <i class="bi bi-plus-lg me-1"></i>Registrar Primera Categoría
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const input = document.getElementById("buscadorCategoriasProveedor");
+    const btnLimpiar = document.getElementById("btnLimpiarCategoriasProveedor");
+    const btnReset = document.getElementById("btnRestablecerCategoriasProveedor");
+    const todasLasFilas = Array.from(document.querySelectorAll(".fila-categoria-proveedor"));
+    const sinRes = document.getElementById("sinResultadosCategoriasProveedor");
+    const contadorVisibles = document.getElementById("contadorCategoriasProveedor");
+    const contadorPaginacionTexto = document.getElementById("contadorPaginacionCategoriasTexto");
+    const paginaActualTexto = document.getElementById("paginaActualCategoriasTexto");
+    const totalPaginasTexto = document.getElementById("totalPaginasCategoriasTexto");
+    const listaBotonesPaginacion = document.getElementById("listaBotonesPaginacionCategoriasProveedor");
+    const contenedorPaginacion = document.getElementById("contenedorPaginacionCategoriasProveedor");
+
+    const REGISTROS_POR_PAGINA = 10;
+    let paginaActual = 1;
+    let filasFiltradas = [...todasLasFilas];
+
+    if (!todasLasFilas.length) return;
+
+    function normalizar(t) {
+        return (t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    }
+
+    function filtrarYPaginar(irAPagina = 1) {
+        const q = normalizar(input ? input.value : "");
+
+        filasFiltradas = todasLasFilas.filter(fila => {
+            const nombre = normalizar(fila.dataset.nombre);
+            return !q || nombre.includes(q);
+        });
+
+        const totalRegistros = filasFiltradas.length;
+        const totalPaginas = Math.max(1, Math.ceil(totalRegistros / REGISTROS_POR_PAGINA));
+        paginaActual = Math.min(Math.max(1, irAPagina), totalPaginas);
+
+        todasLasFilas.forEach(f => f.classList.add("d-none"));
+
+        const inicioIndice = (paginaActual - 1) * REGISTROS_POR_PAGINA;
+        const finIndice = Math.min(inicioIndice + REGISTROS_POR_PAGINA, totalRegistros);
+
+        for (let i = inicioIndice; i < finIndice; i++) {
+            filasFiltradas[i].classList.remove("d-none");
+        }
+
+        if (contadorVisibles) contadorVisibles.textContent = totalRegistros;
+        if (contadorPaginacionTexto) {
+            contadorPaginacionTexto.textContent = totalRegistros > 0 ? `${inicioIndice + 1} - ${finIndice}` : "0 - 0";
+        }
+        if (paginaActualTexto) paginaActualTexto.textContent = paginaActual;
+        if (totalPaginasTexto) totalPaginasTexto.textContent = totalPaginas;
+        if (sinRes) sinRes.classList.toggle("d-none", totalRegistros > 0);
+        if (contenedorPaginacion) contenedorPaginacion.classList.toggle("d-none", totalRegistros === 0);
+
+        renderizarBotonesPaginacion(totalPaginas);
+    }
+
+    function renderizarBotonesPaginacion(totalPaginas) {
+        if (!listaBotonesPaginacion) return;
+        listaBotonesPaginacion.innerHTML = "";
+
+        // Botón Anterior
+        const liAnt = document.createElement("li");
+        liAnt.className = `page-item ${paginaActual === 1 ? 'disabled' : ''}`;
+        liAnt.innerHTML = `<button class="page-link" type="button" aria-label="Anterior">&laquo; Anterior</button>`;
+        liAnt.addEventListener("click", () => {
+            if (paginaActual > 1) filtrarYPaginar(paginaActual - 1);
+        });
+        listaBotonesPaginacion.appendChild(liAnt);
+
+        // Botones de página
+        for (let p = 1; p <= totalPaginas; p++) {
+            const li = document.createElement("li");
+            li.className = `page-item ${p === paginaActual ? 'active' : ''}`;
+            li.innerHTML = `<button class="page-link" type="button">${p}</button>`;
+            li.addEventListener("click", () => filtrarYPaginar(p));
+            listaBotonesPaginacion.appendChild(li);
+        }
+
+        // Botón Siguiente
+        const liSig = document.createElement("li");
+        liSig.className = `page-item ${paginaActual === totalPaginas ? 'disabled' : ''}`;
+        liSig.innerHTML = `<button class="page-link" type="button" aria-label="Siguiente">Siguiente &raquo;</button>`;
+        liSig.addEventListener("click", () => {
+            if (paginaActual < totalPaginas) filtrarYPaginar(paginaActual + 1);
+        });
+        listaBotonesPaginacion.appendChild(liSig);
+    }
+
+    if (input) input.addEventListener("input", () => filtrarYPaginar(1));
+
+    function limpiar() {
+        if (input) input.value = "";
+        filtrarYPaginar(1);
+        if (input) input.focus();
+    }
+
+    if (btnLimpiar) btnLimpiar.addEventListener("click", limpiar);
+    if (btnReset) btnReset.addEventListener("click", limpiar);
+
+    filtrarYPaginar(1);
+});
+</script>
+{% endblock %}

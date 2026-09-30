@@ -1,114 +1,113 @@
-<!-- ==============================================================================
-     BARRA DE NAVEGACIÓN PRINCIPAL: DULCE DELICIA
-     Se adapta según el estado de sesión:
-     - Visitante / Cliente: Menú público del negocio y botón de Acceso al Sistema.
-     - Administrador autenticado: Menú administrativo de gestión con SQLite.
-============================================================================== -->
-<nav class="navbar navbar-expand-lg navbar-dark navbar-artesanal sticky-top">
-  <div class="container">
-    <!-- Logotipo y Marca -->
-    <a class="navbar-brand" href="{{ url_for('inicio') }}">
-      <i class="fa-solid fa-cake-candles text-warning me-1"></i>
-      <span>Dulce Delicia</span>
-      <span class="brand-badge ms-1">Artesanal</span>
-    </a>
-    
-    <!-- Botón Hamburguesa para Dispositivos Móviles -->
-    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#menuNav" aria-controls="menuNav" aria-expanded="false" aria-label="Abrir menú de navegación">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    
-    <div class="collapse navbar-collapse" id="menuNav">
-      {% if session.get('usuario') %}
-        <!-- ================= MENÚ ADMINISTRATIVO (USUARIO AUTENTICADO) ================= -->
-        <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-lg-1">
-          <li class="nav-item">
-            <a class="nav-link {% if request.path == '/panel' %}active{% endif %}" href="{{ url_for('panel') }}">
-              <i class="fa-solid fa-chart-line me-1"></i> Panel
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if '/productos' in request.path %}active{% endif %}" href="{{ url_for('productos') }}">
-              <i class="fa-solid fa-cookie-bite me-1"></i> Productos
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if '/clientes' in request.path %}active{% endif %}" href="{{ url_for('clientes') }}">
-              <i class="fa-solid fa-users me-1"></i> Clientes
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if '/proveedores' in request.path or '/provedores' in request.path %}active{% endif %}" href="{{ url_for('proveedores') }}">
-              <i class="fa-solid fa-truck-ramp-box me-1"></i> Proveedores
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if '/facturacion' in request.path %}active{% endif %}" href="{{ url_for('facturacion') }}">
-              <i class="fa-solid fa-receipt me-1"></i> Facturación
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('inicio') }}" target="_blank" title="Ver sitio público de clientes">
-              <i class="fa-solid fa-store me-1"></i> Ver Tienda
-            </a>
-          </li>
-        </ul>
+<nav class="navbar navbar-expand-xl navbar-dark bakery-shell-nav sticky-top {{ 'navbar-system' if current_user.is_authenticated else 'navbar-public' }}">
+    <div class="container">
+        <a class="navbar-brand bakery-brand" href="{{ url_for('inicio') }}#inicio" aria-label="Dulce Delicia, inicio">
+            <span class="bakery-brand__seal"><i class="bi bi-cake2-fill"></i></span>
+            <span class="bakery-brand__wordmark">Dulce <em>Delicia</em><small>ARTESANAL</small></span>
+        </a>
 
-        <!-- Acciones del Administrador -->
-        <div class="d-flex align-items-center gap-2 flex-wrap">
-          <!-- Menú desplegable para registrar nuevos registros -->
-          <div class="dropdown">
-            <button class="btn btn-nav-action dropdown-toggle d-flex align-items-center gap-2" type="button" id="dropdownNuevo" data-bs-toggle="dropdown" aria-expanded="false">
-              <i class="fa-solid fa-circle-plus"></i>
-              <span>Registrar</span>
-            </button>
-            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-3 mt-2" aria-labelledby="dropdownNuevo">
-              <li><h6 class="dropdown-header text-uppercase fs-7 text-muted">Formularios del Sistema</h6></li>
-              <li><a class="dropdown-item py-2" href="{{ url_for('nuevo_producto') }}"><i class="fa-solid fa-cake-candles text-warning me-2"></i>Nuevo Producto</a></li>
-              <li><a class="dropdown-item py-2" href="{{ url_for('nuevo_cliente') }}"><i class="fa-solid fa-user-plus text-success me-2"></i>Nuevo Cliente</a></li>
-              <li><a class="dropdown-item py-2" href="{{ url_for('nuevo_proveedor') }}"><i class="fa-solid fa-truck-field text-info me-2"></i>Nuevo Proveedor</a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item py-2" href="{{ url_for('nueva_factura') }}"><i class="fa-solid fa-file-invoice-dollar text-danger me-2"></i>Emitir Factura</a></li>
+        <button class="navbar-toggler bakery-nav-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#menuNav" aria-controls="menuNav" aria-expanded="false" aria-label="Abrir navegación">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="menuNav">
+            {% if current_user.is_authenticated %}
+            <ul class="navbar-nav bakery-nav-links ms-auto align-items-lg-center">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('inicio') }}#inicio"><i class="bi bi-house-door"></i><span>Inicio</span></a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}"><i class="bi bi-columns-gap"></i><span>Dashboard</span></a>
+                </li>
+                {% if current_user.has_role('Administrador', 'Encargado', 'Vendedor') %}
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint in ['clientes', 'nuevo_cliente', 'editar_cliente'] else '' }}" href="{{ url_for('clientes') }}"><i class="bi bi-people"></i><span>Clientes</span></a>
+                </li>
+                {% endif %}
+                {% if current_user.has_role('Administrador', 'Encargado', 'Vendedor', 'Cliente') %}
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint in ['facturacion', 'nueva_factura', 'editar_factura', 'ver_comprobante', 'ver_comprobante_venta'] else '' }}" href="{{ url_for('facturacion') }}"><i class="bi bi-receipt"></i><span>Facturación</span></a>
+                </li>
+                {% endif %}
+                {% if current_user.has_role('Administrador', 'Repostero') %}
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint in ['proveedores', 'nuevo_proveedor', 'editar_proveedor'] else '' }}" href="{{ url_for('proveedores') }}"><i class="bi bi-truck"></i><span>Proveedores</span></a>
+                </li>
+                {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint in ['productos', 'nuevo_producto', 'editar_producto'] else '' }}" href="{{ url_for('productos') }}"><i class="bi bi-cake2"></i><span>Productos</span></a>
+                </li>
+                {% if current_user.has_role('Administrador', 'Encargado', 'Cliente') %}
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'estadisticas' else '' }}" href="{{ url_for('estadisticas') }}"><i class="bi bi-graph-up"></i><span>Análisis</span></a>
+                </li>
+                {% endif %}
+                {% if current_user.has_role('Administrador', 'Encargado', 'Repostero') %}
+                <li class="nav-item">
+                    <a class="nav-link {{ 'active' if request.endpoint == 'solicitudes' else '' }}" href="{{ url_for('solicitudes') }}"><i class="bi bi-card-checklist"></i><span>Peticiones</span></a>
+                </li>
+                {% endif %}
+
+                {% if current_user.has_role('Administrador', 'Encargado', 'Repostero') or current_user.is_admin() %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Más opciones">
+                        <i class="bi bi-three-dots"></i><span>Más</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end bakery-nav-menu">
+                        {% if current_user.has_role('Administrador', 'Encargado', 'Repostero') %}
+                        <li><a class="dropdown-item" href="{{ url_for('inventario') }}"><i class="bi bi-box-seam"></i>Inventario y kardex</a></li>
+                        {% endif %}
+                        {% if current_user.has_role('Administrador', 'Repostero') %}
+                        <li><a class="dropdown-item" href="{{ url_for('categorias_proveedor') }}"><i class="bi bi-tags"></i>Categorías de proveedores</a></li>
+                        {% endif %}
+                        {% if current_user.is_admin() %}
+                        <li><a class="dropdown-item" href="{{ url_for('admin_usuarios') }}"><i class="bi bi-shield-lock"></i>Administración</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('admin_logs') }}"><i class="bi bi-clock-history"></i>Registro de actividad</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('categorias_producto') }}"><i class="bi bi-grid"></i>Categorías de productos</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('tipos_cliente') }}"><i class="bi bi-person-vcard"></i>Tipos de cliente</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('parametros_fiscales') }}"><i class="bi bi-percent"></i>Parámetros fiscales</a></li>
+                        {% endif %}
+                    </ul>
+                </li>
+                {% endif %}
+
+                <li class="nav-item dropdown bakery-account">
+                    <a class="nav-link bakery-account__trigger dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="bakery-account__avatar">
+                            {% if current_user.foto_perfil %}
+                                <img src="{{ url_for('static', filename=current_user.foto_perfil) }}" alt="">
+                            {% else %}
+                                <i class="bi bi-person"></i>
+                            {% endif %}
+                        </span>
+                        <span class="bakery-account__name">{{ current_user.usuario }}</span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end bakery-nav-menu">
+                        <li class="bakery-account__identity">
+                            <span class="bakery-account__eyebrow">Sesión iniciada como</span>
+                            <strong>{{ current_user.usuario }}</strong>
+                            <small>{{ current_user.rol_nombre }}</small>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('mi_cuenta') }}"><i class="bi bi-person-lines-fill"></i>Mi cuenta</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('configurar_dos_factores') }}"><i class="bi bi-shield-check"></i>Seguridad de la cuenta</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item bakery-nav-signout" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right"></i>Cerrar sesión</a></li>
+                    </ul>
+                </li>
             </ul>
-          </div>
-
-          <!-- Botón de Cerrar Sesión con identificador del usuario -->
-          <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-light rounded-pill px-3 py-1 d-flex align-items-center gap-1" title="Cerrar sesión administrativa">
-            <i class="fa-solid fa-right-from-bracket"></i>
-            <span>Salir</span>
-          </a>
+            {% else %}
+            <ul class="navbar-nav bakery-nav-links mx-auto align-items-lg-center">
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('inicio') }}#inicio"><span>Inicio</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('inicio') }}#nosotros"><span>Quiénes Somos</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('inicio') }}#productos"><span>Productos</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('inicio') }}#video"><span>Video</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('inicio') }}#contacto"><span>Contacto</span></a></li>
+            </ul>
+            <div class="bakery-guest-actions">
+                <a class="bakery-login-link" href="{{ url_for('login') }}"><i class="bi bi-lock me-1"></i>Acceso al Sistema</a>
+                <a class="bakery-register-link" href="{{ url_for('registro') }}">Registrarse <i class="bi bi-arrow-up-right"></i></a>
+            </div>
+            {% endif %}
         </div>
-
-      {% else %}
-        <!-- ================= MENÚ PÚBLICO (CLIENTES Y VISITANTES) ================= -->
-        <ul class="navbar-nav mx-auto mb-2 mb-lg-0 gap-lg-2">
-          <li class="nav-item">
-            <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('inicio') }}">
-              <i class="fa-solid fa-house me-1"></i> Inicio
-            </a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('inicio') }}#quienes">Quiénes Somos</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('inicio') }}#productos">Productos</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('inicio') }}#video">Video</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('inicio') }}#contacto">Contacto</a>
-          </li>
-        </ul>
-
-        <!-- Botón para Personal Administrativo -->
-        <div class="d-flex align-items-center">
-          <a href="{{ url_for('login') }}" class="btn btn-nav-action d-flex align-items-center gap-2">
-            <i class="fa-solid fa-lock"></i>
-            <span>Acceso al Sistema</span>
-          </a>
-        </div>
-      {% endif %}
     </div>
-  </div>
 </nav>

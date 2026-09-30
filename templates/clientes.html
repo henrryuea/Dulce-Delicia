@@ -1,159 +1,325 @@
 {% extends "base.html" %}
 
-<!-- ==============================================================================
-     PROYECTO: Dulce Delicia - Sistema de Gestión de Pastelería Artesanal
-     PLANTILLA: templates/clientes.html
-     ASIGNATURA: Desarrollo de Aplicaciones Web
-     UNIVERSIDAD: Universidad Estatal Amazónica (UEA)
-     AVANCE: Semana 12 - Proyecto Integrador U3 (12/16)
-     TEMA: Directorio de Clientes con Modelo Relacional Normalizado (3FN)
-     ESTUDIANTE: Desarrollo Web 2026
-==============================================================================
-DESCRIPCIÓN DE LA PLANTILLA:
-Esta vista presenta el directorio de clientes de la pastelería. Consulta la
-tabla normalizada 'clientes' vinculada mediante JOIN con el catálogo 'tipos_cliente'
-(PERSONA NATURAL o EMPRESA) en SQLite (data/dulce_delicia.db).
-
-Campos visualizados:
-  - ID y Nombres completos / Razón social.
-  - Cédula de identidad o RUC único.
-  - Canales de contacto (correo y teléfono celular).
-  - Dirección domiciliaria o de entrega de pedidos.
-  - Tipo de cliente según el catálogo normalizado.
-  - Acciones administrativas (Editar cliente).
-============================================================================== -->
-
-{% block title %}Directorio de Clientes - Dulce Delicia | Persistencia SQLite 3FN{% endblock %}
+{% block titulo %}Clientes - Dulce Delicia{% endblock %}
 
 {% block content %}
-<section class="py-5" style="background-color: var(--c-crema); min-height: 85vh;">
-  <div class="container">
-    
-    <!-- ==============================================================================
-         1. ENCABEZADO DE LA SECCIÓN Y NAVEGACIÓN
-    ============================================================================== -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-      <div>
-        <nav aria-label="breadcrumb">
-          <ol class="breadcrumb small mb-1">
-            <li class="breadcrumb-item"><a href="{{ url_for('panel') }}" class="text-decoration-none text-muted">Panel</a></li>
-            <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">Clientes</li>
-          </ol>
-        </nav>
-        <h1 class="h2 mb-0 fw-bold text-dark">Directorio de Clientes Registrados</h1>
-      </div>
-      <div class="d-flex gap-2 align-items-center flex-wrap">
-        <span class="badge badge-artesanal badge-moka fs-6 px-3 py-2 fw-semibold">
-          <i class="fa-solid fa-users me-1"></i> {{ clientes|length }} registrados
-        </span>
-        <a href="{{ url_for('nuevo_cliente') }}" class="btn btn-caramelo text-white shadow-sm d-flex align-items-center gap-2">
-          <i class="fa-solid fa-user-plus"></i>
-          <span>Nuevo Cliente</span>
-        </a>
-      </div>
-    </div>
-
-    <!-- ==============================================================================
-         2. TABLA RELACIONAL DE CLIENTES (3FN)
-    ============================================================================== -->
-    <div class="card card-artesanal border-0 shadow-sm">
-      
-      <div class="card-header-artesanal d-flex justify-content-between align-items-center flex-wrap gap-2 py-3">
-        <div class="d-flex align-items-center gap-2">
-          <i class="fa-solid fa-address-book text-caramelo fs-5"></i>
-          <h2 class="h5 mb-0 fw-bold text-dark">Listado de Clientes</h2>
+<!-- ==============================================================================
+     ENCABEZADO DE PÁGINA: CARTERA DE CLIENTES
+     ============================================================================== -->
+<section class="page-header py-5 text-white">
+    <div class="container text-center">
+        <span class="badge bg-emerald mb-2 px-3 py-2 text-uppercase fw-semibold tracking-wider">Cartera Comercial</span>
+        <h1 class="display-5 fw-bold mb-3">Nuestros Clientes</h1>
+        <p class="lead text-light-emerald mx-auto mb-4" style="max-width: 650px;">
+            Personas y empresas que confían en nuestros productos para sus celebraciones y momentos especiales.
+        </p>
+        <div>
+            <a href="{{ url_for('nuevo_cliente') }}" class="btn btn-verde btn-lg shadow-sm">
+                <i class="bi bi-person-plus me-2"></i>Registrar nuevo cliente
+            </a>
         </div>
-        <span class="badge badge-artesanal badge-moka small fw-semibold">
-          <i class="fa-solid fa-database me-1"></i> clientes
-        </span>
-      </div>
-
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table-artesanal align-middle mb-0">
-            <thead>
-              <tr>
-                <th style="width: 80px;" class="text-center text-dark">ID</th>
-                <th class="text-dark">Cliente / Razón Social</th>
-                <th class="text-dark">Identificación (Cédula/RUC)</th>
-                <th class="text-dark">Contacto Directo</th>
-                <th class="text-dark">Dirección de Entrega</th>
-                <th class="text-dark">Tipo de Cliente</th>
-                <th class="text-end text-dark" style="width: 110px;">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for cliente in clientes %}
-              <tr>
-                <!-- Clave Primaria en SQLite -->
-                <td class="text-center">
-                  <span class="badge bg-secondary font-monospace">#{{ "%03d"|format(cliente.id_cliente) }}</span>
-                </td>
-                <!-- Nombre completo -->
-                <td>
-                  <div class="d-flex align-items-center gap-2">
-                    <div class="rounded-circle bg-light border d-flex align-items-center justify-content-center fw-bold text-caramelo" style="width: 38px; height: 38px; min-width: 38px;">
-                      {{ cliente.nombre[:2]|upper }}
-                    </div>
-                    <span class="fw-bold text-dark d-block">{{ cliente.nombre }}</span>
-                  </div>
-                </td>
-                <!-- Identificación fiscal única -->
-                <td>
-                  <span class="font-monospace fw-semibold text-dark">{{ cliente.cedula_ruc if cliente.cedula_ruc else 'S/N' }}</span>
-                </td>
-                <!-- Correo y teléfono -->
-                <td>
-                  <div class="small">
-                    <div><i class="fa-solid fa-envelope me-1 text-secondary"></i> {{ cliente.correo }}</div>
-                    <div><i class="fa-solid fa-phone me-1 text-secondary"></i> {{ cliente.telefono }}</div>
-                  </div>
-                </td>
-                <!-- Dirección -->
-                <td>
-                  <span class="small text-secondary">{{ cliente.direccion }}</span>
-                </td>
-                <!-- Clasificación del catálogo 3FN tipos_cliente -->
-                <td>
-                  {% if 'EMPRESA' in cliente.tipo_cliente|upper %}
-                    <span class="badge badge-artesanal badge-info-art">
-                      <i class="fa-solid fa-building me-1"></i> {{ cliente.tipo_cliente }}
-                    </span>
-                  {% else %}
-                    <span class="badge badge-artesanal badge-exito">
-                      <i class="fa-solid fa-user me-1"></i> {{ cliente.tipo_cliente }}
-                    </span>
-                  {% endif %}
-                </td>
-                <!-- Botón de acción para editar -->
-                <td class="text-end">
-                  <a href="{{ url_for('editar_cliente', id=cliente.id_cliente) }}" class="btn btn-sm btn-outline-caramelo shadow-sm" title="Editar Cliente">
-                    <i class="fa-solid fa-pen-to-square me-1"></i> Editar
-                  </a>
-                </td>
-              </tr>
-              {% else %}
-              <tr>
-                <td colspan="7" class="text-center py-5">
-                  <i class="fa-solid fa-user-slash fs-2 text-secondary mb-2 d-block"></i>
-                  <p class="lead mb-2 text-dark">No hay clientes registrados en la base de datos.</p>
-                  <a href="{{ url_for('nuevo_cliente') }}" class="btn btn-caramelo text-white btn-sm shadow-sm">Registrar Primer Cliente</a>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      
-      <div class="card-footer bg-white py-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <small class="text-secondary">
-        </small>
-        <a href="{{ url_for('nuevo_cliente') }}" class="btn btn-sm btn-caramelo text-white shadow-sm">
-          <i class="fa-solid fa-user-plus me-1"></i> Nuevo Cliente
-        </a>
-      </div>
     </div>
-  </div>
 </section>
+
+<!-- ==============================================================================
+     TABLA DE CLIENTES
+     ============================================================================== -->
+<section class="py-4 py-md-5">
+    <div class="container">
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+            <div class="card-header bg-white p-3 p-md-4 border-bottom">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <div>
+                        <h2 class="h4 fw-bold text-navy mb-1">Directorio de Clientes</h2>
+                        <p class="text-muted small mb-0">Gestión de emprendimientos, cartera comercial y datos de contacto</p>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-navy text-white px-3 py-2 rounded-pill">
+                            <i class="bi bi-people me-1"></i><span id="badgeTotalClientes">{{ clientes|length }}</span> Clientes
+                        </span>
+                        <a href="{{ url_for('nuevo_cliente') }}" class="btn btn-outline-brand btn-sm">
+                            <i class="bi bi-plus-lg me-1"></i>Nuevo Cliente
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Buscador y Filtros de Clientes con Paginación Reactiva -->
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-5 col-lg-5">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-light border-end-0 text-muted rounded-start-pill ps-3">
+                                <i class="bi bi-search text-emerald"></i>
+                            </span>
+                            <input type="text" id="buscadorClientes" class="form-control bg-light border-start-0 border-end-0 py-2"
+                                   placeholder="Buscar por cédula, nombre, negocio o ciudad..."
+                                   autocomplete="off">
+                            <button class="btn btn-light border-start-0 rounded-end-pill pe-3 text-muted" type="button" id="btnLimpiarClientes" title="Borrar búsqueda">
+                                <i class="bi bi-x-circle"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-lg-3">
+                        <select id="filtroTipoNegocio" class="form-select form-select-sm rounded-pill py-2">
+                            <option value="">Todos los tipos de negocio</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 col-lg-4 text-md-end">
+                        <small class="text-muted">
+                            Mostrando <strong id="contadorPaginacionClientesTexto" class="text-navy">0 - 0</strong> de <strong id="contadorClientesVisibles" class="text-navy">{{ clientes|length }}</strong> registros
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body p-0">
+                {% if clientes %}
+                <div class="table-scroll-hint">
+                    <i class="bi bi-arrow-left-right me-1 text-emerald"></i>Desliza horizontalmente para ver todas las columnas
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 custom-table" id="tablaClientesPrincipal">
+                        <thead>
+                            <tr>
+                                <th class="ps-3 py-3" style="min-width: 140px;">Cédula / RUC</th>
+                                <th class="py-3" style="min-width: 220px;">Cliente / Razón Social</th>
+                                <th class="py-3" style="min-width: 170px;">Tipo de Negocio</th>
+                                <th class="py-3" style="min-width: 200px;">Contacto</th>
+                                <th class="py-3" style="min-width: 130px;">Ciudad</th>
+                                <th class="py-3 text-center pe-3" style="min-width: 120px;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cuerpoTablaClientes">
+                            {% for cliente in clientes %}
+                            <tr class="fila-cliente"
+                                data-cedula="{{ (cliente.cedula or '')|lower }}"
+                                data-nombre="{{ (cliente.nombre or '')|lower }}"
+                                data-negocio="{{ (cliente.tipo_cliente_nombre or '')|lower }}"
+                                data-negocio-exacto="{{ cliente.tipo_cliente_nombre or '' }}"
+                                data-ciudad="{{ (cliente.ciudad or '')|lower }}"
+                                data-correo="{{ (cliente.correo or '')|lower }}"
+                                data-telefono="{{ (cliente.telefono or '')|lower }}">
+                                <td class="ps-3 py-3">
+                                    <span class="badge bg-navy text-white fw-bold px-2 py-1 font-monospace">
+                                        <i class="bi bi-person-vcard me-1 text-emerald"></i>{{ cliente.cedula }}
+                                    </span>
+                                </td>
+                                <td class="py-3">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="avatar-circle flex-shrink-0" style="width: 36px; height: 36px; font-size: 0.95rem;">
+                                            <i class="bi bi-building"></i>
+                                        </div>
+                                        <div>
+                                            <span class="fw-bold text-navy d-block">{{ cliente.nombre }}</span>
+                                            <small class="text-muted"><i class="bi bi-check2-circle text-emerald me-1"></i>Cliente registrado</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="py-3">
+                                    <span class="badge bg-light text-navy border px-2 py-1">
+                                        <i class="bi bi-tag-fill text-emerald me-1"></i>{{ cliente.tipo_cliente_nombre or 'Sin categoría' }}
+                                    </span>
+                                </td>
+                                <td class="py-3">
+                                    <span class="d-block small text-nowrap">
+                                        <i class="bi bi-telephone text-emerald me-1"></i>{{ cliente.telefono or 'No registrado' }}
+                                    </span>
+                                    <span class="d-block small text-muted text-nowrap">
+                                        <i class="bi bi-envelope me-1"></i>{{ cliente.correo or 'No registrado' }}
+                                    </span>
+                                </td>
+                                <td class="py-3">
+                                    <span class="text-dark small text-nowrap">
+                                        <i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ cliente.ciudad or 'N/A' }}
+                                    </span>
+                                </td>
+                                <td class="py-3 text-center pe-3">
+                                    <div class="d-inline-flex gap-1 flex-wrap justify-content-center">
+                                        <a href="{{ url_for('editar_cliente', cedula=cliente.cedula) }}" class="btn btn-outline-primary btn-sm rounded-circle" title="Editar cliente">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </a>
+                                        <form method="POST" action="{{ url_for('eliminar_cliente', cedula=cliente.cedula) }}" onsubmit="return confirm('¿Estás seguro de que deseas eliminar a &quot;{{ cliente.nombre }}&quot;?');" class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm rounded-circle" title="Eliminar cliente">
+                                                <i class="bi bi-trash-fill"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Barra de Paginación Automática -->
+                <div class="p-3 bg-light border-top d-flex justify-content-between align-items-center flex-wrap gap-2" id="contenedorPaginacionClientes">
+                    <div class="small text-muted">
+                        Página <strong id="paginaActualClientesTexto" class="text-navy">1</strong> de <strong id="totalPaginasClientesTexto" class="text-navy">1</strong>
+                    </div>
+                    <nav aria-label="Navegación de clientes">
+                        <ul class="pagination pagination-sm mb-0" id="listaBotonesPaginacionClientes">
+                            <!-- Inyectado dinámicamente -->
+                        </ul>
+                    </nav>
+                </div>
+
+                <!-- Estado sin resultados de búsqueda -->
+                <div id="sinResultadosClientes" class="p-5 text-center d-none">
+                    <div class="mb-3">
+                        <i class="bi bi-search text-emerald" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h5 class="fw-bold text-navy mb-1">No se encontraron clientes</h5>
+                    <p class="text-muted small mb-3">No hay clientes que coincidan con los criterios de búsqueda.</p>
+                    <button type="button" id="btnRestablecerClientes" class="btn btn-outline-brand btn-sm rounded-pill px-3">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Limpiar filtros
+                    </button>
+                </div>
+                {% else %}
+                <div class="p-5 text-center">
+                    <div class="mb-3">
+                        <i class="bi bi-people text-muted" style="font-size: 3rem;"></i>
+                    </div>
+                    <h4 class="text-navy fw-bold">No existen clientes registrados</h4>
+                    <p class="text-muted">Registra los primeros negocios asociados para comenzar.</p>
+                    <a href="{{ url_for('nuevo_cliente') }}" class="btn btn-verde mt-2">
+                        <i class="bi bi-person-plus me-1"></i>Registrar Primer Cliente
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const input = document.getElementById("buscadorClientes");
+    const filtroTipo = document.getElementById("filtroTipoNegocio");
+    const btnLimpiar = document.getElementById("btnLimpiarClientes");
+    const btnReset = document.getElementById("btnRestablecerClientes");
+    const todasLasFilas = Array.from(document.querySelectorAll(".fila-cliente"));
+    const sinRes = document.getElementById("sinResultadosClientes");
+    const contadorVisibles = document.getElementById("contadorClientesVisibles");
+    const contadorPaginacionTexto = document.getElementById("contadorPaginacionClientesTexto");
+    const paginaActualTexto = document.getElementById("paginaActualClientesTexto");
+    const totalPaginasTexto = document.getElementById("totalPaginasClientesTexto");
+    const listaBotonesPaginacion = document.getElementById("listaBotonesPaginacionClientes");
+    const contenedorPaginacion = document.getElementById("contenedorPaginacionClientes");
+
+    const REGISTROS_POR_PAGINA = 10;
+    let paginaActual = 1;
+    let filasFiltradas = [...todasLasFilas];
+
+    if (!todasLasFilas.length) return;
+
+    // Poblar dinámicamente el selector de tipos de negocio
+    if (filtroTipo) {
+        const tiposMap = new Set();
+        todasLasFilas.forEach(f => {
+            const t = (f.dataset.negocioExacto || "").trim();
+            if (t) tiposMap.add(t);
+        });
+        Array.from(tiposMap).sort().forEach(tipo => {
+            const opt = document.createElement("option");
+            opt.value = tipo.toLowerCase();
+            opt.textContent = tipo;
+            filtroTipo.appendChild(opt);
+        });
+    }
+
+    function normalizar(t) {
+        return (t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    }
+
+    function filtrarYPaginar(irAPagina = 1) {
+        const q = normalizar(input ? input.value : "");
+        const tipoSel = normalizar(filtroTipo ? filtroTipo.value : "");
+
+        filasFiltradas = todasLasFilas.filter(fila => {
+            const cedula = normalizar(fila.dataset.cedula);
+            const nombre = normalizar(fila.dataset.nombre);
+            const negocio = normalizar(fila.dataset.negocio);
+            const ciudad = normalizar(fila.dataset.ciudad);
+            const correo = normalizar(fila.dataset.correo);
+            const telf = normalizar(fila.dataset.telefono);
+
+            const coincideTexto = !q || cedula.includes(q) || nombre.includes(q) || negocio.includes(q) || ciudad.includes(q) || correo.includes(q) || telf.includes(q);
+            const coincideTipo = !tipoSel || negocio.includes(tipoSel);
+
+            return coincideTexto && coincideTipo;
+        });
+
+        const totalRegistros = filasFiltradas.length;
+        const totalPaginas = Math.max(1, Math.ceil(totalRegistros / REGISTROS_POR_PAGINA));
+        paginaActual = Math.min(Math.max(1, irAPagina), totalPaginas);
+
+        todasLasFilas.forEach(f => f.classList.add("d-none"));
+
+        const inicioIndice = (paginaActual - 1) * REGISTROS_POR_PAGINA;
+        const finIndice = Math.min(inicioIndice + REGISTROS_POR_PAGINA, totalRegistros);
+
+        for (let i = inicioIndice; i < finIndice; i++) {
+            filasFiltradas[i].classList.remove("d-none");
+        }
+
+        if (contadorVisibles) contadorVisibles.textContent = totalRegistros;
+        if (contadorPaginacionTexto) {
+            contadorPaginacionTexto.textContent = totalRegistros > 0 ? `${inicioIndice + 1} - ${finIndice}` : "0 - 0";
+        }
+        if (paginaActualTexto) paginaActualTexto.textContent = paginaActual;
+        if (totalPaginasTexto) totalPaginasTexto.textContent = totalPaginas;
+        if (sinRes) sinRes.classList.toggle("d-none", totalRegistros > 0);
+        if (contenedorPaginacion) contenedorPaginacion.classList.toggle("d-none", totalRegistros === 0);
+
+        renderizarBotonesPaginacion(totalPaginas);
+    }
+
+    function renderizarBotonesPaginacion(totalPaginas) {
+        if (!listaBotonesPaginacion) return;
+        listaBotonesPaginacion.innerHTML = "";
+
+        // Botón Anterior
+        const liAnt = document.createElement("li");
+        liAnt.className = `page-item ${paginaActual === 1 ? 'disabled' : ''}`;
+        liAnt.innerHTML = `<button class="page-link" type="button" aria-label="Anterior">&laquo; Anterior</button>`;
+        liAnt.addEventListener("click", () => {
+            if (paginaActual > 1) filtrarYPaginar(paginaActual - 1);
+        });
+        listaBotonesPaginacion.appendChild(liAnt);
+
+        // Botones de página
+        for (let p = 1; p <= totalPaginas; p++) {
+            const li = document.createElement("li");
+            li.className = `page-item ${p === paginaActual ? 'active' : ''}`;
+            li.innerHTML = `<button class="page-link" type="button">${p}</button>`;
+            li.addEventListener("click", () => filtrarYPaginar(p));
+            listaBotonesPaginacion.appendChild(li);
+        }
+
+        // Botón Siguiente
+        const liSig = document.createElement("li");
+        liSig.className = `page-item ${paginaActual === totalPaginas ? 'disabled' : ''}`;
+        liSig.innerHTML = `<button class="page-link" type="button" aria-label="Siguiente">Siguiente &raquo;</button>`;
+        liSig.addEventListener("click", () => {
+            if (paginaActual < totalPaginas) filtrarYPaginar(paginaActual + 1);
+        });
+        listaBotonesPaginacion.appendChild(liSig);
+    }
+
+    if (input) input.addEventListener("input", () => filtrarYPaginar(1));
+    if (filtroTipo) filtroTipo.addEventListener("change", () => filtrarYPaginar(1));
+
+    function limpiar() {
+        if (input) input.value = "";
+        if (filtroTipo) filtroTipo.value = "";
+        filtrarYPaginar(1);
+        if (input) input.focus();
+    }
+
+    if (btnLimpiar) btnLimpiar.addEventListener("click", limpiar);
+    if (btnReset) btnReset.addEventListener("click", limpiar);
+
+    filtrarYPaginar(1);
+});
+</script>
 {% endblock %}

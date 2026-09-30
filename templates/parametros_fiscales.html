@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block titulo %}IVA de facturación - Dulce Delicia{% endblock %}
+{% block content %}
+<section class="page-header py-4 text-white">
+    <div class="container">
+        <span class="badge bg-emerald px-3 py-2 text-uppercase fw-semibold">Configuración administrativa</span>
+        <h1 class="h3 fw-bold mt-2 mb-1">IVA de facturación</h1>
+        <p class="text-light-emphasis mb-0">Un único porcentaje configurable para los documentos nuevos.</p>
+    </div>
+</section>
+
+<section class="py-4 py-md-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-xl-8 col-lg-9">
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <div class="card-body p-4 p-md-5">
+                        {% if iva %}
+                        <div class="d-flex align-items-start gap-3 mb-4">
+                            <span class="d-inline-grid rounded-circle bg-success-subtle text-success p-3">
+                                <i class="bi bi-percent fs-4"></i>
+                            </span>
+                            <div>
+                                <h2 class="h4 fw-bold text-navy mb-1">Porcentaje de IVA</h2>
+                                <p class="text-muted mb-0">
+                                    Este valor se aplicará a las facturas nuevas. Las facturas existentes conservan
+                                    el desglose con el que se emitieron.
+                                </p>
+                            </div>
+                        </div>
+
+                        <form method="post" class="row g-3 align-items-end">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="accion" value="actualizar_iva">
+                            <div class="col-sm-7">
+                                <label class="form-label fw-semibold text-navy" for="porcentajeIva">IVA configurado</label>
+                                <div class="input-group input-group-lg">
+                                    <input class="form-control" id="porcentajeIva" type="number" name="valor"
+                                           value="{{ iva.valor }}" min="0" max="100" step="0.0001" required>
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <div class="form-text">Ingresa el porcentaje que corresponda a tu negocio según tu situación tributaria vigente.</div>
+                            </div>
+                            <div class="col-sm-5 d-grid">
+                                <button class="btn btn-verde btn-lg" type="submit">
+                                    <i class="bi bi-check2-circle me-1"></i>Guardar IVA
+                                </button>
+                            </div>
+                        </form>
+
+                        {% if iva.actualizado_en %}
+                        <p class="small text-muted mt-3 mb-0">
+                            <i class="bi bi-clock-history me-1"></i>Última actualización: {{ iva.actualizado_en }}
+                        </p>
+                        {% endif %}
+                        {% else %}
+                        <div class="alert alert-warning mb-0" role="alert">
+                            <h2 class="h5 alert-heading">No encontramos el parámetro IVA</h2>
+                            <p class="mb-0">No se puede guardar una tasa hasta que la base de datos inicialice la configuración fiscal.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="alert alert-info border-0 rounded-4 mt-4 mb-0" role="note">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Esta pantalla solo configura el IVA y no determina qué tasa aplica legalmente. No se agregan
+                    otros impuestos automáticamente. Consulta la tasa vigente aplicable con tu contador o la autoridad tributaria.
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 mt-4">
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary rounded-pill">
+                        <i class="bi bi-arrow-left me-1"></i>Volver al panel
+                    </a>
+                    <a href="{{ url_for('facturacion') }}" class="btn btn-outline-brand rounded-pill">
+                        <i class="bi bi-receipt me-1"></i>Ir a facturación
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
