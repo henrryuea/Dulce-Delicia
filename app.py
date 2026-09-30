@@ -3,7 +3,6 @@
 # ===============================================================================
 # 1. IMPORTACIÓN DE LIBRERÍAS Y MÓDULOS DE PYTHON Y FLASK
 # ===============================================================================
-import os                             # Ruta de la portada externa
 import sqlite3                        # Excepción de integridad usada por las rutas
 from datetime import date, datetime  # Manipulación de fechas para comprobantes
 from functools import wraps          # Utilidad para construir decoradores en Python
@@ -15,7 +14,6 @@ from flask import (
     url_for,                         # Generador de rutas seguras por nombre de función
     flash,                           # Envío de notificaciones temporales al usuario
     session,                         # Almacén de sesiones cifradas del navegador
-    send_file                         # Sirve la portada estática externa
 )
 
 # Importamos las clases de formularios desarrolladas en la carpeta forms/
@@ -36,7 +34,6 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'dulce-delicia-pasteleria-semana12-sqlite-uea-2026'
 
 from database import (
-    BASE_DIR,
     obtener_conexion,
     guardar_imagen_producto,
     sincronizar_opciones_producto,
@@ -157,8 +154,8 @@ def panel():
 # ==============================================================================
 @app.route('/index.html')
 def inicio_externo():
-    """Sirve la portada raíz usada también por GitHub Pages."""
-    return send_file(os.path.join(BASE_DIR, 'index.html'))
+    """Mantiene la URL de GitHub Pages dentro de la portada dinámica."""
+    return redirect(url_for('inicio'))
 
 
 @app.route('/')
