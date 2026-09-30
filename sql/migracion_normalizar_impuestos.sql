@@ -60,7 +60,7 @@ BEGIN
         END IF;
 
         INSERT INTO impuestos_factura (
-            factura_numero, parametro_id, codigo, nombre, descripcion, porcentaje, monto
+            factura_numero, orden, parametro_id, codigo, nombre, descripcion, porcentaje, monto
         )
         SELECT f.numero,
                item.ordinalidad::SMALLINT,

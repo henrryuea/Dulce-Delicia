@@ -3,6 +3,7 @@ import os
 import re
 import unittest
 from datetime import date
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
@@ -142,6 +143,19 @@ class RegistroSecurityTests(unittest.TestCase):
 
 
 class CatalogVisibilityTests(unittest.TestCase):
+    def test_migracion_fiscal_incluye_orden_en_columnas_destino(self):
+        script = (
+            Path(__file__).parent
+            / 'sql'
+            / 'migracion_normalizar_impuestos.sql'
+        ).read_text(encoding='utf-8-sig')
+
+        self.assertRegex(
+            script,
+            r'INSERT INTO impuestos_factura\s*\(\s*'
+            r'factura_numero,\s*orden,\s*parametro_id,\s*codigo,\s*nombre,'
+        )
+
     def usuario(self, autenticado, rol, permiso_futuros):
         return SimpleNamespace(
             is_authenticated=autenticado,
