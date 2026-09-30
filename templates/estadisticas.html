@@ -72,7 +72,7 @@
                             {% else %}
                             <span class="bakery-kpi-feature__placeholder"><i class="bi bi-cake2"></i></span>
                             {% endif %}
-                            <div>
+                            <div class="bakery-kpi-feature__texto">
                                 <h2 class="h6 fw-bold text-navy mb-1">{{ producto_top }}</h2>
                                 <p class="small text-muted mb-0">{% if producto_estrella_mes %}{{ producto_estrella_mes.unidades|round(0, 'common')|int }} unidades este mes{% else %}Aún sin ventas este mes{% endif %}</p>
                             </div>

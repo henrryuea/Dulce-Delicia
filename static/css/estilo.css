@@ -1835,16 +1835,16 @@ a:hover {
 
 .bakery-kpi-feature {
     display: flex;
-    align-items: center;
-    gap: .8rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .6rem;
     margin-top: .7rem;
 }
 
 .bakery-kpi-feature img,
 .bakery-kpi-feature__placeholder {
-    width: 58px;
-    height: 58px;
-    flex: 0 0 58px;
+    width: 64px;
+    height: 64px;
     border-radius: 13px;
     object-fit: cover;
 }
@@ -1855,6 +1855,16 @@ a:hover {
     background: #f3e8dc;
     color: #8a5a47;
     font-size: 1.5rem;
+}
+
+.bakery-kpi-feature__texto {
+    width: 100%;
+    min-width: 0;
+}
+
+.bakery-kpi-feature__texto h2 {
+    overflow-wrap: normal;
+    word-break: normal;
 }
 
 .bakery-product-thumb {
