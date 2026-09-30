@@ -211,9 +211,9 @@ class SeguridadCuentaTests(unittest.TestCase):
         self.assertIn('Añade un segundo factor', contenido)
         self.assertIn('name="csrf_token"', contenido)
 
-    def test_informa_si_falta_la_clave_persistente_de_cifrado_2fa(self):
+    def test_inicia_configuracion_2fa_si_no_hay_clave_especifica(self):
         with patch.dict(aplicacion.app.config, {'WTF_CSRF_ENABLED': False}):
-            with patch.dict(os.environ, {'TOTP_ENCRYPTION_KEY': ''}):
+            with patch.dict(os.environ, {'TOTP_ENCRYPTION_KEY': '', 'SECRET_KEY': ''}):
                 with patch.object(aplicacion.login_manager, '_user_callback', return_value=self.usuario):
                     with patch.object(aplicacion, 'get_db_connection', return_value=self.conexion):
                         with self.cliente.session_transaction() as sesion:
@@ -226,8 +226,12 @@ class SeguridadCuentaTests(unittest.TestCase):
                         )
 
         self.assertEqual(respuesta.status_code, 200)
-        self.assertIn('Falta configurar TOTP_ENCRYPTION_KEY', respuesta.get_data(as_text=True))
-        self.assertFalse(self.conexion.confirmada)
+        self.assertNotIn('Falta configurar TOTP_ENCRYPTION_KEY', respuesta.get_data(as_text=True))
+        self.assertTrue(self.conexion.confirmada)
+        self.assertTrue(any(
+            'dos_factores_secreto_pendiente' in consulta
+            for consulta, _ in self.conexion.cursor_falso.consultas
+        ))
 
     def test_cambio_password_desde_pantalla_con_token_csrf_valido(self):
         with patch.dict(aplicacion.app.config, {'WTF_CSRF_ENABLED': True, 'DEBUG': True}):

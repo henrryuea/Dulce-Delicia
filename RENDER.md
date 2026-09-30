@@ -62,14 +62,18 @@ y `FLASK_DEBUG=false`. `render.yaml` genera `TOTP_ENCRYPTION_KEY` automáticamen
 para habilitar autenticación de dos factores. Al sincronizar el Blueprint, Render
 guarda el secreto y lo conserva entre despliegues. Si el servicio ya existía y no
 se sincroniza el Blueprint, añade esa variable en **Environment** en Render y
-asigna un secreto aleatorio persistente. La aplicación acepta tanto una clave
-Fernet como un secreto aleatorio de Render.
+asigna un secreto aleatorio persistente. Si esa variable no está definida, la
+aplicación deriva la clave de cifrado de la `SECRET_KEY` ya configurada, así que
+2FA también funciona en servicios existentes sin sincronizar el Blueprint. La
+aplicación acepta tanto una clave Fernet como un secreto aleatorio de Render.
 La aplicación prepara de forma idempotente las columnas de seguridad para bases
 existentes; la clave debe permanecer estable entre despliegues. Perderla impide
 descifrar los secretos 2FA guardados. Si falta, la pantalla de seguridad muestra
-el motivo y no permite iniciar la configuración 2FA hasta corregirla.
+el motivo y no permite iniciar la configuración 2FA hasta corregirla; en
+producción, `SECRET_KEY` es obligatoria y proporciona esa alternativa.
 
-No cambies ni regeneres el valor de esta variable después de activar 2FA, ni lo
-incluyas en el código fuente: la clave anterior es necesaria para descifrar los
-factores ya registrados. Para entornos locales, crea una clave Fernet una sola vez
-con `Fernet.generate_key()` y guárdala en `.env`, que no se sube a Git.
+No cambies ni regeneres el valor de esta variable después de activar 2FA. Si no
+la defines, tampoco cambies la `SECRET_KEY`: la clave anterior es necesaria para
+descifrar los factores ya registrados. Para entornos locales, crea una clave
+Fernet una sola vez con `Fernet.generate_key()` y guárdala en `.env`, que no se
+sube a Git.

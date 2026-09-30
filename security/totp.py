@@ -8,6 +8,7 @@ import time
 from urllib.parse import quote, urlencode
 
 from cryptography.fernet import Fernet
+from flask import current_app, has_app_context
 
 
 def generar_secreto_totp():
@@ -55,7 +56,14 @@ def uri_configuracion_totp(secreto, cuenta, emisor='Dulce Delicia'):
 def _fernet():
     clave = (os.getenv('TOTP_ENCRYPTION_KEY') or '').strip()
     if not clave:
-        raise RuntimeError('Falta configurar TOTP_ENCRYPTION_KEY para usar autenticación en dos pasos.')
+        if has_app_context():
+            clave = current_app.config.get('SECRET_KEY') or ''
+        else:
+            clave = os.getenv('SECRET_KEY') or ''
+    if not clave:
+        raise RuntimeError(
+            'Configura TOTP_ENCRYPTION_KEY o una SECRET_KEY persistente para usar autenticación en dos pasos.'
+        )
     try:
         return Fernet(clave.encode('ascii'))
     except (ValueError, UnicodeEncodeError):
