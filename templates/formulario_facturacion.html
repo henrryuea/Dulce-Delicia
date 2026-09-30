@@ -412,11 +412,11 @@
                                 <div class="form-check form-switch mb-1">
                                     {{ form.aplica_impuestos(class="form-check-input", role="switch", id="chkIva") }}
                                     <label class="form-check-label fw-semibold text-navy small" for="chkIva">
-                                        Aplicar impuestos ({{ impuestos_activos|map(attribute='nombre')|join(', ') or 'ninguno configurado' }})
+                                        Aplicar impuestos ({% for imp in impuestos_activos %}{{ imp.nombre }} {{ imp.porcentaje|porcentaje }}%{% if not loop.last %}, {% endif %}{% else %}ninguno configurado{% endfor %})
                                     </label>
                                 </div>
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <span class="text-muted small">Impuestos:</span>
+                                    <span class="text-muted small" id="lblIvaLabel">Impuestos:</span>
                                     <span class="fw-semibold text-dark small" id="lblIva">$0.00</span>
                                 </div>
                             </div>
@@ -598,6 +598,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const lblSubtotal = document.getElementById("lblSubtotal");
     const lblIva = document.getElementById("lblIva");
+    const lblIvaLabel = document.getElementById("lblIvaLabel");
     const lblTotal = document.getElementById("lblTotal");
     const chkIva = document.getElementById("chkIva");
 
@@ -978,6 +979,12 @@ document.addEventListener("DOMContentLoaded", () => {
         recalcularTotales();
     }
 
+    // Formatea un porcentaje sin decimales innecesarios: 15 en vez de 15.00, pero conserva 15.5 si aplica.
+    function formatearPorcentaje(valor) {
+        const numero = Math.round(valor * 100) / 100;
+        return numero % 1 === 0 ? numero.toFixed(0) : String(numero);
+    }
+
     // Recalcular Subtotal, IVA, Total a Pagar, Anticipo, Saldo y pagos (0% Interés)
     function recalcularTotales() {
         const stockInvalido = validarStockVenta();
@@ -1133,6 +1140,12 @@ document.addEventListener("DOMContentLoaded", () => {
         // Asignación de valores visuales
         lblSubtotal.textContent = `$${subtotal.toFixed(2)}`;
         lblIva.textContent = `$${iva.toFixed(2)}`;
+        if (lblIvaLabel) {
+            const porcentajeTotal = impuestosActivos.reduce((total, impuesto) => total + impuesto.porcentaje, 0);
+            lblIvaLabel.textContent = aplicaIva && porcentajeTotal > 0
+                ? `Impuestos (${formatearPorcentaje(porcentajeTotal)}%):`
+                : 'Impuestos:';
+        }
         lblTotal.textContent = `$${totalGeneral.toFixed(2)}`;
         lblSaldoPendiente.textContent = `$${saldoPendiente.toFixed(2)}`;
 

@@ -96,6 +96,19 @@ app.config['SESSION_COOKIE_SECURE'] = os.getenv('FLASK_ENV', 'development').lowe
 app.teardown_appcontext(close_db_connection)
 
 
+@app.template_filter('porcentaje')
+def formatear_porcentaje(valor):
+    """Muestra un porcentaje sin decimales innecesarios (15 en vez de 15,00, pero conserva 15,5)."""
+    try:
+        numero = round(float(valor), 2)
+    except (TypeError, ValueError):
+        return '0'
+    texto = f'{numero:.2f}'.rstrip('0').rstrip('.')
+    if texto in ('', '-0'):
+        texto = '0'
+    return texto.replace('.', ',')
+
+
 @app.after_request
 def asegurar_codificacion_utf8(response):
     """Declara UTF-8 explícitamente para que los textos en español no se deformen."""

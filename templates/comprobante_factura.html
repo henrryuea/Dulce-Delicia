@@ -208,7 +208,7 @@
                             {% for impuesto in factura.impuestos_detalle %}
                             <div class="d-flex justify-content-between py-1 border-bottom">
                                 <span class="text-muted small">
-                                    {{ impuesto.nombre }} ({{ ('%.2f'|format(impuesto.porcentaje)).replace('.', ',') }}%):
+                                    {{ impuesto.nombre }} ({{ impuesto.porcentaje|porcentaje }}%):
                                 </span>
                                 <span class="fw-semibold text-navy">${{ "%.2f"|format(impuesto.monto) }}</span>
                             </div>

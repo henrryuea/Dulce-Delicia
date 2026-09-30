@@ -12,6 +12,7 @@ from models import User
 from app import (
     app,
     asegurar_relaciones_solicitudes,
+    formatear_porcentaje,
     puede_ver_productos_futuros,
     registro_es_automatizado,
     rol_requiere_aprobacion,
@@ -140,6 +141,21 @@ class RegistroSecurityTests(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertIn('Ley Orgánica de Protección de Datos Personales', contenido)
         self.assertIn('rectificación', contenido)
+
+
+class FormatoPorcentajeTests(unittest.TestCase):
+    def test_entero_no_muestra_decimales(self):
+        self.assertEqual(formatear_porcentaje(15), '15')
+        self.assertEqual(formatear_porcentaje(15.0), '15')
+        self.assertEqual(formatear_porcentaje(15.00), '15')
+
+    def test_conserva_decimales_cuando_existen(self):
+        self.assertEqual(formatear_porcentaje(15.5), '15,5')
+        self.assertEqual(formatear_porcentaje(12.75), '12,75')
+
+    def test_valor_invalido_devuelve_cero(self):
+        self.assertEqual(formatear_porcentaje(None), '0')
+        self.assertEqual(formatear_porcentaje('no numérico'), '0')
 
 
 class CatalogVisibilityTests(unittest.TestCase):
