@@ -1,21 +1,7 @@
-# Entorno virtual y dependencias locales
-venv/
-.venv/
-
-# Caché de pytest
-.pytest_cache/
-
-# Archivos de caché compilados de Python
-**/__pycache__/
 __pycache__/
 *.py[cod]
-*$py.class
-
-# Variables de entorno y credenciales sensibles
+.venv/
+venv/
 .env
-
-# Scripts temporales de pruebas locales
-scratch/
-
-# Fotos de perfil cargadas por los usuarios
-static/uploads/perfiles/
+.DS_Store
+.vscode/

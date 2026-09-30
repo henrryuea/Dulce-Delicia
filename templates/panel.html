@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+
+{% block title %}Panel de Control - Dulce Delicia | Ha ingresado al sistema{% endblock %}
+
+{% block content %}
+<section class="py-5" style="background-color: var(--c-crema); min-height: 80vh;">
+  <div class="container">
+
+    <!-- ==============================================================================
+         CABECERA DEL SISTEMA: "Ha ingresado al sistema"
+         Cumple con la corrección solicitada eliminando textos innecesarios
+    ============================================================================== -->
+    <div class="card card-artesanal border-0 shadow-sm mb-4">
+      <div class="card-body p-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="rounded-circle bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width: 58px; height: 58px; min-width: 58px;">
+            <i class="fa-solid fa-circle-check fs-2"></i>
+          </div>
+          <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span class="badge bg-success px-2 py-1 rounded-pill small">Sesión Activa</span>
+              <span class="badge badge-artesanal badge-moka">SQLite Conectado</span>
+            </div>
+            <!-- Título requerido por el usuario -->
+            <h1 class="h3 fw-bold text-dark mb-1">Ha ingresado al sistema</h1>
+            <p class="text-muted small mb-0">
+              Bienvenido, <strong>{{ session.get('usuario') }}</strong>. Gestione los módulos administrativos 
+            </p>
+          </div>
+        </div>
+        
+        <!-- Acciones Rápidas Principales -->
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="{{ url_for('nuevo_producto') }}" class="btn btn-caramelo">
+            <i class="fa-solid fa-circle-plus me-1"></i> Nuevo Producto
+          </a>
+          <a href="{{ url_for('inicio') }}" class="btn btn-outline-secondary" target="_blank" title="Ver cómo ven los clientes la página">
+            <i class="fa-solid fa-store me-1"></i> Ver Tienda
+          </a>
+          <a href="{{ url_for('logout') }}" class="btn btn-outline-danger">
+            <i class="fa-solid fa-right-from-bracket me-1"></i> Cerrar Sesión
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==============================================================================
+         TARJETAS DE RESUMEN DE MÓDULOS (Elimina redundancia de botones duplicados)
+    ============================================================================== -->
+    <div class="row g-4 mb-4">
+      <!-- Tarjeta 1: Productos (Persistencia SQLite Semana 12) -->
+      <div class="col-md-6 col-lg-3">
+        <div class="card card-artesanal h-100 border-0 shadow-sm">
+          <div class="card-body p-4 d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span class="badge bg-warning bg-opacity-25 text-dark fw-semibold px-2 py-1 rounded">Productos</span>
+              <div class="rounded-circle bg-light d-flex align-items-center justify-content-center text-caramelo" style="width: 44px; height: 44px;">
+                <i class="fa-solid fa-cookie-bite fs-4"></i>
+              </div>
+            </div>
+            <h2 class="h5 card-title mb-1">Productos</h2>
+            <p class="text-muted small mb-3">Productos disponibles para la venta</p>
+            <div class="display-6 fw-bold text-dark mb-3">{{ metricas.total_productos }}</div>
+            <div class="mt-auto d-flex gap-2">
+              <a href="{{ url_for('productos') }}" class="btn btn-sm btn-caramelo flex-grow-1">
+                <i class="fa-solid fa-table me-1"></i> Ver Tabla
+              </a>
+              <a href="{{ url_for('nuevo_producto') }}" class="btn btn-sm btn-outline-caramelo" title="Agregar Producto">
+                <i class="fa-solid fa-plus"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tarjeta 2: Clientes -->
+      <div class="col-md-6 col-lg-3">
+        <div class="card card-artesanal h-100 border-0 shadow-sm">
+          <div class="card-body p-4 d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span class="badge bg-success bg-opacity-25 text-success fw-semibold px-2 py-1 rounded">Clientes</span>
+              <div class="rounded-circle bg-light d-flex align-items-center justify-content-center text-success" style="width: 44px; height: 44px;">
+                <i class="fa-solid fa-users fs-4"></i>
+              </div>
+            </div>
+            <h2 class="h5 card-title mb-1">Clientes</h2>
+            <p class="text-muted small mb-3">Directorio de compradores</p>
+            <div class="display-6 fw-bold text-dark mb-3">{{ metricas.total_clientes }}</div>
+            <div class="mt-auto d-flex gap-2">
+              <a href="{{ url_for('clientes') }}" class="btn btn-sm btn-caramelo flex-grow-1">
+                <i class="fa-solid fa-list me-1"></i> Directorio
+              </a>
+              <a href="{{ url_for('nuevo_cliente') }}" class="btn btn-sm btn-outline-caramelo" title="Nuevo Cliente">
+                <i class="fa-solid fa-plus"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tarjeta 3: Proveedores -->
+      <div class="col-md-6 col-lg-3">
+        <div class="card card-artesanal h-100 border-0 shadow-sm">
+          <div class="card-body p-4 d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span class="badge bg-info bg-opacity-25 text-primary fw-semibold px-2 py-1 rounded">Insumos</span>
+              <div class="rounded-circle bg-light d-flex align-items-center justify-content-center text-primary" style="width: 44px; height: 44px;">
+                <i class="fa-solid fa-truck-ramp-box fs-4"></i>
+              </div>
+            </div>
+            <h2 class="h5 card-title mb-1">Proveedores</h2>
+            <p class="text-muted small mb-3">Materia prima y lácteos</p>
+            <div class="display-6 fw-bold text-dark mb-3">{{ metricas.total_proveedores }}</div>
+            <div class="mt-auto d-flex gap-2">
+              <a href="{{ url_for('proveedores') }}" class="btn btn-sm btn-caramelo flex-grow-1">
+                <i class="fa-solid fa-boxes-packing me-1"></i> Listado
+              </a>
+              <a href="{{ url_for('nuevo_proveedor') }}" class="btn btn-sm btn-outline-caramelo" title="Nuevo Proveedor">
+                <i class="fa-solid fa-plus"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tarjeta 4: Facturación -->
+      <div class="col-md-6 col-lg-3">
+        <div class="card card-artesanal h-100 border-0 shadow-sm">
+          <div class="card-body p-4 d-flex flex-column">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <span class="badge bg-danger bg-opacity-25 text-danger fw-semibold px-2 py-1 rounded">Ventas</span>
+              <div class="rounded-circle bg-light d-flex align-items-center justify-content-center text-danger" style="width: 44px; height: 44px;">
+                <i class="fa-solid fa-receipt fs-4"></i>
+              </div>
+            </div>
+            <h2 class="h5 card-title mb-1">Facturación</h2>
+            <p class="text-muted small mb-3">Comprobantes y ventas</p>
+            <div class="display-6 fw-bold text-dark mb-3">{{ metricas.total_facturas }}</div>
+            <div class="mt-auto d-flex gap-2">
+              <a href="{{ url_for('facturacion') }}" class="btn btn-sm btn-caramelo flex-grow-1">
+                <i class="fa-solid fa-file-invoice-dollar me-1"></i> Facturas
+              </a>
+              <a href="{{ url_for('nueva_factura') }}" class="btn btn-sm btn-outline-caramelo" title="Emitir Factura">
+                <i class="fa-solid fa-plus"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==============================================================================
+         DETALLE DE PERSISTENCIA LOCAL SQLITE (Evidencia Semana 12)
+    ============================================================================== -->
+    <div class="card card-artesanal border-0 shadow-sm">
+      <div class="card-header-artesanal d-flex justify-content-between align-items-center">
+        <div>
+          <h2 class="h4 mb-0 text-white"> Productos Registrados</h2>
+        </div>
+        <a href="{{ url_for('productos') }}" class="btn btn-sm btn-outline-light rounded-pill">
+          Ver Tabla Completa <i class="fa-solid fa-arrow-right ms-1"></i>
+        </a>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table-artesanal align-middle mb-0">
+            <thead>
+              <tr>
+                <th style="width: 70px;">ID</th>
+                <th style="width: 80px;">Foto</th>
+                <th>Nombre del Postre</th>
+                <th>Categoría</th>
+                <th>Precio</th>
+                <th>Stock</th>
+                <th class="text-end">Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in ultimos_productos %}
+              <tr>
+                <td><span class="badge bg-secondary">#{{ p.id }}</span></td>
+                <td>
+                  <img src="{{ url_for('static', filename=p.imagen) }}" alt="{{ p.nombre }}" class="rounded-3 border" style="width: 48px; height: 48px; object-fit: cover;">
+                </td>
+                <td>
+                  <span class="fw-semibold text-dark">{{ p.nombre }}</span>
+                  <small class="text-muted d-block text-truncate" style="max-width: 250px;">{{ p.descripcion }}</small>
+                </td>
+                <td><span class="badge badge-artesanal badge-moka">{{ p.categoria }}</span></td>
+                <td class="fw-bold text-dark">${{ "%.2f"|format(p.precio) }}</td>
+                <td>
+                  {% if p.stock > 0 %}
+                    <span class="badge badge-artesanal badge-exito">{{ p.stock }} un.</span>
+                  {% else %}
+                    <span class="badge badge-artesanal badge-peligro">Agotado</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">
+                  <a href="{{ url_for('editar_producto', id=p.id) }}" class="btn btn-sm btn-outline-caramelo">
+                    <i class="fa-solid fa-pen-to-square"></i> Editar
+                  </a>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="7" class="text-center py-4 text-muted">No hay productos en la base de datos.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+{% endblock %}

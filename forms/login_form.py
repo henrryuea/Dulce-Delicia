@@ -1,31 +1,42 @@
-# ==============================================================================
-# PROYECTO: DULCE DELICIA - FORMULARIO DE INICIO DE SESIÓN
-# ==============================================================================
+"""Formulario WTForms para el acceso administrativo."""
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SubmitField
+from wtforms import StringField, PasswordField, SubmitField
 from wtforms.validators import DataRequired, Length
 
 
 class LoginForm(FlaskForm):
     """
-    Formulario de autenticación de usuarios.
-    Permite ingresar utilizando indistintamente el Nombre de Usuario o el Correo.
+    Formulario para el control de acceso al sistema administrativo.
+    Permite validar que solo usuarios autorizados gestionen los datos.
     """
     usuario = StringField(
-        'Usuario, Correo Electrónico o Nombre',
+        'Nombre de Usuario',
         validators=[
-            DataRequired(message='Ingresa tu usuario, correo electrónico o nombre.'),
-            Length(min=3, max=150, message='El campo debe tener entre 3 y 150 caracteres.')
-        ]
+            DataRequired(message='Por favor ingrese su nombre de usuario.'),
+            Length(min=3, max=30, message='El usuario debe tener entre 3 y 30 caracteres.')
+        ],
+        render_kw={
+            'placeholder': 'Ej. admin',
+            'class': 'form-control',
+            'autofocus': True
+        }
     )
 
     password = PasswordField(
-        'Contraseña',
+        'Contraseña de Acceso',
         validators=[
-            DataRequired(message='La contraseña es obligatoria.')
-        ]
+            DataRequired(message='Por favor ingrese su contraseña.'),
+            Length(min=4, max=50, message='La contraseña debe tener al menos 4 caracteres.')
+        ],
+        render_kw={
+            'placeholder': '••••••••',
+            'class': 'form-control'
+        }
     )
 
-    recordarme = BooleanField('Mantener sesión iniciada')
-
-    submit = SubmitField('Iniciar Sesión')
+    submit = SubmitField(
+        'Ingresar al Sistema',
+        render_kw={
+            'class': 'btn btn-caramelo w-100 py-2 fw-semibold'
+        }
+    )

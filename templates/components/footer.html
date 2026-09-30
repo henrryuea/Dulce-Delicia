@@ -1,23 +1,31 @@
-<footer class="footer-custom mt-auto text-white">
-    <div class="container py-4 py-md-5">
-        <div class="row align-items-center justify-content-between g-4">
-            <div class="col-lg-7 text-center text-lg-start">
-                <a class="footer-brand d-inline-flex align-items-center gap-2 mb-2 text-decoration-none" href="{{ url_for('inicio') }}">
-                    <i class="bi bi-cake2-fill" aria-hidden="true"></i>
-                    <span>Dulce Delicia</span>
-                </a>
-                <p class="footer-description mb-0">
-                    Pastelería artesanal para compartir algo especial. Elaboramos cada pedido con cuidado y dedicación.
-                </p>
-            </div>
-            <div class="col-lg-4 text-center text-lg-end">
-                <a class="footer-link" href="{{ url_for('inicio') }}#productos">Nuestros productos</a>
-                <span class="footer-divider mx-2" aria-hidden="true">·</span>
-                <a class="footer-link" href="{{ url_for('inicio') }}#contacto">Contáctanos</a>
-            </div>
+<footer class="footer-artesanal mt-auto">
+  <div class="container">
+    <div class="row g-4 mb-3">
+      <div class="col-lg-6 col-md-6">
+        <h5 class="text-white mb-2">
+          <i class="fa-solid fa-cake-candles text-warning me-2"></i>Dulce Delicia
+        </h5>
+        <p class="small text-light-emphasis mb-2">
+          Pastelería y repostería fina artesanal. Elaboramos momentos dulces con ingredientes seleccionados, pasión culinaria y estándares de alta calidad.
+        </p>
+        <div class="d-flex gap-3 text-warning small mt-2">
+          <span><i class="fa-solid fa-location-dot me-1"></i> Quito - Ecuador</span>
+          <span><i class="fa-solid fa-phone me-1"></i> (02) 245-8899</span>
         </div>
-        <div class="footer-bottom mt-4 pt-3 text-center small">
-            <p class="mb-0">&copy; 2026 Dulce Delicia. Todos los derechos reservados.</p>
+      </div>
+      <div class="col-lg-6 col-md-6">
+        <h6 class="text-uppercase fw-bold text-white mb-3 small">Proyecto Integrador U3</h6>
+        <div class="bg-black bg-opacity-25 p-3 rounded-3 border border-secondary border-opacity-25 small">
+          <p class="mb-1 text-light"><strong>Semana 12:</strong> Persistencia local con SQLite</p>
+          <p class="mb-1 text-light"><strong>Asignatura:</strong> Desarrollo de Aplicaciones Web</p>
+          <p class="mb-0 text-warning">Universidad Estatal Amazónica (UEA)</p>
         </div>
+      </div>
     </div>
+    <div class="footer-bottom text-center">
+      <p class="mb-0">
+        &copy; 2026 <strong>Dulce Delicia</strong> - Sistema Desarrollado por <strong>Henrry Ivan Espinosa Guevara</strong> | Todos los derechos reservados.
+      </p>
+    </div>
+  </div>
 </footer>
