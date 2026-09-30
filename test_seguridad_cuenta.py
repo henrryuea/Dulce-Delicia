@@ -64,6 +64,47 @@ class ConexionCargaSeguridadFalsa:
         pass
 
 
+class CursorTotpPendienteIlegibleFalso:
+    def __init__(self):
+        self.consulta = ''
+        self.parametros = None
+        self.rowcount = 0
+
+    def execute(self, consulta, parametros=None):
+        self.consulta = consulta
+        self.parametros = parametros
+        if 'UPDATE usuarios' in consulta:
+            self.rowcount = 1
+
+    def fetchone(self):
+        return {
+            'dos_factores_activo': False,
+            'dos_factores_secreto_pendiente': 'token-cifrado-con-una-clave-anterior',
+        }
+
+    def close(self):
+        pass
+
+
+class ConexionTotpPendienteIlegibleFalsa:
+    def __init__(self):
+        self.cursor_falso = CursorTotpPendienteIlegibleFalso()
+        self.confirmada = False
+        self.revertida = False
+
+    def cursor(self):
+        return self.cursor_falso
+
+    def commit(self):
+        self.confirmada = True
+
+    def rollback(self):
+        self.revertida = True
+
+    def close(self):
+        pass
+
+
 class CursorEsquemaSeguridadFalso:
     def __init__(self, falla=False):
         self.consulta = ''
@@ -232,6 +273,25 @@ class SeguridadCuentaTests(unittest.TestCase):
             'dos_factores_secreto_pendiente' in consulta
             for consulta, _ in self.conexion.cursor_falso.consultas
         ))
+
+    def test_reinicia_configuracion_pendiente_cifrada_con_clave_anterior(self):
+        conexion = ConexionTotpPendienteIlegibleFalsa()
+        with patch.dict(aplicacion.app.config, {'WTF_CSRF_ENABLED': False}):
+            with patch.dict(os.environ, {'TOTP_ENCRYPTION_KEY': ''}):
+                with patch.object(aplicacion.login_manager, '_user_callback', return_value=self.usuario):
+                    with patch.object(aplicacion, 'get_db_connection', return_value=conexion):
+                        with self.cliente.session_transaction() as sesion:
+                            sesion['_user_id'] = str(self.usuario.id)
+                            sesion['_fresh'] = True
+                        respuesta = self.cliente.get('/cuenta/seguridad')
+
+        contenido = respuesta.get_data(as_text=True)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn('Puedes iniciar una nueva configuración', contenido)
+        self.assertIn('Configurar aplicación autenticadora', contenido)
+        self.assertTrue(conexion.confirmada)
+        self.assertIn('dos_factores_secreto_pendiente = NULL', conexion.cursor_falso.consulta)
+        self.assertIn('dos_factores_activo = FALSE', conexion.cursor_falso.consulta)
 
     def test_cambio_password_desde_pantalla_con_token_csrf_valido(self):
         with patch.dict(aplicacion.app.config, {'WTF_CSRF_ENABLED': True, 'DEBUG': True}):

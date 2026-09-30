@@ -2856,6 +2856,39 @@ def configurar_dos_factores():
         ), 503
     except InvalidToken:
         app.logger.exception('No se pudo descifrar el secreto TOTP pendiente de la cuenta %s.', current_user.id)
+        if fila and not fila['dos_factores_activo'] and fila['dos_factores_secreto_pendiente']:
+            try:
+                cursor.execute(
+                    '''UPDATE usuarios
+                       SET dos_factores_secreto_pendiente = NULL,
+                           dos_factores_intentos = 0,
+                           dos_factores_bloqueo_hasta = NULL
+                       WHERE id = %s AND dos_factores_activo = FALSE
+                         AND dos_factores_secreto_pendiente = %s''',
+                    (current_user.id, fila['dos_factores_secreto_pendiente'])
+                )
+                if cursor.rowcount == 1:
+                    conn.commit()
+                    flash(
+                        'La configuración 2FA pendiente anterior ya no se podía recuperar y se eliminó. '
+                        'Puedes iniciar una nueva configuración.',
+                        'warning'
+                    )
+                    return render_template(
+                        'configurar_2fa.html',
+                        activo=False,
+                        secreto=None,
+                        uri=None,
+                    )
+            except psycopg2.Error:
+                conn.rollback()
+                app.logger.exception(
+                    'No se pudo limpiar la configuración TOTP pendiente de la cuenta %s.',
+                    current_user.id
+                )
+            else:
+                conn.rollback()
+
         mensaje = (
             'No se pudo descifrar la configuración 2FA. Restaura la clave TOTP_ENCRYPTION_KEY '
             'original antes de volver a intentarlo.'

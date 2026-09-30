@@ -71,6 +71,9 @@ existentes; la clave debe permanecer estable entre despliegues. Perderla impide
 descifrar los secretos 2FA guardados. Si falta, la pantalla de seguridad muestra
 el motivo y no permite iniciar la configuración 2FA hasta corregirla; en
 producción, `SECRET_KEY` es obligatoria y proporciona esa alternativa.
+Si una configuración todavía pendiente no se puede descifrar, se descarta para
+permitir iniciar el registro de nuevo. Esto no desactiva ni modifica un segundo
+factor que ya estuviera activo; para ese caso se debe restaurar la clave original.
 
 No cambies ni regeneres el valor de esta variable después de activar 2FA. Si no
 la defines, tampoco cambies la `SECRET_KEY`: la clave anterior es necesaria para
