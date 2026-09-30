@@ -5409,6 +5409,8 @@ def editar_factura(numero):
         form.productos_json.data = json.dumps(factura['productos_detalle'])
         if factura.get('fecha_hora_emision'):
             form.hora_emision.data = factura['fecha_hora_emision'].strftime('%H:%M')
+        else:
+            form.hora_emision.data = datetime.now(ZONA_HORARIA_LOCAL).strftime('%H:%M')
 
     formulario_valido = form.validate_on_submit()
     if formulario_valido and not identificacion_valida_para_tipo(
