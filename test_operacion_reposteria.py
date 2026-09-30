@@ -45,6 +45,12 @@ class TotpTests(unittest.TestCase):
             self.assertNotEqual(cifrado, self.secreto)
             self.assertEqual(descifrar_secreto_totp(cifrado), self.secreto)
 
+    def test_cifra_semilla_con_secreto_aleatorio_generado_por_render(self):
+        secreto_render = 'secreto-aleatorio-persistente-generado-por-render'
+        with patch.dict(os.environ, {'TOTP_ENCRYPTION_KEY': secreto_render}):
+            cifrado = cifrar_secreto_totp(self.secreto)
+            self.assertEqual(descifrar_secreto_totp(cifrado), self.secreto)
+
     def test_rechaza_clave_de_cifrado_incorrecta(self):
         clave = Fernet.generate_key().decode('ascii')
         with patch.dict(os.environ, {'TOTP_ENCRYPTION_KEY': Fernet.generate_key().decode('ascii')}):

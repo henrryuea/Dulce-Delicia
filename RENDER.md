@@ -58,15 +58,18 @@ que no es persistente en el plan gratuito.
 ## Variables de entorno
 
 Render debe generar `SECRET_KEY` de forma aleatoria. Mantén `FLASK_ENV=production`
-y `FLASK_DEBUG=false`. Para habilitar autenticación de dos factores, configura
-`TOTP_ENCRYPTION_KEY` con una clave Fernet y consérvala fuera del repositorio.
+y `FLASK_DEBUG=false`. `render.yaml` genera `TOTP_ENCRYPTION_KEY` automáticamente
+para habilitar autenticación de dos factores. Al sincronizar el Blueprint, Render
+guarda el secreto y lo conserva entre despliegues. Si el servicio ya existía y no
+se sincroniza el Blueprint, añade esa variable en **Environment** en Render y
+asigna un secreto aleatorio persistente. La aplicación acepta tanto una clave
+Fernet como un secreto aleatorio de Render.
 La aplicación prepara de forma idempotente las columnas de seguridad para bases
 existentes; la clave debe permanecer estable entre despliegues. Perderla impide
-descifrar los secretos 2FA guardados. Si falta o no tiene formato válido, la
-pantalla de seguridad muestra el motivo y no permite iniciar la configuración
-2FA hasta corregirla.
+descifrar los secretos 2FA guardados. Si falta, la pantalla de seguridad muestra
+el motivo y no permite iniciar la configuración 2FA hasta corregirla.
 
-Genera una clave una sola vez con `Fernet.generate_key()` y guárdala como variable
-de entorno en Render. No la vuelvas a generar en cada arranque ni la incluyas en
-el código fuente, porque la clave anterior es necesaria para descifrar los
-factores ya registrados.
+No cambies ni regeneres el valor de esta variable después de activar 2FA, ni lo
+incluyas en el código fuente: la clave anterior es necesaria para descifrar los
+factores ya registrados. Para entornos locales, crea una clave Fernet una sola vez
+con `Fernet.generate_key()` y guárdala en `.env`, que no se sube a Git.

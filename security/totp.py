@@ -58,5 +58,7 @@ def _fernet():
         raise RuntimeError('Falta configurar TOTP_ENCRYPTION_KEY para usar autenticación en dos pasos.')
     try:
         return Fernet(clave.encode('ascii'))
-    except (ValueError, UnicodeEncodeError) as error:
-        raise RuntimeError('TOTP_ENCRYPTION_KEY no tiene un formato Fernet válido.') from error
+    except (ValueError, UnicodeEncodeError):
+        material = hashlib.sha256(clave.encode('utf-8')).digest()
+        clave_fernet = base64.urlsafe_b64encode(material)
+        return Fernet(clave_fernet)
