@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block titulo %}Kardex de {{ producto.nombre }} - Dulce Delicia{% endblock %}
+{% block content %}
+<section class="py-4 py-md-5">
+    <div class="container">
+        <header class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+            <div>
+                <h1 class="h3 fw-bold text-navy mb-1">
+                    Kardex valorizado: {{ producto.nombre }}
+                    {% if producto.es_insumo %}
+                    <span class="badge bg-info-subtle text-info-emphasis align-middle ms-1">Insumo</span>
+                    {% else %}
+                    <span class="badge bg-emerald-subtle text-emerald-text align-middle ms-1">Producto</span>
+                    {% endif %}
+                </h1>
+                <p class="text-muted mb-0">
+                    Categoría: {{ producto.categoria }} &middot; Método de valoración: promedio ponderado
+                </p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('inventario') }}" class="btn btn-outline-secondary rounded-pill">
+                    <i class="bi bi-arrow-left me-1"></i>Volver a inventario
+                </a>
+            </div>
+        </header>
+
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-body">
+                        <p class="text-muted small mb-1 text-uppercase fw-semibold">Saldo en unidades</p>
+                        <p class="h4 fw-bold text-navy mb-0">{{ totales.saldo_cantidad }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-body">
+                        <p class="text-muted small mb-1 text-uppercase fw-semibold">Costo promedio actual</p>
+                        <p class="h4 fw-bold text-navy mb-0">${{ '%.2f'|format(totales.saldo_costo) }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-body">
+                        <p class="text-muted small mb-1 text-uppercase fw-semibold">Saldo valorizado</p>
+                        <p class="h4 fw-bold text-navy mb-0">${{ '%.2f'|format(totales.saldo_valor) }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-body">
+                        <p class="text-muted small mb-1 text-uppercase fw-semibold">Stock mínimo</p>
+                        <p class="h4 fw-bold mb-0 {% if producto.stock_actual <= producto.stock_minimo %}text-danger{% else %}text-navy{% endif %}">
+                            {{ producto.stock_minimo }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+            <div class="card-header bg-white fw-semibold text-navy border-bottom d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span><i class="bi bi-journal-text me-2"></i>Hoja de kardex (entradas, salidas y saldos)</span>
+                <small class="text-muted fw-normal">Stock actual registrado: {{ producto.stock_actual }} unidades</small>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0 text-center kardex-valuation-table">
+                    <colgroup>
+                        <col style="width: 155px;">
+                        <col style="width: 170px;">
+                        <col style="width: 280px;">
+                        {% for _ in range(9) %}<col style="width: 100px;">{% endfor %}
+                    </colgroup>
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3 text-start" rowspan="2">Fecha y hora</th>
+                            <th class="text-start" rowspan="2">Referencia</th>
+                            <th class="text-start" rowspan="2">Concepto</th>
+                            <th colspan="3" class="border-start">Entradas</th>
+                            <th colspan="3" class="border-start">Salidas</th>
+                            <th colspan="3" class="border-start">Saldos</th>
+                        </tr>
+                        <tr>
+                            <th class="border-start">Cant.</th>
+                            <th>Costo unitario</th>
+                            <th>Total</th>
+                            <th class="border-start">Cant.</th>
+                            <th>Costo unitario</th>
+                            <th>Total</th>
+                            <th class="border-start">Cant.</th>
+                            <th>Costo unitario</th>
+                            <th class="pe-3">Valor</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fila in filas %}
+                        {% set mv = fila.movimiento %}
+                        <tr>
+                            <td class="ps-3 text-start font-monospace small text-nowrap">{{ mv.fecha.strftime('%d/%m/%Y %H:%M') if mv.fecha else '-' }}</td>
+                            <td class="text-start small text-nowrap">{{ mv.factura_numero or mv.referencia or '-' }}</td>
+                            <td class="text-start small kardex-concept-cell">
+                                {{ mv.descripcion or ('Entrada de inventario' if mv.tipo == 'entrada' else 'Salida de inventario') }}
+                                {% if mv.automatico %}
+                                <i class="bi bi-lock-fill text-muted ms-1" title="Generado por el sistema"></i>
+                                {% endif %}
+                                {% if mv.usuario_nombre %}
+                                <small class="d-block text-muted">{{ mv.usuario_nombre }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="border-start text-nowrap {% if fila.entrada_cantidad %}fw-semibold text-success{% endif %}">{{ fila.entrada_cantidad if fila.entrada_cantidad is not none else '' }}</td>
+                            <td class="text-nowrap">{{ '$%.2f'|format(fila.entrada_costo) if fila.entrada_costo is not none else '' }}</td>
+                            <td class="text-nowrap">{{ '$%.2f'|format(fila.entrada_total) if fila.entrada_total is not none else '' }}</td>
+                            <td class="border-start text-nowrap {% if fila.salida_cantidad %}fw-semibold text-danger{% endif %}">{{ fila.salida_cantidad if fila.salida_cantidad is not none else '' }}</td>
+                            <td class="text-nowrap">{{ '$%.2f'|format(fila.salida_costo) if fila.salida_costo is not none else '' }}</td>
+                            <td class="text-nowrap">{{ '$%.2f'|format(fila.salida_total) if fila.salida_total is not none else '' }}</td>
+                            <td class="border-start text-nowrap fw-bold text-navy">{{ fila.saldo_cantidad }}</td>
+                            <td class="text-nowrap">${{ '%.2f'|format(fila.saldo_costo) }}</td>
+                            <td class="pe-3 text-nowrap fw-semibold">${{ '%.2f'|format(fila.saldo_valor) }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="12" class="text-center text-muted py-5">
+                                Todavía no hay movimientos de kardex para este elemento.
+                                Regístralos desde el módulo de inventario.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    {% if filas %}
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td class="ps-3 text-start" colspan="3">Totales</td>
+                            <td class="border-start text-success">{{ totales.entrada_cantidad }}</td>
+                            <td></td>
+                            <td class="text-success">${{ '%.2f'|format(totales.entrada_valor) }}</td>
+                            <td class="border-start text-danger">{{ totales.salida_cantidad }}</td>
+                            <td></td>
+                            <td class="text-danger">${{ '%.2f'|format(totales.salida_valor) }}</td>
+                            <td class="border-start text-navy">{{ totales.saldo_cantidad }}</td>
+                            <td>${{ '%.2f'|format(totales.saldo_costo) }}</td>
+                            <td class="pe-3 text-navy">${{ '%.2f'|format(totales.saldo_valor) }}</td>
+                        </tr>
+                    </tfoot>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

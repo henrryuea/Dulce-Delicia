@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block titulo %}Acceso y seguridad - Dulce Delicia{% endblock %}
+
+{% block content %}
+<section class="page-header py-4 text-white">
+    <div class="container">
+        <span class="badge bg-emerald px-3 py-2 text-uppercase fw-semibold">Configuración de cuenta</span>
+        <h1 class="h3 fw-bold mt-2 mb-1">Acceso y seguridad</h1>
+        <p class="text-light-emerald mb-0">Actualiza tu contraseña y administra la verificación en dos pasos.</p>
+    </div>
+</section>
+
+<section class="py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm rounded-4 mb-4">
+                    <div class="card-body p-4 p-md-5">
+                        <div class="d-flex align-items-start gap-3 mb-4">
+                            <span class="security-status"><i class="bi bi-key"></i></span>
+                            <div>
+                                <h2 class="h5 fw-bold text-navy mb-1">Cambiar contraseña</h2>
+                                <p class="text-muted mb-0">Confirma la actual y crea una clave nueva que no uses en otros sitios.</p>
+                            </div>
+                        </div>
+                        <form method="post" class="security-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="accion" value="cambiar_password">
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label for="passwordActual" class="form-label small fw-semibold">Contraseña actual</label>
+                                    <input type="password" id="passwordActual" name="password_actual" class="form-control"
+                                           autocomplete="current-password" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="passwordNueva" class="form-label small fw-semibold">Nueva contraseña</label>
+                                    <input type="password" id="passwordNueva" name="password_nueva" class="form-control"
+                                           autocomplete="new-password" minlength="12" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="confirmarPassword" class="form-label small fw-semibold">Repite la nueva contraseña</label>
+                                    <input type="password" id="confirmarPassword" name="confirmar_password" class="form-control"
+                                           autocomplete="new-password" minlength="12" required>
+                                </div>
+                            </div>
+                            <p class="form-text mt-3 mb-0">Mínimo 12 caracteres y combinación de al menos 3 tipos: minúsculas, mayúsculas, números o símbolos.</p>
+                            <button type="submit" class="btn btn-verde mt-3">
+                                <i class="bi bi-shield-lock me-1"></i>Guardar nueva contraseña
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="alert alert-info border-0 rounded-4">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Por seguridad, no usamos preguntas personales como método para recuperar cuentas: sus respuestas pueden adivinarse.
+                    Usa una contraseña exclusiva y activa la verificación en dos pasos.
+                </div>
+
+                <div class="card border-0 shadow-sm rounded-4">
+                    <div class="card-body p-4 p-md-5">
+                        {% if totp_error %}
+                        <div class="alert alert-warning border-0 rounded-3 mb-0" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i>{{ totp_error }}
+                        </div>
+                        {% else %}
+                        {% if activo %}
+                        <div class="d-flex align-items-start gap-3 mb-4">
+                            <span class="security-status security-status-on"><i class="bi bi-shield-check"></i></span>
+                            <div>
+                                <h2 class="h5 fw-bold text-navy mb-1">Verificación en dos pasos activa</h2>
+                                <p class="text-muted mb-0">Necesitarás tu contraseña y el código vigente de tu aplicación para ingresar.</p>
+                            </div>
+                        </div>
+
+                        <form method="post" class="security-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="accion" value="desactivar">
+                            <h3 class="h6 fw-bold text-navy">Desactivar verificación</h3>
+                            <p class="small text-muted">Para proteger la cuenta, confirma tu contraseña y un código actual.</p>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="password" class="form-label small fw-semibold">Contraseña actual</label>
+                                    <input type="password" id="password" name="password" class="form-control" autocomplete="current-password" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="codigo" class="form-label small fw-semibold">Código autenticador</label>
+                                    <input type="text" id="codigo" name="codigo" class="form-control text-center font-monospace" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-outline-danger mt-3">Desactivar segundo factor</button>
+                        </form>
+                        {% elif secreto %}
+                        <div class="alert alert-info border-0 rounded-3">
+                            <strong>1. Agrega esta cuenta a tu aplicación autenticadora.</strong>
+                            <p class="small mb-2 mt-1">Usa Google Authenticator, Microsoft Authenticator, 1Password u otra app compatible con TOTP. Si la app permite importar una clave, selecciona configuración manual.</p>
+                            <label for="claveTotp" class="form-label small fw-semibold">Clave privada de configuración</label>
+                            <div class="security-key" id="claveTotp">{{ secreto }}</div>
+                            <small class="d-block mt-2">No compartas esta clave. Se muestra solo mientras la configuración está pendiente.</small>
+                            <details class="mt-2">
+                                <summary class="small">Ver URI de configuración</summary>
+                                <code class="d-block text-break mt-2">{{ uri }}</code>
+                            </details>
+                        </div>
+
+                        <form method="post" class="security-form">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="accion" value="confirmar">
+                            <label for="codigo" class="form-label small fw-semibold">2. Escribe el código de seis dígitos que muestra la app</label>
+                            <input type="text" id="codigo" name="codigo" class="form-control form-control-lg text-center font-monospace" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" minlength="6" maxlength="6" required>
+                            <button type="submit" class="btn btn-verde mt-3">Confirmar y activar</button>
+                        </form>
+                        {% else %}
+                        <div class="d-flex align-items-start gap-3 mb-4">
+                            <span class="security-status"><i class="bi bi-shield-lock"></i></span>
+                            <div>
+                                <h2 class="h5 fw-bold text-navy mb-1">Añade un segundo factor</h2>
+                                <p class="text-muted mb-0">Una app autenticadora crea códigos temporales que cambian cada 30 segundos. No se envían por correo ni se guardan en la sesión.</p>
+                            </div>
+                        </div>
+                        <form method="post">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="accion" value="iniciar">
+                            <button type="submit" class="btn btn-verde">Configurar aplicación autenticadora</button>
+                        </form>
+                        {% endif %}
+                        {% endif %}
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-link px-0 mt-3">Volver al panel</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

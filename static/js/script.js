@@ -1,469 +1,793 @@
-/**
- * ==============================================================================
- * DULCE DELICIA - SCRIPT PRINCIPAL DE INTERACTIVIDAD Y FORMULARIOS
- * Avance 11/16 - Validación de Formularios con Flask-WTF y WTForms
- * ==============================================================================
- */
+﻿// ==============================================================================
+// MÓDULO JS: REGISTRO DINÁMICO DE SOLICITUDES (DOM & LOCALSTORAGE)
+// ==============================================================================
+// Este script gestiona el módulo interactivo de solicitudes rápidas de clientes.
+// Funcionalidades clave:
+// 1. Manipulación directa del DOM (creación dinámica de tarjetas HTML).
+// 2. Persistencia en el navegador mediante la Web Storage API ('localStorage').
+// 3. Validación de formularios en el lado del cliente (Frontend).
+// 4. Retroalimentación visual asíncrona con spinner de carga y modales de Bootstrap.
+// 5. Operaciones de adición y eliminación de elementos en tiempo real.
+// ==============================================================================
 
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. Auto-cierre suave de alertas Flash después de 6 segundos
-    const flashAlerts = document.querySelectorAll('.alert-flash');
-    flashAlerts.forEach(alert => {
-        setTimeout(() => {
-            const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
-            if (bsAlert) {
-                bsAlert.close();
-            }
-        }, 6000);
-    });
-
-    // 2. Asistente dinámico de cálculo de IVA (15% Ecuador) y Total en Facturación
-    const inputSubtotal = document.getElementById('factura_subtotal');
-    const inputIva = document.getElementById('factura_iva');
-    const inputTotal = document.getElementById('factura_total');
-
-    if (inputSubtotal && inputIva && inputTotal) {
-        inputSubtotal.addEventListener('input', () => {
-            const subtotalVal = parseFloat(inputSubtotal.value);
-            if (!isNaN(subtotalVal) && subtotalVal > 0) {
-                const ivaCalculado = (subtotalVal * 0.15);
-                const totalCalculado = subtotalVal + ivaCalculado;
-                inputIva.value = ivaCalculado.toFixed(2);
-                inputTotal.value = totalCalculado.toFixed(2);
-            }
-        });
-
-        inputIva.addEventListener('input', () => {
-            const subtotalVal = parseFloat(inputSubtotal.value) || 0;
-            const ivaVal = parseFloat(inputIva.value) || 0;
-            inputTotal.value = (subtotalVal + ivaVal).toFixed(2);
-        });
+document.addEventListener("DOMContentLoaded", () => {
+    function normalizarTexto(valor) {
+        return (valor || "")
+            .toString()
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .trim();
     }
 
-    // 3. Validación en tiempo real del Formulario de Contacto (Landing Page)
-    const formContacto = document.getElementById('formContacto');
-    const nombreContacto = document.getElementById('nombreContacto');
-    const correoContacto = document.getElementById('correoContacto');
-    const categoriaContacto = document.getElementById('categoriaContacto');
-    const asuntoContacto = document.getElementById('asuntoContacto');
-    const mensajeContacto = document.getElementById('mensajeContacto');
+    // Mantiene la misma respuesta visual en todos los formularios.
+    document.querySelectorAll(".form-card form").forEach((formulario) => {
+        formulario.querySelectorAll("input, select, textarea").forEach((campo) => {
+            if (campo.type === "hidden") return;
 
-    const modalExito = document.getElementById('modalExito');
-    const mensajeExito = document.getElementById('mensajeExito');
-    const btnAceptarExito = document.getElementById('btnAceptarExito');
-
-    const modalError = document.getElementById('modalError');
-    const mensajeError = document.getElementById('mensajeError');
-    const btnAceptarError = document.getElementById('btnAceptarError');
-
-    const listaRegistros = document.getElementById('listaRegistros');
-    const contadorRegistros = document.getElementById('contadorRegistros');
-
-    if (formContacto && nombreContacto && correoContacto && categoriaContacto && asuntoContacto && mensajeContacto) {
-        const camposContacto = [nombreContacto, correoContacto, categoriaContacto, asuntoContacto, mensajeContacto];
-
-        camposContacto.forEach((campo) => {
-            campo.required = true;
-            campo.parentElement.querySelectorAll('.form-help-text, .invalid-feedback').forEach((elemento) => elemento.remove());
-        });
-
-        function feedbackContacto(campo) {
-            let feedback = campo.parentElement.querySelector('.contacto-feedback');
-            if (!feedback) {
-                feedback = document.createElement('div');
-                feedback.className = 'contacto-feedback invalid-feedback';
-                feedback.setAttribute('aria-live', 'polite');
-                campo.parentElement.appendChild(feedback);
-            }
-            return feedback;
-        }
-
-        function estadoContacto(campo, esValido, mensaje) {
-            const feedback = feedbackContacto(campo);
-            campo.setAttribute('aria-invalid', String(!esValido));
-            campo.classList.toggle('is-valid', esValido);
-            campo.classList.toggle('is-invalid', !esValido);
-            feedback.textContent = mensaje;
-            feedback.style.display = esValido ? 'none' : 'block';
-        }
-        
-        function validarNombre() {
-            const val = nombreContacto.value.trim();
-            const esValido = val.length >= 3 && /^[A-Za-zÁÉÍÓÚáéíóúñÑ\s]+$/.test(val);
-            estadoContacto(nombreContacto, esValido, 'Escribe un nombre de al menos 3 letras.');
-            return esValido;
-        }
-
-        function validarCorreo() {
-            const val = correoContacto.value.trim();
-            const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            const esValido = regex.test(val);
-            estadoContacto(correoContacto, esValido, 'Ingresa un correo válido. Ejemplo: usuario@dominio.com');
-            return esValido;
-        }
-
-        function validarCategoria() {
-            const val = categoriaContacto.value.trim();
-            const esValido = val !== '';
-            estadoContacto(categoriaContacto, esValido, 'Selecciona una categoría.');
-            return esValido;
-        }
-
-        function validarAsunto() {
-            const val = asuntoContacto.value.trim();
-            const esValido = val.length >= 5;
-            estadoContacto(asuntoContacto, esValido, 'El asunto debe tener al menos 5 caracteres.');
-            return esValido;
-        }
-
-        function validarMensaje() {
-            const val = mensajeContacto.value.trim();
-            const esValido = val.length >= 10;
-            estadoContacto(mensajeContacto, esValido, 'El mensaje debe tener al menos 10 caracteres.');
-            return esValido;
-        }
-
-        // Listeners para advertencias en tiempo real
-        nombreContacto.addEventListener('input', validarNombre);
-        correoContacto.addEventListener('input', validarCorreo);
-        categoriaContacto.addEventListener('change', validarCategoria);
-        asuntoContacto.addEventListener('input', validarAsunto);
-        mensajeContacto.addEventListener('input', validarMensaje);
-
-        nombreContacto.addEventListener('blur', validarNombre);
-        correoContacto.addEventListener('blur', validarCorreo);
-        categoriaContacto.addEventListener('blur', validarCategoria);
-        asuntoContacto.addEventListener('blur', validarAsunto);
-        mensajeContacto.addEventListener('blur', validarMensaje);
-
-        function actualizarContador() {
-            if (contadorRegistros && listaRegistros) {
-                contadorRegistros.textContent = listaRegistros.children.length;
-            }
-        }
-
-        function agregarRegistro(nombre, correo, categoria, asunto, mensaje) {
-            if (!listaRegistros) return;
-            const li = document.createElement('li');
-            li.className = 'list-group-item p-3';
-            li.innerHTML = `
-                <div class="d-flex justify-content-between align-items-start gap-2">
-                    <div>
-                        <div class="d-flex align-items-center gap-2 mb-1">
-                            <span class="badge badge-artesanal badge-moka">${categoria}</span>
-                            <strong class="text-dark">${nombre}</strong>
-                            <small class="text-muted">(${correo})</small>
-                        </div>
-                        <p class="mb-1 text-secondary small"><strong>Asunto:</strong> ${asunto}</p>
-                        <p class="mb-0 text-muted small bg-light p-2 rounded">${mensaje}</p>
-                    </div>
-                    <button type="button" class="btn btn-sm btn-outline-danger rounded-pill" title="Eliminar registro">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                </div>
-            `;
-            li.querySelector('button').addEventListener('click', () => {
-                li.remove();
-                actualizarContador();
-            });
-            listaRegistros.prepend(li);
-            actualizarContador();
-        }
-
-        formContacto.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const v1 = validarNombre();
-            const v2 = validarCorreo();
-            const v3 = validarCategoria();
-            const v4 = validarAsunto();
-            const v5 = validarMensaje();
-
-            if (!v1 || !v2 || !v3 || !v4 || !v5) {
-                if (mensajeError && modalError) {
-                    mensajeError.innerHTML = `
-                        <h3 class="text-danger fw-bold mb-2">Campos Incompletos</h3>
-                        <p>Por favor revisa los campos marcados en rojo y cumple con los requisitos de longitud.</p>
-                    `;
-                    modalError.style.display = 'flex';
+            const actualizarEstado = () => {
+                if (campo.classList.contains("is-invalid") && campo.value.trim()) {
+                    campo.classList.remove("is-invalid");
                 }
-                return;
-            }
-
-            const btnSubmit = formContacto.querySelector('button[type="submit"]');
-            const textoOriginal = btnSubmit.innerHTML;
-            btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> Enviando...';
-            btnSubmit.disabled = true;
-
-            try {
-                await new Promise(resolve => setTimeout(resolve, 800));
-
-                const nombreVal = nombreContacto.value.trim();
-                const correoVal = correoContacto.value.trim();
-                const catVal = categoriaContacto.value;
-                const asuntoVal = asuntoContacto.value.trim();
-                const mensajeVal = mensajeContacto.value.trim();
-
-                agregarRegistro(nombreVal, correoVal, catVal, asuntoVal, mensajeVal);
-
-                if (mensajeExito && modalExito) {
-                    mensajeExito.innerHTML = `
-                        <h3 class="text-success fw-bold mb-2">¡Mensaje Enviado con Éxito!</h3>
-                        <p class="mb-1">Gracias <strong>${nombreVal}</strong>, hemos recibido tu consulta sobre <em>"${asuntoVal}"</em>.</p>
-                        <p class="small text-muted">Te responderemos a <strong>${correoVal}</strong> a la brevedad posible.</p>
-                    `;
-                    modalExito.style.display = 'flex';
+                if (campo.value.trim() && campo.checkValidity()) {
+                    campo.classList.add("is-valid");
+                } else {
+                    campo.classList.remove("is-valid");
                 }
-
-                formContacto.reset();
-                [nombreContacto, correoContacto, categoriaContacto, asuntoContacto, mensajeContacto].forEach(c => {
-                    c.classList.remove('is-valid', 'is-invalid');
-                });
-
-            } catch (err) {
-                if (mensajeError && modalError) {
-                    mensajeError.innerHTML = `
-                        <h3 class="text-danger fw-bold mb-2">Error al Enviar</h3>
-                        <p>Ocurrió un error inesperado al procesar el envío. Por favor, intenta de nuevo.</p>
-                    `;
-                    modalError.style.display = 'flex';
-                }
-            } finally {
-                btnSubmit.innerHTML = textoOriginal;
-                btnSubmit.disabled = false;
-            }
-        });
-
-        // Eventos para cerrar los modales
-        if (btnAceptarExito && modalExito) {
-            btnAceptarExito.addEventListener('click', () => { modalExito.style.display = 'none'; });
-            modalExito.addEventListener('click', (e) => { if (e.target === modalExito) modalExito.style.display = 'none'; });
-        }
-        if (btnAceptarError && modalError) {
-            btnAceptarError.addEventListener('click', () => { modalError.style.display = 'none'; });
-            modalError.addEventListener('click', (e) => { if (e.target === modalError) modalError.style.display = 'none'; });
-        }
-    }
-
-    // 4. Validación dinámica general para formularios del sistema: producto, cliente, proveedor y factura
-    const formsSistema = document.querySelectorAll('form[method="POST"]');
-
-    function getFieldFeedback(field) {
-        if (!field) return null;
-
-        let feedback = field.parentElement.querySelector('.field-feedback');
-        if (!feedback) {
-            feedback = document.createElement('div');
-            feedback.className = 'field-feedback invalid-feedback d-block';
-            feedback.setAttribute('aria-live', 'polite');
-            field.parentElement.appendChild(feedback);
-        }
-
-        return feedback;
-    }
-
-    function setFieldState(field, isValid, message = '') {
-        if (!field) return;
-
-        field.setAttribute('aria-invalid', String(!isValid));
-        const feedback = getFieldFeedback(field);
-
-        if (!feedback) return;
-        feedback.textContent = message;
-
-        if (isValid) {
-            field.classList.remove('is-invalid');
-            field.classList.add('is-valid');
-            feedback.classList.remove('d-block');
-            feedback.style.display = 'none';
-        } else {
-            field.classList.remove('is-valid');
-            field.classList.add('is-invalid');
-            feedback.classList.add('d-block');
-            feedback.style.display = 'block';
-        }
-    }
-
-    function normalizarNumero(valor) {
-        if (valor === null || valor === undefined) return NaN;
-        return Number(String(valor).replace(/[^0-9.-]/g, ''));
-    }
-
-    function validarCampoPorNombre(field, valor) {
-        if (!field || !field.name && !field.id) return true;
-
-        const nombre = (field.name || field.id || '').toLowerCase();
-        const texto = String(valor ?? '').trim();
-
-        if (!texto && (field.required || nombre.includes('codigo') || nombre.includes('nombre') || nombre.includes('correo') || nombre.includes('telefono') || nombre.includes('direccion') || nombre.includes('numero') || nombre.includes('subtotal') || nombre.includes('iva') || nombre.includes('total') || nombre.includes('contacto') || nombre.includes('ruc') || nombre.includes('razon') || nombre.includes('stock') || nombre.includes('descripcion') || nombre.includes('precio') || nombre.includes('fecha'))) {
-            return { valido: false, mensaje: 'Este campo es obligatorio.' };
-        }
-
-        if (nombre.includes('codigo')) {
-            const ok = /^[A-Z0-9-]{3,20}$/.test(texto);
-            return { valido: ok, mensaje: 'Usa entre 3 y 20 caracteres con letras, números y guiones. Ej. TOR-001.' };
-        }
-
-        if (nombre.includes('nombre') || nombre.includes('razon_social') || nombre.includes('contacto')) {
-            const ok = texto.length >= 3 && texto.length <= 120;
-            return { valido: ok, mensaje: 'Debe tener entre 3 y 120 caracteres.' };
-        }
-
-        if (nombre.includes('cedula') || nombre.includes('ruc')) {
-            const ok = /^\d{10,13}$/.test(texto);
-            return { valido: ok, mensaje: 'Debe contener solo números: 10 para cédula y 13 para RUC.' };
-        }
-
-        if (nombre.includes('correo')) {
-            const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(texto);
-            return { valido: ok, mensaje: 'Ingresa un correo válido. Ejemplo: usuario@dominio.com' };
-        }
-
-        if (nombre.includes('telefono')) {
-            const ok = /^\d{9,15}$/.test(texto);
-            return { valido: ok, mensaje: 'El teléfono debe tener entre 9 y 15 dígitos numéricos.' };
-        }
-
-        if (nombre.includes('direccion')) {
-            const ok = texto.length >= 5 && texto.length <= 200;
-            return { valido: ok, mensaje: 'La dirección debe tener entre 5 y 200 caracteres.' };
-        }
-
-        if (nombre.includes('descripcion')) {
-            const ok = texto.length >= 10 && texto.length <= 250;
-            return { valido: ok, mensaje: 'La descripción debe tener entre 10 y 250 caracteres.' };
-        }
-
-        if (nombre.includes('precio') || nombre.includes('subtotal') || nombre.includes('iva') || nombre.includes('total')) {
-            const valorNum = normalizarNumero(texto);
-            const ok = !Number.isNaN(valorNum) && valorNum > 0;
-            return { valido: ok, mensaje: 'Ingresa un valor numérico válido mayor que cero.' };
-        }
-
-        if (nombre.includes('stock')) {
-            const valorNum = normalizarNumero(texto);
-            const ok = !Number.isNaN(valorNum) && valorNum >= 0;
-            return { valido: ok, mensaje: 'El stock debe ser un número mayor o igual a cero.' };
-        }
-
-        if (nombre.includes('numero') && !nombre.includes('telefono')) {
-            const ok = /^[A-Z0-9-]{5,30}$/.test(texto);
-            return { valido: ok, mensaje: 'Usa letras mayúsculas, números y guiones. Ej. FAC-001.' };
-        }
-
-        if (nombre.includes('fecha')) {
-            const ok = texto.length >= 8;
-            return { valido: ok, mensaje: 'Selecciona una fecha válida.' };
-        }
-
-        if (nombre.includes('imagen') && !field.required) {
-            return { valido: true, mensaje: '' };
-        }
-
-        if (nombre.includes('categoria') || nombre.includes('metodo') || nombre.includes('estado') || nombre.includes('tipo') || nombre.includes('unidad') || (nombre.includes('imagen') && field.type !== 'file')) {
-            const ok = texto !== '';
-            return { valido: ok, mensaje: 'Debes seleccionar una opción válida.' };
-        }
-
-        return { valido: true, mensaje: '' };
-    }
-
-    function activarValidacionFormulario(form) {
-        const elementos = Array.from(form.querySelectorAll('input, select, textarea'));
-        form.querySelectorAll('.form-help-text, .invalid-feedback').forEach((elemento) => elemento.remove());
-        const campos = elementos.filter(el => {
-            const nombre = (el.name || el.id || '').toLowerCase();
-            return nombre && (nombre.includes('codigo') || nombre.includes('nombre') || nombre.includes('cedula') || nombre.includes('correo') || nombre.includes('telefono') || nombre.includes('direccion') || nombre.includes('ruc') || nombre.includes('contacto') || nombre.includes('numero') || nombre.includes('precio') || nombre.includes('subtotal') || nombre.includes('iva') || nombre.includes('total') || nombre.includes('stock') || nombre.includes('descripcion') || nombre.includes('categoria') || nombre.includes('estado') || nombre.includes('metodo') || nombre.includes('tipo') || nombre.includes('unidad') || nombre.includes('fecha') || nombre.includes('imagen'));
-        });
-
-        if (!campos.length) return;
-
-        let alertaGeneral = form.querySelector('.alerta-form-general');
-        if (!alertaGeneral) {
-            alertaGeneral = document.createElement('div');
-            alertaGeneral.className = 'alerta-form-general alert alert-danger mt-2 mb-3 d-none';
-            alertaGeneral.setAttribute('role', 'alert');
-            alertaGeneral.innerHTML = '<strong>Faltan campos por completar.</strong>';
-            form.insertBefore(alertaGeneral, form.firstChild);
-        }
-
-        function actualizarAlertaGeneral() {
-            const invalidos = campos.filter((campo) => {
-                const resultado = validarCampoPorNombre(campo, campo.value);
-                return !resultado.valido;
-            });
-
-            if (invalidos.length > 0) {
-                alertaGeneral.classList.remove('d-none');
-                alertaGeneral.innerHTML = '<strong>Faltan ' + invalidos.length + ' campos por completar.</strong> Revisa los campos marcados.';
-            } else {
-                alertaGeneral.classList.add('d-none');
-                alertaGeneral.innerHTML = '';
-            }
-        }
-
-        campos.forEach((campo) => {
-            const validar = () => {
-                const resultado = validarCampoPorNombre(campo, campo.value);
-                setFieldState(campo, resultado.valido, resultado.mensaje);
-                actualizarAlertaGeneral();
-                return resultado.valido;
             };
 
-            campo.addEventListener('input', validar);
-            campo.addEventListener('change', validar);
-            campo.addEventListener('blur', validar);
+            campo.addEventListener("input", actualizarEstado);
+            campo.addEventListener("change", actualizarEstado);
+            campo.addEventListener("blur", actualizarEstado);
         });
+    });
 
-        form.addEventListener('submit', (event) => {
-            let hayErrores = false;
-            let contador = 0;
+    // Filtro común para cualquier tabla que declare data-filter-target.
+    document.querySelectorAll("[data-filter-target]").forEach((input) => {
+        const selector = input.dataset.filterTarget;
+        const filas = Array.from(document.querySelectorAll(selector));
+        const contador = input.dataset.filterCount
+            ? document.querySelector(input.dataset.filterCount)
+            : null;
+        if (!filas.length) return;
 
-            campos.forEach((campo) => {
-                const resultado = validarCampoPorNombre(campo, campo.value);
-                setFieldState(campo, resultado.valido, resultado.mensaje);
-                if (!resultado.valido) {
-                    hayErrores = true;
-                    contador += 1;
-                }
+        const aplicarFiltro = () => {
+            const consulta = normalizarTexto(input.value);
+            let visibles = 0;
+
+            filas.forEach((fila) => {
+                const contenido = normalizarTexto(fila.textContent);
+                const visible = !consulta || contenido.includes(consulta);
+                fila.classList.toggle("d-none", !visible);
+                if (visible) visibles += 1;
             });
 
-            actualizarAlertaGeneral();
+            if (contador) contador.textContent = visibles;
+        };
 
-            if (hayErrores) {
-                event.preventDefault();
-                alertaGeneral.classList.remove('d-none');
-                alertaGeneral.innerHTML = '<strong>Faltan ' + contador + ' campos por completar.</strong> Corrige los errores antes de continuar.';
-                const boton = form.querySelector('button[type="submit"]');
-                if (boton) {
-                    boton.disabled = true;
-                    const textoOriginal = boton.textContent;
-                    boton.textContent = 'Corrige los campos';
-                    setTimeout(() => {
-                        boton.textContent = textoOriginal;
-                        boton.disabled = false;
-                    }, 1500);
-                }
+        input.addEventListener("input", aplicarFiltro);
+        const limpiar = input.dataset.filterClear
+            ? document.querySelector(input.dataset.filterClear)
+            : null;
+        if (limpiar) {
+            limpiar.addEventListener("click", () => {
+                input.value = "";
+                aplicarFiltro();
+                input.focus();
+            });
+        }
+    });
+
+    document.querySelectorAll('.password-toggle-btn').forEach((button) => {
+        button.addEventListener('click', () => {
+            const input = button.closest('.input-group')?.querySelector('.password-toggle');
+            if (!input) return;
+
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+
+            const icon = button.querySelector('i');
+            if (icon) {
+                icon.classList.toggle('bi-eye', isPassword);
+                icon.classList.toggle('bi-eye-slash', !isPassword);
+            }
+
+            button.setAttribute('aria-label', isPassword ? 'Ocultar contraseña' : 'Mostrar contraseña');
+            button.title = isPassword ? 'Ocultar contraseña' : 'Mostrar contraseña';
+        });
+    });
+
+    const form2fa = document.getElementById("form2fa");
+    if (form2fa) {
+        const codigo2fa = document.getElementById("codigo");
+        const feedback2fa = document.getElementById("feedback2fa");
+        const advertencia2fa = document.getElementById("advertencia2fa");
+        const mensaje2fa = document.getElementById("mensaje2fa");
+        const modalElemento = document.getElementById("modalAdvertencia2fa");
+        const detalleModal = document.getElementById("detalleAdvertencia2fa");
+        const mostrarError2fa = (mensaje) => {
+            codigo2fa.classList.add("is-invalid");
+            codigo2fa.classList.remove("is-valid");
+            feedback2fa.textContent = mensaje;
+            advertencia2fa.classList.remove("d-none");
+            advertencia2fa.classList.add("d-flex");
+            mensaje2fa.textContent = mensaje;
+            detalleModal.textContent = mensaje;
+            if (window.bootstrap && modalElemento) {
+                bootstrap.Modal.getOrCreateInstance(modalElemento).show();
+            }
+        };
+
+        codigo2fa.addEventListener("input", () => {
+            codigo2fa.value = codigo2fa.value.replace(/\D/g, "").slice(0, 6);
+            const correcto = codigo2fa.value.length === 6;
+            codigo2fa.classList.toggle("is-valid", correcto);
+            codigo2fa.classList.toggle("is-invalid", !correcto && codigo2fa.value.length > 0);
+            feedback2fa.textContent = correcto ? "" : "El código debe contener exactamente 6 dígitos.";
+            if (correcto) {
+                advertencia2fa.classList.add("d-none");
+                advertencia2fa.classList.remove("d-flex");
+            }
+        });
+
+        codigo2fa.addEventListener("blur", () => {
+            if (!codigo2fa.value.trim()) {
+                mostrarError2fa("Ingresa el código de 6 dígitos para continuar.");
+            }
+        });
+
+        form2fa.addEventListener("submit", (evento) => {
+            if (!/^\d{6}$/.test(codigo2fa.value.trim())) {
+                evento.preventDefault();
+                mostrarError2fa("El código debe contener exactamente 6 dígitos.");
                 return;
             }
 
-            const boton = form.querySelector('button[type="submit"]');
+            const boton = document.getElementById("boton2fa");
             if (boton) {
-                const textoOriginal = boton.textContent;
                 boton.disabled = true;
-                boton.textContent = 'Guardando...';
-                setTimeout(() => {
-                    boton.textContent = textoOriginal;
-                    boton.disabled = false;
-                }, 1200);
+                boton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Verificando...';
             }
         });
     }
 
-    formsSistema.forEach((form) => {
-        if (form.id && form.id.includes('formContacto')) return;
-        const nombreForm = (form.id || form.action || '').toLowerCase();
-        if (nombreForm.includes('contacto')) return;
-        activarValidacionFormulario(form);
+    document.querySelectorAll("#formPinRecuperacion input[name='pin']").forEach((campo) => {
+        campo.addEventListener("input", () => {
+            campo.value = campo.value.replace(/\D/g, "").slice(0, 6);
+            campo.classList.toggle("is-valid", /^\d{6}$/.test(campo.value));
+            campo.classList.toggle("is-invalid", campo.value.length > 0 && !/^\d{6}$/.test(campo.value));
+        });
     });
+
+    const registroForm = document.getElementById("registroForm");
+    if (registroForm) {
+        const advertencia = document.getElementById("registroAdvertencia");
+        const listaAdvertencias = document.getElementById("registroAdvertenciaLista");
+        const password = document.getElementById("password");
+        const confirmPassword = document.getElementById("confirm_password");
+        const confirmPasswordFeedback = document.getElementById("confirmPasswordFeedback");
+        const submitButton = document.getElementById("registroSubmit");
+        const aceptaTerminos = document.getElementById("acepta_terminos");
+        const passwordStrengthBar = document.getElementById("passwordStrengthBar");
+        const passwordStrengthText = document.getElementById("passwordStrengthText");
+        const passwordStrengthTrack = passwordStrengthBar?.closest(".clave-meter-track");
+        const passwordRules = {
+            length: document.getElementById("ruleLength"),
+            variety: document.getElementById("ruleVariety")
+        };
+        const aceptaPrivacidad = document.getElementById("acepta_tratamiento_datos");
+        const camposUnicos = [
+            {
+                campo: "usuario",
+                input: document.getElementById("usuario"),
+                feedback: document.getElementById("usuarioFeedback"),
+                mensaje: "Este nombre de usuario ya está registrado."
+            },
+            {
+                campo: "correo",
+                input: document.getElementById("correo"),
+                feedback: document.getElementById("correoFeedback"),
+                mensaje: "Este correo electrónico ya está registrado."
+            },
+            {
+                campo: "telefono",
+                input: document.getElementById("telefono"),
+                feedback: document.getElementById("telefonoFeedback"),
+                mensaje: "Este número de celular ya está registrado."
+            }
+        ];
+        const datosDuplicados = new Set();
+        const nombres = document.getElementById("nombres");
+        const apellidos = document.getElementById("apellidos");
+        const telefono = document.getElementById("telefono");
+        const validacionesTexto = [
+            {
+                input: nombres,
+                feedback: document.getElementById("nombresFeedback"),
+                mensaje: "Escribe al menos 4 letras. No uses números ni símbolos."
+            },
+            {
+                input: apellidos,
+                feedback: document.getElementById("apellidosFeedback"),
+                mensaje: "Escribe al menos 4 letras. No uses números ni símbolos."
+            }
+        ];
+
+        const mostrarAdvertencias = (mensajes) => {
+            listaAdvertencias.innerHTML = "";
+            mensajes.forEach((mensaje) => {
+                const item = document.createElement("li");
+                item.textContent = mensaje;
+                listaAdvertencias.appendChild(item);
+            });
+            advertencia.classList.toggle("d-none", mensajes.length === 0);
+            advertencia.classList.toggle("d-flex", mensajes.length > 0);
+        };
+
+        const revisarCampo = (campo) => {
+            if (!campo) return;
+            campo.classList.toggle("is-valid", campo.value.trim() && campo.checkValidity());
+            campo.classList.toggle("is-invalid", !campo.checkValidity());
+        };
+
+        const revisarTexto = (item) => {
+            if (!item.input) return false;
+            const valor = item.input.value.trim();
+            const valido = /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]{4,}$/.test(valor);
+            item.input.classList.toggle("is-valid", valido);
+            item.input.classList.toggle("is-invalid", !valido);
+            item.feedback.textContent = valido ? "" : item.mensaje;
+            return valido;
+        };
+
+        const revisarTelefono = () => {
+            if (!telefono) return false;
+            telefono.value = telefono.value.replace(/\D/g, "").slice(0, 10);
+            const valido = /^\d{10}$/.test(telefono.value);
+            telefono.classList.toggle("is-valid", valido);
+            telefono.classList.toggle("is-invalid", !valido);
+            return valido;
+        };
+
+        validacionesTexto.forEach((item) => {
+            if (!item.input) return;
+            item.input.addEventListener("input", () => revisarTexto(item));
+            item.input.addEventListener("blur", () => revisarTexto(item));
+        });
+        if (telefono) {
+            telefono.addEventListener("input", revisarTelefono);
+            telefono.addEventListener("blur", revisarTelefono);
+        }
+
+        const actualizarReglasPassword = () => {
+            if (!password) return false;
+            const valor = password.value;
+            const longitud = valor.length >= 12;
+            const tipos = [
+                /[a-z]/.test(valor),
+                /[A-Z]/.test(valor),
+                /\d/.test(valor),
+                /[^A-Za-z0-9]/.test(valor)
+            ].filter(Boolean).length;
+            const variedad = tipos >= 3;
+            const reglas = { length: longitud, variety: variedad };
+            Object.entries(reglas).forEach(([nombre, cumple]) => {
+                const regla = passwordRules[nombre];
+                if (!regla) return;
+                regla.classList.toggle("is-met", cumple);
+                const icono = regla.querySelector("i");
+                if (icono) {
+                    icono.classList.toggle("bi-check2-circle", cumple);
+                    icono.classList.toggle("bi-dot", !cumple);
+                }
+            });
+            const calidad = !valor
+                ? 0
+                : !longitud
+                    ? 1
+                    : !variedad
+                        ? 2
+                        : valor.length >= 16 && tipos === 4
+                            ? 4
+                            : 3;
+            if (passwordStrengthTrack) {
+                passwordStrengthTrack.dataset.strength = String(calidad);
+                passwordStrengthTrack.setAttribute("aria-valuenow", calidad);
+            }
+            const estados = ["Aún sin evaluar", "Alarga la clave", "Añade variedad", "Buena", "Excelente"];
+            passwordStrengthText.textContent = estados[calidad];
+            passwordStrengthText.dataset.strength = String(calidad);
+            return longitud && variedad;
+        };
+
+        const revisarConfirmacion = () => {
+            if (!confirmPassword) return false;
+            const coincide = confirmPassword.value.length > 0 && confirmPassword.value === password.value;
+            confirmPassword.classList.toggle("is-valid", coincide);
+            confirmPassword.classList.toggle("is-invalid", !coincide);
+            confirmPasswordFeedback.textContent = coincide ? "" : "Las contraseñas no coinciden.";
+            return coincide;
+        };
+
+        [password, confirmPassword, aceptaTerminos, aceptaPrivacidad].forEach((campo) => {
+            if (campo) {
+                campo.addEventListener("input", () => {
+                    revisarCampo(campo);
+                    if (campo === password) actualizarReglasPassword();
+                    if (campo === confirmPassword || campo === password) revisarConfirmacion();
+                });
+                campo.addEventListener("change", () => {
+                    revisarCampo(campo);
+                    if (campo === password) actualizarReglasPassword();
+                    if (campo === confirmPassword || campo === password) revisarConfirmacion();
+                });
+            }
+        });
+        actualizarReglasPassword();
+        if (confirmPassword && confirmPassword.value) revisarConfirmacion();
+
+        const comprobarDisponibilidad = async (item) => {
+            const valor = item.input.value.trim();
+            if (!valor || !item.input.checkValidity()) return true;
+
+            const parametros = new URLSearchParams({
+                campo: item.campo,
+                valor: valor
+            });
+            try {
+                const respuesta = await fetch(`/registro/disponibilidad?${parametros.toString()}`, {
+                    headers: { "X-Requested-With": "XMLHttpRequest" }
+                });
+                const resultado = await respuesta.json();
+                item.input.classList.toggle("is-invalid", !resultado.disponible);
+                item.input.classList.toggle("is-valid", resultado.disponible);
+                item.feedback.textContent = resultado.disponible ? "" : (resultado.mensaje || item.mensaje);
+                if (resultado.disponible) {
+                    datosDuplicados.delete(item.campo);
+                } else {
+                    datosDuplicados.add(item.campo);
+                }
+                return resultado.disponible;
+            } catch (error) {
+                item.feedback.textContent = "No se pudo comprobar este dato. Inténtalo nuevamente.";
+                item.input.classList.add("is-invalid");
+                datosDuplicados.add(item.campo);
+                return false;
+            }
+        };
+
+        camposUnicos.forEach((item) => {
+            if (!item.input) return;
+            item.input.addEventListener("blur", () => {
+                comprobarDisponibilidad(item);
+            });
+            item.input.addEventListener("input", () => {
+                datosDuplicados.delete(item.campo);
+                item.feedback.textContent = "";
+            });
+        });
+
+        registroForm.addEventListener("submit", async (evento) => {
+            evento.preventDefault();
+            const mensajes = [];
+            const campos = Array.from(registroForm.querySelectorAll("input, select"));
+
+            campos.forEach((campo) => {
+                if (campo.type !== "hidden") revisarCampo(campo);
+            });
+
+            if (!registroForm.checkValidity()) {
+                mensajes.push("Completa correctamente todos los campos obligatorios.");
+            }
+            validacionesTexto.forEach((item) => {
+                if (!revisarTexto(item)) mensajes.push(item.mensaje);
+            });
+            if (!revisarTelefono()) {
+                mensajes.push("El teléfono debe contener exactamente 10 números.");
+            }
+            const disponibilidad = await Promise.all(
+                camposUnicos.map((item) => comprobarDisponibilidad(item))
+            );
+            if (disponibilidad.includes(false)) {
+                mensajes.push("Corrige los datos repetidos o no disponibles antes de continuar.");
+            }
+            const clasesPassword = password
+                ? [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter((regla) => regla.test(password.value)).length
+                : 0;
+            if (password && (password.value.length < 12 || clasesPassword < 3)) {
+                mensajes.push("Usa al menos 12 caracteres y combina 3 tipos: minúsculas, mayúsculas, números o símbolos.");
+            }
+            if (password && confirmPassword && password.value !== confirmPassword.value) {
+                mensajes.push("Las contraseñas no coinciden.");
+            }
+            if (aceptaTerminos && !aceptaTerminos.checked) {
+                mensajes.push("Debes aceptar los Términos de uso.");
+            }
+            if (aceptaPrivacidad && !aceptaPrivacidad.checked) {
+                mensajes.push("Debes leer y aceptar el Aviso de Privacidad.");
+            }
+            const fechaNacimiento = document.getElementById("fecha_nacimiento");
+            const esMayorEdad = document.getElementById("es_mayor_edad");
+            if (fechaNacimiento && !fechaNacimiento.value) {
+                mensajes.push("Ingresa tu fecha de nacimiento.");
+            }
+            if (esMayorEdad && !esMayorEdad.checked) {
+                mensajes.push("Debes declarar que eres mayor de edad.");
+            }
+
+            if (mensajes.length) {
+                mostrarAdvertencias(mensajes);
+                const primerCampoInvalido = registroForm.querySelector(":invalid");
+                if (primerCampoInvalido) primerCampoInvalido.focus();
+                return;
+            }
+
+            mostrarAdvertencias([]);
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Guardando información...';
+            }
+            registroForm.submit();
+        });
+    }
+
+    // Validación uniforme para login, 2FA y formularios CRUD.
+    document.querySelectorAll(".form-card form:not(#registroForm):not(#form2fa):not(#formSolicitud)").forEach((formulario) => {
+        const campos = Array.from(formulario.querySelectorAll("input, select, textarea"))
+            .filter((campo) => campo.type !== "hidden" && !campo.disabled);
+        const boton = formulario.querySelector('button[type="submit"], input[type="submit"]');
+
+        const actualizarCampo = (campo, mostrarVacio = false) => {
+            const tieneValor = campo.type === "checkbox" ? campo.checked : campo.value.trim() !== "";
+            const valido = campo.checkValidity() && (tieneValor || !campo.required);
+            if (valido && (tieneValor || !campo.required)) {
+                campo.classList.add("is-valid");
+                campo.classList.remove("is-invalid");
+            } else if (mostrarVacio || tieneValor) {
+                campo.classList.add("is-invalid");
+                campo.classList.remove("is-valid");
+            }
+        };
+
+        campos.forEach((campo) => {
+            campo.addEventListener("input", () => actualizarCampo(campo));
+            campo.addEventListener("change", () => actualizarCampo(campo, true));
+            campo.addEventListener("blur", () => actualizarCampo(campo, true));
+        });
+
+        formulario.addEventListener("submit", (evento) => {
+            campos.forEach((campo) => actualizarCampo(campo, true));
+            if (!formulario.checkValidity()) {
+                evento.preventDefault();
+                const primerCampoInvalido = campos.find((campo) => !campo.checkValidity());
+                if (primerCampoInvalido) primerCampoInvalido.focus();
+                return;
+            }
+
+            if (boton) {
+                boton.disabled = true;
+                if (boton.tagName === "BUTTON") {
+                    boton.dataset.textoOriginal = boton.innerHTML;
+                    boton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Guardando información...';
+                } else {
+                    boton.dataset.textoOriginal = boton.value;
+                    boton.value = "Guardando información...";
+                }
+            }
+        });
+    });
+
+    // Referencia al formulario de solicitudes
+    const formulario = document.getElementById("formSolicitud");
+
+    // Si el formulario no existe en la página actual, salir de forma segura
+    if (!formulario) return;
+
+    // Referencias a los elementos del DOM
+    const nombreCliente = document.getElementById("nombreCliente");
+    const correoSolicitud = document.getElementById("correoSolicitud");
+    const telefonoSolicitud = document.getElementById("telefonoSolicitud");
+    const tipoProducto = document.getElementById("tipoProducto");
+    const descripcionSolicitud = document.getElementById("descripcionSolicitud");
+    const listaSolicitudes = document.getElementById("listaSolicitudes");
+    const totalSolicitudes = document.getElementById("totalSolicitudes");
+    const spinner = document.getElementById("spinnerCarga");
+
+    // Las solicitudes reales se guardan en PostgreSQL; esta lista solo se limpia
+    // para no mostrar datos de demostración almacenados en navegadores antiguos.
+    const solicitudes = [];
+
+    // --------------------------------------------------------------------------
+    // FUNCIONES DE VALIDACIÓN INDIVIDUAL DE CAMPOS
+    // --------------------------------------------------------------------------
+
+    /**
+     * Valida que el nombre tenga más de 3 caracteres y solo texto.
+     */
+    function validarNombre() {
+        if (!nombreCliente) return false;
+        const valor = nombreCliente.value.trim();
+        const patron = /^(?=.{4,150}$)[\p{L}]+(?:[ .'-][\p{L}]+)*$/u;
+
+        if (!patron.test(valor)) {
+            nombreCliente.classList.add("is-invalid");
+            nombreCliente.classList.remove("is-valid");
+            return false;
+        } else {
+            nombreCliente.classList.add("is-valid");
+            nombreCliente.classList.remove("is-invalid");
+            return true;
+        }
+    }
+
+    /**
+     * Valida que se haya seleccionado un tipo de producto de la lista desplegable.
+     */
+    function validarProducto() {
+        if (!tipoProducto) return false;
+        const valor = tipoProducto.value;
+
+        if (valor === "") {
+            tipoProducto.classList.add("is-invalid");
+            tipoProducto.classList.remove("is-valid");
+            return false;
+        } else {
+            tipoProducto.classList.add("is-valid");
+            tipoProducto.classList.remove("is-invalid");
+            return true;
+        }
+    }
+
+    /**
+     * Valida que la descripción contenga al menos 10 caracteres explicativos.
+     */
+    function validarDescripcion() {
+        if (!descripcionSolicitud) return false;
+        const valor = descripcionSolicitud.value.trim();
+
+        if (valor.length < 10) {
+            descripcionSolicitud.classList.add("is-invalid");
+            descripcionSolicitud.classList.remove("is-valid");
+            return false;
+        } else {
+            descripcionSolicitud.classList.add("is-valid");
+            descripcionSolicitud.classList.remove("is-invalid");
+            return true;
+        }
+    }
+
+    function normalizarTelefono() {
+        if (!telefonoSolicitud) return "";
+        telefonoSolicitud.value = telefonoSolicitud.value.replace(/\D/g, "").slice(0, 10);
+        return telefonoSolicitud.value;
+    }
+
+    function validarCorreo() {
+        if (!correoSolicitud) return false;
+        const valor = correoSolicitud.value.trim().toLowerCase();
+        correoSolicitud.value = valor;
+        const valido = valor.length <= 150
+            && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(valor);
+        correoSolicitud.classList.toggle("is-valid", valido);
+        correoSolicitud.classList.toggle("is-invalid", !valido);
+        return valido;
+    }
+
+    function validarTelefono() {
+        const valor = normalizarTelefono();
+        const valido = /^\d{10}$/.test(valor);
+        if (telefonoSolicitud) {
+            telefonoSolicitud.classList.toggle("is-valid", valido && valor !== "");
+            telefonoSolicitud.classList.toggle("is-invalid", !valido);
+        }
+        return valido;
+    }
+
+    // --------------------------------------------------------------------------
+    // ESCUCHADORES DE EVENTOS DE VALIDACIÓN ('input', 'change', 'blur')
+    // --------------------------------------------------------------------------
+    if (nombreCliente) {
+        nombreCliente.addEventListener("input", validarNombre);
+        nombreCliente.addEventListener("blur", validarNombre);
+    }
+
+    if (tipoProducto) {
+        tipoProducto.addEventListener("change", validarProducto);
+        tipoProducto.addEventListener("blur", validarProducto);
+    }
+
+    if (descripcionSolicitud) {
+        descripcionSolicitud.addEventListener("input", validarDescripcion);
+        descripcionSolicitud.addEventListener("blur", validarDescripcion);
+    }
+    if (correoSolicitud) {
+        correoSolicitud.addEventListener("input", validarCorreo);
+        correoSolicitud.addEventListener("blur", validarCorreo);
+    }
+    if (telefonoSolicitud) {
+        telefonoSolicitud.addEventListener("input", validarTelefono);
+        telefonoSolicitud.addEventListener("blur", validarTelefono);
+    }
+
+    // --------------------------------------------------------------------------
+    // RENDERIZADO DE LAS TARJETAS DE SOLICITUDES EN EL DOM
+    // --------------------------------------------------------------------------
+    /**
+     * Limpia y vuelve a generar los elementos visuales de las solicitudes activas.
+     */
+    window.mostrarSolicitudes = function () {
+        if (!listaSolicitudes || !totalSolicitudes) return;
+
+        // Limpiar el contenedor
+        listaSolicitudes.innerHTML = "";
+
+        // Si no hay solicitudes, mostrar estado vacío
+        if (solicitudes.length === 0) {
+            listaSolicitudes.innerHTML = `
+                <div class="col-12">
+                    <div class="card p-4 text-center border-0 bg-light rounded-4">
+                        <i class="bi bi-inbox text-muted fs-1 mb-2"></i>
+                        <p class="text-muted mb-0">No hay solicitudes registradas en este momento.</p>
+                    </div>
+                </div>
+            `;
+            totalSolicitudes.textContent = "0";
+            return;
+        }
+
+        // Iterar y crear cada tarjeta de solicitud
+        solicitudes.forEach((sol, index) => {
+            const columna = document.createElement("div");
+            columna.className = "col-md-6 col-lg-4";
+
+            columna.innerHTML = `
+                <div class="card h-100 shadow-sm border-0 rounded-4 overflow-hidden">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="badge bg-emerald-subtle text-emerald fw-semibold px-2 py-1 small rounded-pill">
+                                <i class="bi bi-tag-fill me-1"></i>${sol.producto}
+                            </span>
+                            <button type="button" class="btn btn-outline-danger btn-sm rounded-circle" style="width: 32px; height: 32px; padding: 0;" title="Eliminar solicitud" onclick="eliminarSolicitud(${index})">
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
+                        </div>
+                        <h5 class="card-title fw-bold text-navy mb-2">${sol.nombre}</h5>
+                        <p class="card-text text-muted small flex-grow-1 mb-3">${sol.descripcion}</p>
+                        <div class="pt-2 border-top d-flex justify-content-between align-items-center">
+                            <small class="text-muted"><i class="bi bi-clock-history me-1"></i>Registrado</small>
+                            <span class="badge bg-navy text-white small px-2 py-1">En revisión</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            listaSolicitudes.appendChild(columna);
+        });
+
+        // Actualizar el contador total en el encabezado
+        totalSolicitudes.textContent = solicitudes.length.toString();
+    };
+
+    // --------------------------------------------------------------------------
+    // FUNCIÓN PARA ELIMINAR UNA SOLICITUD
+    // --------------------------------------------------------------------------
+    /**
+     * La eliminación de solicitudes está reservada al gestor en la vista operativa.
+     */
+    window.eliminarSolicitud = function (index) {
+        if (confirm("¿Estás seguro de que deseas eliminar esta solicitud?")) {
+            mostrarSolicitudes();
+        }
+    };
+
+    // --------------------------------------------------------------------------
+    // PROCESAMIENTO DEL ENVÍO DEL FORMULARIO DE SOLICITUD
+    // --------------------------------------------------------------------------
+    formulario.addEventListener("submit", async function (e) {
+        e.preventDefault();
+
+        const nombreValido = validarNombre();
+        const productoValido = validarProducto();
+        const descripcionValida = validarDescripcion();
+        const correoValido = validarCorreo();
+        const telefonoValido = validarTelefono();
+
+        // Si algún campo no es válido, indicar exactamente qué debe corregirse.
+        if (!nombreValido || !productoValido || !descripcionValida || !correoValido || !telefonoValido) {
+            const mensajes = [];
+            if (!nombreValido) mensajes.push("El nombre debe tener mínimo 4 letras y solo texto.");
+            if (!correoValido) mensajes.push("Escribe un correo electrónico válido.");
+            if (!telefonoValido) mensajes.push("El teléfono es obligatorio y debe tener exactamente 10 números.");
+            if (!productoValido) mensajes.push("Selecciona un tipo de producto.");
+            if (!descripcionValida) mensajes.push("La descripción debe tener mínimo 10 caracteres.");
+            const errorMensaje = document.getElementById("solicitudErrorMensaje");
+            if (errorMensaje) {
+                errorMensaje.textContent = `Revisa: ${mensajes.join(" ")}`;
+            }
+            const errorModalEl = document.getElementById("solicitudErrorModal");
+            if (errorModalEl && typeof bootstrap !== "undefined") {
+                bootstrap.Modal.getOrCreateInstance(errorModalEl).show();
+            }
+            const primerCampoInvalido = [
+                [nombreCliente, nombreValido],
+                [correoSolicitud, correoValido],
+                [telefonoSolicitud, telefonoValido],
+                [tipoProducto, productoValido],
+                [descripcionSolicitud, descripcionValida]
+            ].find(([, valido]) => !valido);
+            if (primerCampoInvalido && primerCampoInvalido[0]) {
+                primerCampoInvalido[0].focus();
+            }
+            return;
+        }
+
+        const botonEnvio = formulario.querySelector('button[type="submit"]');
+        const textoOriginal = botonEnvio ? botonEnvio.innerHTML : "";
+        const tokenCsrf = formulario.querySelector('input[name="csrf_token"]')?.value;
+        if (spinner) spinner.classList.remove("d-none");
+        if (botonEnvio) {
+            botonEnvio.disabled = true;
+            botonEnvio.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Enviando consulta...';
+        }
+
+        try {
+            const respuesta = await fetch(formulario.action, {
+                method: "POST",
+                headers: {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                    ...(tokenCsrf ? {"X-CSRFToken": tokenCsrf} : {})
+                },
+                body: JSON.stringify({
+                    nombre: nombreCliente.value.trim(),
+                    correo: correoSolicitud.value.trim(),
+                    telefono: normalizarTelefono(),
+                    tipo_producto: tipoProducto.value.trim(),
+                    mensaje: descripcionSolicitud.value.trim()
+                })
+            });
+
+            const tipoContenido = respuesta.headers.get("content-type") || "";
+            if (!tipoContenido.includes("application/json")) {
+                throw new Error(
+                    respuesta.status === 400
+                        ? "La sesión del formulario venció. Recarga la página e inténtalo de nuevo."
+                        : `El servidor no devolvió una respuesta válida (${respuesta.status}). Recarga la página e inténtalo de nuevo.`
+                );
+            }
+            const datos = await respuesta.json();
+            if (!respuesta.ok) {
+                throw new Error(datos.mensaje || "No se pudo guardar la consulta. Inténtalo de nuevo.");
+            }
+            if (!datos.ok || !datos.id) {
+                throw new Error(datos.mensaje || "No se confirmó el registro de la consulta. Inténtalo de nuevo.");
+            }
+
+            const successModalEl = document.getElementById("solicitudSuccessModal");
+            if (successModalEl && typeof bootstrap !== "undefined") {
+                bootstrap.Modal.getOrCreateInstance(successModalEl).show();
+            }
+            formulario.reset();
+            [nombreCliente, correoSolicitud, telefonoSolicitud, tipoProducto, descripcionSolicitud]
+                .forEach(campo => campo?.classList.remove("is-valid", "is-invalid"));
+            mostrarSolicitudes();
+        } catch (error) {
+            console.error("No se pudo enviar la consulta de contacto:", error);
+            const errorMensaje = document.getElementById("solicitudErrorMensaje");
+            if (errorMensaje) errorMensaje.textContent = error.message;
+            const errorModalEl = document.getElementById("solicitudErrorModal");
+            if (errorModalEl && typeof bootstrap !== "undefined") {
+                bootstrap.Modal.getOrCreateInstance(errorModalEl).show();
+            }
+        } finally {
+            if (spinner) spinner.classList.add("d-none");
+            if (botonEnvio) {
+                botonEnvio.disabled = false;
+                botonEnvio.innerHTML = textoOriginal;
+            }
+        }
+    });
+
+    // Renderizar solicitudes iniciales al cargar la página
+    mostrarSolicitudes();
 });

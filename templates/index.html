@@ -1,228 +1,263 @@
 {% extends "base.html" %}
 
-{% block title %}Inicio - Dulce Delicia | Pastelería Artesanal{% endblock %}
+{% block titulo %}Dulce Delicia | Pastelería artesanal{% endblock %}
 
 {% block content %}
-<!-- Sección 1: Hero Principal (Inicio de la Tienda Dulce Delicia) -->
-<section id="inicio" class="hero-artesanal text-center">
-  <div class="container position-relative" style="z-index: 2;">
-    <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-semibold mb-3">
-      <i class="fa-solid fa-star me-1"></i> Repostería Fina & Postres de Autor
-    </span>
-    <h1 class="display-4 fw-bold">Endulzamos tu día con arte</h1>
-    <p class="lead mt-3 mx-auto">
-      Cheesecakes, tartas, mousses y postres artesanales preparados con dedicación y amor.
-    </p>
-    <div class="mt-4 d-flex gap-3 justify-content-center flex-wrap">
-      <a href="#productos" class="btn btn-caramelo btn-lg">
-        <i class="fa-solid fa-cookie-bite me-1"></i> Ver catálogo
-      </a>
-      <a href="#contacto" class="btn btn-outline-light btn-lg rounded-pill px-4">
-        <i class="fa-solid fa-paper-plane me-1"></i> Haz tu pedido
-      </a>
-    </div>
-  </div>
-</section>
-
-<!-- Sección 2: Quiénes Somos -->
-<section id="quienes" class="py-5 bg-white">
-  <div class="container">
-    <div class="row align-items-center g-5">
-      <div class="col-lg-5 col-md-6 text-center">
-        <img src="{{ url_for('static', filename='img/DULCEDELICIA.png') }}" alt="Dulce Delicia Pastelería Artesanal" class="img-fluid rounded-4 shadow-sm border">
-      </div>
-      <article class="col-lg-7 col-md-6">
-        <span class="badge badge-artesanal badge-moka mb-2">Tradición y Calidad</span>
-        <h2 class="h2 mb-3">Quiénes Somos</h2>
-        <p class="text-muted leading-relaxed mb-3">
-          <strong>Dulce Delicia</strong> nació del sueño de compartir momentos especiales a través de la magia de los postres. 
-          Lo que comenzó como una pequeña idea en la cocina familiar se transformó en un emprendimiento dedicado 
-          a crear experiencias dulces que alegran el corazón.
-        </p>
-        <p class="text-muted leading-relaxed mb-4">
-          Nuestra pasión por lo artesanal nos inspira a combinar recetas tradicionales con un toque moderno, 
-          logrando postres únicos que reflejan calidad, frescura y creatividad.
-        </p>
-        <div class="d-flex gap-3">
-          <a href="#productos" class="btn btn-outline-caramelo btn-sm">
-            <i class="fa-solid fa-cookie-bite me-1"></i> Conoce Nuestros Postres
-          </a>
-        </div>
-      </article>
-    </div>
-  </div>
-</section>
-
-<!-- Sección 3: Nuestros Productos (Catálogo para Clientes) -->
-<section id="productos" class="py-5" style="background-color: var(--c-crema);">
-  <div class="container">
-    <div class="d-flex justify-content-between align-items-end mb-4 flex-wrap gap-2">
-      <div>
-        <p class="text-uppercase text-muted fw-semibold small mb-1">Catálogo Especial</p>
-        <h2 class="h2 mb-0">Nuestros Productos</h2>
-      </div>
-    </div>
-
-    <div class="row g-4">
-      {% for producto in productos %}
-      <article class="col-md-4">
-        <div class="card card-artesanal h-100 border-0 text-center shadow-sm">
-          <img src="{{ url_for('static', filename=producto.imagen) }}" alt="{{ producto.nombre }}" class="img-postre-card">
-          <div class="card-body p-4 d-flex flex-column">
-            <h3 class="h5 card-title mb-1">{{ producto.nombre|title }}</h3>
-            <p class="text-muted small flex-grow-1">{{ producto.descripcion }}</p>
-            <p class="fw-bold fs-5 text-dark my-2">${{ "%.2f"|format(producto.precio) }}</p>
-            <div class="mt-auto">
-              <a href="#contacto" class="btn btn-verde-pedido w-100">
-                <i class="fa-solid fa-cart-shopping me-1"></i> Ordenar
-              </a>
+<section class="hero-delicia" id="inicio" aria-labelledby="heroTitulo">
+    <div class="container py-5">
+        <div class="row">
+            <div class="col-lg-8 col-xl-7">
+                <span class="hero-eyebrow mb-3">
+                    <i class="bi bi-stars" aria-hidden="true"></i>
+                    Repostería fina hecha con cariño
+                </span>
+                <h1 id="heroTitulo" class="mb-3">Un detalle dulce convierte cualquier día en especial.</h1>
+                <p class="lead mb-4">{{ mensaje }}</p>
+                <div class="d-flex flex-wrap gap-3">
+                    <a class="btn btn-verde btn-lg rounded-pill px-4" href="#productos">
+                        <i class="bi bi-cake2 me-2" aria-hidden="true"></i>Descubrir postres
+                    </a>
+                    <a class="btn btn-outline-light btn-lg rounded-pill px-4" href="#contacto">
+                        <i class="bi bi-chat-heart me-2" aria-hidden="true"></i>Hacer un pedido
+                    </a>
+                </div>
+                <div class="d-flex flex-wrap gap-3 gap-md-4 mt-4 small text-white">
+                    <span><i class="bi bi-heart-fill me-1 text-warning" aria-hidden="true"></i>Preparación artesanal</span>
+                    <span><i class="bi bi-gift-fill me-1 text-warning" aria-hidden="true"></i>Para compartir y celebrar</span>
+                </div>
             </div>
-          </div>
         </div>
-      </article>
-      {% else %}
-      <div class="col-12 text-center py-4">
-        <p class="text-muted">No hay productos disponibles.</p>
-      </div>
-      {% endfor %}
     </div>
-  </div>
 </section>
 
-<!-- Sección 4: Video Promocional -->
-<section id="video" class="py-5 text-center bg-dark text-white">
-  <div class="container">
-    <h2 class="mb-3 text-white">Conoce más sobre Dulce Delicia</h2>
-    <p class="text-light-emphasis mb-4">Descubre el proceso artesanal y el amor detrás de cada una de nuestras creaciones.</p>
-    <div class="ratio ratio-16x9 shadow rounded-4 overflow-hidden max-w-700 mx-auto" style="max-width: 750px;">
-      <iframe src="https://www.youtube.com/embed/iGQPAGuocsM?si=rbNyfZeYBrIZaskm" title="Dulce Delicia Video Promocional" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<section class="home-section bg-white" id="nosotros" aria-labelledby="nosotrosTitulo">
+    <div class="container">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-5">
+                <img class="home-story-image img-fluid rounded-4 shadow-sm w-100" src="{{ url_for('static', filename='img/DULCEDELICIA.png') }}"
+                    alt="El ambiente cálido de Dulce Delicia y su vitrina de postres artesanales" loading="lazy">
+            </div>
+            <div class="col-lg-7">
+                <span class="badge rounded-pill bg-emerald-subtle text-emerald px-3 py-2 mb-3">Tradición y dedicación</span>
+                <h2 class="display-6 fw-bold mb-3" id="nosotrosTitulo">Cada postre cuenta una historia.</h2>
+                <p class="lead text-body">
+                    En <strong>{{ empresa.nombre }}</strong> creemos que los mejores momentos se disfrutan alrededor de algo rico.
+                    Preparamos nuestros postres con cuidado, atención al detalle y mucho cariño.
+                </p>
+                <p class="text-muted mb-4">
+                    Encuentra un detalle para una celebración, comparte un antojo o escríbenos para conversar sobre un pedido especial.
+                </p>
+                <a class="btn btn-outline-brand rounded-pill px-4" href="#productos">
+                    Conocer nuestros favoritos <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+                </a>
+            </div>
+        </div>
     </div>
-  </div>
 </section>
 
-<!-- Sección 5: Formulario de Contacto Interactivo -->
-<section id="contacto" class="py-5 bg-white">
-  <div class="container">
-    <div class="text-center max-w-600 mx-auto mb-4">
-      <span class="badge badge-artesanal badge-moka mb-2">Atención al Cliente</span>
-      <h2 class="h2 mb-1">Contáctanos</h2>
-      <p class="text-muted">Te responderemos en las próximas 24 horas.</p>
+<section class="home-section home-products" id="productos" aria-labelledby="productosTitulo">
+    <div class="container">
+        <div class="home-section-heading mb-4 mb-lg-5">
+            <span class="text-uppercase text-emerald fw-semibold small tracking-wider">Una pausa deliciosa</span>
+            <h2 class="display-6 fw-bold mt-2 mb-2" id="productosTitulo">Favoritos de la casa</h2>
+            <p class="mb-0">Una selección de seis favoritos para descubrir; consulta su disponibilidad o pide algo especial.</p>
+        </div>
+
+        {% if not base_datos_disponible %}
+        <div class="alert alert-warning d-flex align-items-start gap-2" role="status">
+            <i class="bi bi-database-exclamation fs-5" aria-hidden="true"></i>
+            <div>
+                <strong>El catálogo no está disponible temporalmente.</strong>
+                <div>Vuelve a intentarlo más tarde o envíanos tu consulta.</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="row g-4">
+            {% for s in productos %}
+            <article class="col-md-6 col-lg-4">
+                <div class="home-product-card d-flex flex-column">
+                    <img class="home-product-image" src="{{ url_for('imagen_producto', producto_id=s.id) }}" alt="{{ s.nombre }}" loading="lazy">
+                    <div class="p-4 d-flex flex-column flex-grow-1">
+                        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                            <span class="badge rounded-pill bg-emerald-subtle text-emerald">{{ s.categoria_nombre }}</span>
+                            {% if s.disponible %}
+                            <span class="small text-success"><i class="bi bi-check-circle-fill me-1" aria-hidden="true"></i>Disponible</span>
+                            {% elif puede_ver_futuros %}
+                            <span class="small text-muted">Próximamente</span>
+                            {% else %}
+                            <span class="small text-success"><i class="bi bi-check-circle-fill me-1" aria-hidden="true"></i>Disponible</span>
+                            {% endif %}
+                        </div>
+                        <h3 class="h4 mb-2">{{ s.nombre }}</h3>
+                        <p class="text-muted flex-grow-1">{{ s.descripcion or 'Un favorito preparado con ingredientes seleccionados.' }}</p>
+                        <div class="d-flex align-items-center justify-content-between gap-2 border-top pt-3">
+                            <span class="home-product-price">${{ "%.2f"|format(s.precio_base or 0.0) }}</span>
+                            {% if current_user.is_authenticated and current_user.has_role('Administrador', 'Encargado', 'Vendedor') %}
+                            <a class="btn btn-sm btn-outline-brand rounded-pill" href="{{ url_for('nueva_factura', producto_id=s.id, tipo='Cotizacion') }}">
+                                <i class="bi bi-receipt me-1" aria-hidden="true"></i>Cotizar
+                            </a>
+                            {% else %}
+                            <a class="btn btn-sm btn-outline-brand rounded-pill" href="#contacto">Consultar</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </article>
+            {% else %}
+            <div class="col-12">
+                <div class="empty-state-card text-center p-4 p-md-5 rounded-4">
+                    <i class="bi bi-cake2 display-5 text-emerald" aria-hidden="true"></i>
+                    <h3 class="h4 mt-3">Pronto compartiremos nuestro catálogo</h3>
+                    <p class="text-muted mb-0">Mientras tanto, cuéntanos qué te gustaría disfrutar y prepararemos una propuesta.</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="text-center mt-4 mt-lg-5">
+            <a href="{{ url_for('productos') }}" class="btn btn-verde rounded-pill px-4">
+                Explorar el catálogo completo <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+            </a>
+        </div>
     </div>
-
-    <!-- Caja del Formulario -->
-    <div class="form-contacto-box">
-      <form class="row g-3" id="formContacto" novalidate>
-        <!-- Nombre Completo -->
-        <div class="col-md-6">
-          <label for="nombreContacto" class="form-label">Nombre Completo <span class="text-danger">*</span></label>
-          <input type="text" id="nombreContacto" name="nombre" class="form-control" placeholder="Tu nombre completo">
-          <div class="form-help-text text-muted small">El nombre debe tener al menos 3 caracteres.</div>
-          <div class="invalid-feedback">El nombre es requerido y debe tener al menos 3 letras.</div>
-        </div>
-
-        <!-- Correo Electrónico -->
-        <div class="col-md-6">
-          <label for="correoContacto" class="form-label">Correo Electrónico <span class="text-danger">*</span></label>
-          <input type="email" id="correoContacto" name="correo" class="form-control" placeholder="usuario@correo.com">
-          <div class="form-help-text text-muted small">Ingrese un correo válido. Ejemplo: usuario@dominio.com</div>
-          <div class="invalid-feedback">Ingrese un correo electrónico válido.</div>
-        </div>
-
-        <!-- Categoría -->
-        <div class="col-md-6">
-          <label for="categoriaContacto" class="form-label">Categoría <span class="text-danger">*</span></label>
-          <select id="categoriaContacto" name="categoria" class="form-select">
-            <option value="">Seleccione una opción</option>
-            <option value="Pedido Especial">Pedido Especial de Postres</option>
-            <option value="Consulta General">Consulta de Disponibilidad</option>
-            <option value="Evento o Boda">Evento / Cumpleaños</option>
-            <option value="Otro">Otro Asunto</option>
-          </select>
-          <div class="form-help-text text-muted small">Debe seleccionar una categoría.</div>
-          <div class="invalid-feedback">Debe seleccionar una categoría de la lista.</div>
-        </div>
-
-        <!-- Asunto -->
-        <div class="col-md-6">
-          <label for="asuntoContacto" class="form-label">Asunto <span class="text-danger">*</span></label>
-          <input type="text" id="asuntoContacto" name="asunto" class="form-control" placeholder="¿En qué podemos ayudarte?">
-          <div class="form-help-text text-muted small">El asunto debe tener al menos 5 caracteres.</div>
-          <div class="invalid-feedback">El asunto debe tener al menos 5 caracteres.</div>
-        </div>
-
-        <!-- Mensaje -->
-        <div class="col-12">
-          <label for="mensajeContacto" class="form-label">Mensaje <span class="text-danger">*</span></label>
-          <textarea id="mensajeContacto" name="mensaje" class="form-control" rows="4" placeholder="Escribe tu mensaje o detalles de tu pedido aquí..."></textarea>
-          <div class="form-help-text text-muted small">El mensaje debe tener al menos 10 caracteres.</div>
-          <div class="invalid-feedback">El mensaje debe tener al menos 10 caracteres.</div>
-        </div>
-
-        <!-- Botón de Envío -->
-        <div class="col-12 text-center pt-2">
-          <button type="submit" class="btn btn-caramelo px-5 py-2">
-            <i class="fa-solid fa-paper-plane me-2"></i> Enviar Mensaje
-          </button>
-        </div>
-      </form>
-
-      <!-- Registros Dinámicos Enviados -->
-      <div id="registrosContainer" class="mt-5 pt-4 border-top">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h3 class="h5 mb-0"><i class="fa-solid fa-clipboard-list text-caramelo me-2"></i>Registros enviados</h3>
-          <span class="badge badge-artesanal badge-moka">Total: <span id="contadorRegistros">0</span></span>
-        </div>
-        <ul id="listaRegistros" class="list-group list-group-flush border rounded-3"></ul>
-      </div>
-
-      <!-- Redes Sociales y Canales de Contacto -->
-      <div class="text-center mt-5 pt-3 border-top">
-        <h4 class="h6 text-uppercase fw-bold text-muted mb-3">También puedes contactarnos por:</h4>
-        <div class="d-flex flex-wrap justify-content-center gap-2">
-          <a href="mailto:contacto@dulcedelicia.com" class="social-chip social-chip-mail">
-            <i class="fa-solid fa-envelope"></i> Correo
-          </a>
-          <a href="https://instagram.com" target="_blank" rel="noreferrer" class="social-chip social-chip-ig">
-            <i class="fa-brands fa-instagram"></i> Instagram
-          </a>
-          <a href="https://wa.me/593991112233" target="_blank" rel="noreferrer" class="social-chip social-chip-wa">
-            <i class="fa-brands fa-whatsapp"></i> WhatsApp
-          </a>
-          <a href="https://maps.google.com" target="_blank" rel="noreferrer" class="social-chip social-chip-map">
-            <i class="fa-solid fa-location-dot"></i> Ubicación
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
 </section>
 
-<!-- Banner Promoción Especial -->
-<aside class="promo-banner text-center">
-  <div class="container">
-    <h4><i class="fa-solid fa-gift me-2"></i>Promoción Especial</h4>
-    <p>¡2x1 en Cheesecakes y Tartas de Frutas los fines de semana! 🍰✨</p>
-  </div>
-</aside>
-
-<!-- Modales Emergentes Profesionales (Ocultos por defecto) -->
-<div id="modalExito" class="modal-overlay">
-  <div class="modal-content-custom">
-    <div class="rounded-circle bg-success bg-opacity-10 text-success mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-      <i class="fa-solid fa-circle-check fs-2"></i>
+<section id="video" class="home-section video-promocional py-5 text-center text-white" aria-labelledby="videoTitulo">
+    <div class="container">
+        <h2 class="mb-3 text-white" id="videoTitulo">Conoce más sobre Dulce Delicia</h2>
+        <p class="text-light-emphasis mb-4">Descubre el proceso artesanal y el amor detrás de cada una de nuestras creaciones.</p>
+        <div class="ratio ratio-16x9 shadow rounded-4 overflow-hidden mx-auto" style="max-width: 750px;">
+            <iframe src="https://www.youtube.com/embed/iGQPAGuocsM?si=rbNyfZeYBrIZaskm" title="Dulce Delicia Video Promocional" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        </div>
     </div>
-    <div id="mensajeExito"></div>
-    <button id="btnAceptarExito" class="btn btn-caramelo px-4 mt-3">Aceptar</button>
-  </div>
+</section>
+
+<section class="home-section bg-white" id="contacto" aria-labelledby="contactoTitulo">
+    <div class="container">
+        <div class="home-section-heading mb-4 mb-lg-5">
+            <span class="text-uppercase text-emerald fw-semibold small tracking-wider">Estamos para ayudarte</span>
+            <h2 class="display-6 fw-bold mt-2 mb-2" id="contactoTitulo">Cuéntanos qué se te antoja.</h2>
+            <p class="mb-0">Déjanos tus datos y tu consulta quedará registrada para que podamos darle seguimiento.</p>
+        </div>
+
+        <div class="home-contact-card">
+            <div class="row g-0">
+                <aside class="col-lg-4 home-contact-aside p-4 p-md-5">
+                    <span class="contact-aside-mark" aria-hidden="true"><i class="bi bi-chat-heart-fill"></i></span>
+                    <h3 class="h3 mt-3 mb-3">Hablemos de tu próximo postre</h3>
+                    <p>Cuéntanos para qué ocasión es y qué tienes en mente. Nuestro equipo revisará tu solicitud.</p>
+                    <hr class="contact-aside-divider my-4">
+                    <div class="d-flex flex-column gap-3 small contact-details">
+                        <div class="contact-detail"><i class="bi bi-bag-heart-fill" aria-hidden="true"></i><span>{{ empresa.ubicacion }}</span></div>
+                        <div class="contact-detail"><i class="bi bi-heart-fill" aria-hidden="true"></i><span>{{ empresa.modalidad }}</span></div>
+                        <div class="contact-detail"><i class="bi bi-shield-check" aria-hidden="true"></i><span>Tus datos se usan para atender tu solicitud.</span></div>
+                    </div>
+                    <div class="contact-location mt-4">
+                        <span class="contact-section-label">Punto de referencia en Quito</span>
+                        <a href="https://www.google.com/maps/search/?api=1&amp;query=Parque+La+Carolina%2C+Quito%2C+Ecuador"
+                           target="_blank" rel="noopener noreferrer">
+                            <i class="bi bi-geo-alt-fill" aria-hidden="true"></i>
+                            Parque La Carolina <span>(referencia, no dirección del local)</span>
+                        </a>
+                    </div>
+                    <div class="contact-social mt-4">
+                        <span class="contact-section-label">Redes sociales</span>
+                        <div class="contact-social-links" aria-label="Abrir redes sociales">
+                            <a href="https://www.facebook.com/login/" target="_blank" rel="noopener noreferrer" aria-label="Abrir Facebook">
+                                <i class="bi bi-facebook" aria-hidden="true"></i><span>Facebook</span>
+                            </a>
+                            <a href="https://www.instagram.com/accounts/login/" target="_blank" rel="noopener noreferrer" aria-label="Abrir Instagram">
+                                <i class="bi bi-instagram" aria-hidden="true"></i><span>Instagram</span>
+                            </a>
+                            <a href="https://www.tiktok.com/login" target="_blank" rel="noopener noreferrer" aria-label="Abrir TikTok">
+                                <i class="bi bi-tiktok" aria-hidden="true"></i><span>TikTok</span>
+                            </a>
+                            <a href="https://web.whatsapp.com/" target="_blank" rel="noopener noreferrer" aria-label="Abrir WhatsApp Web">
+                                <i class="bi bi-whatsapp" aria-hidden="true"></i><span>WhatsApp</span>
+                            </a>
+                        </div>
+                        <p class="contact-social-note mb-0">Enlaces a las plataformas; todavía no hay perfiles oficiales vinculados.</p>
+                    </div>
+                </aside>
+
+                <div class="col-lg-8 p-4 p-md-5">
+                    <form id="formSolicitud" class="home-contact-form" method="post" action="{{ url_for('crear_solicitud') }}" novalidate>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="nombreCliente" class="form-label fw-semibold">Nombre completo <span class="text-danger">*</span></label>
+                                <input type="text" id="nombreCliente" name="nombre" class="form-control" placeholder="Ej. Ana Pérez" minlength="4" maxlength="150" autocomplete="name" required>
+                                <div class="invalid-feedback">Ingresa tu nombre completo.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="correoSolicitud" class="form-label fw-semibold">Correo electrónico <span class="text-danger">*</span></label>
+                                <input type="email" id="correoSolicitud" name="correo" class="form-control" placeholder="tu@correo.com" maxlength="150" autocomplete="email" required>
+                                <div class="invalid-feedback">Ingresa un correo válido.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="telefonoSolicitud" class="form-label fw-semibold">Teléfono <span class="text-danger">*</span></label>
+                                <input type="tel" id="telefonoSolicitud" name="telefono" class="form-control" placeholder="0991234567" maxlength="10" inputmode="numeric" pattern="[0-9]{10}" autocomplete="tel" required>
+                                <div class="invalid-feedback">Ingresa un teléfono válido de diez números.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="tipoProducto" class="form-label fw-semibold">¿Qué estás buscando? <span class="text-danger">*</span></label>
+                                <select id="tipoProducto" name="tipo_producto" class="form-select" required>
+                                    <option value="">Selecciona una opción</option>
+                                    <option value="Cheesecake">Cheesecake</option>
+                                    <option value="Tartas y pasteles">Tartas y pasteles</option>
+                                    <option value="Mousses y postres">Mousses y postres</option>
+                                    <option value="Pedido personalizado">Pedido personalizado</option>
+                                    <option value="Pedido para evento">Pedido para evento</option>
+                                </select>
+                                <div class="invalid-feedback">Selecciona el tipo de pedido.</div>
+                            </div>
+                            <div class="col-12">
+                                <label for="descripcionSolicitud" class="form-label fw-semibold">Cuéntanos un poco más <span class="text-danger">*</span></label>
+                                <textarea id="descripcionSolicitud" name="mensaje" class="form-control" rows="4" maxlength="5000" placeholder="Cantidad, fecha, sabores o cualquier detalle que debamos conocer..." minlength="10" required></textarea>
+                                <div class="invalid-feedback">Incluye al menos diez caracteres.</div>
+                            </div>
+                            <div class="col-12 pt-2">
+                                <button type="submit" class="btn btn-verde btn-lg rounded-pill px-4">
+                                    <i class="bi bi-send me-2" aria-hidden="true"></i>Enviar consulta
+                                </button>
+                                <p class="form-text mt-2 mb-0">Los campos con <span class="text-danger">*</span> son obligatorios.</p>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="spinnerCarga" class="text-center d-none mt-3" role="status" aria-live="polite">
+                        <span class="spinner-border text-emerald" aria-hidden="true"></span>
+                        <span class="visually-hidden">Guardando la solicitud...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="modal fade" id="solicitudSuccessModal" tabindex="-1" aria-labelledby="solicitudSuccessTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content feedback-modal-content border-0 shadow">
+            <div class="modal-body text-center p-4 p-md-5">
+                <div class="text-success display-5 mb-3"><i class="bi bi-check-circle-fill" aria-hidden="true"></i></div>
+                <h2 class="h4" id="solicitudSuccessTitle">¡Gracias por escribirnos!</h2>
+                <p class="text-muted mb-4">Tu consulta quedó registrada. Nuestro equipo se pondrá en contacto contigo.</p>
+                <button class="btn btn-verde rounded-pill px-4" type="button" data-bs-dismiss="modal">Listo</button>
+            </div>
+        </div>
+    </div>
 </div>
 
-<div id="modalError" class="modal-overlay">
-  <div class="modal-content-custom">
-    <div class="rounded-circle bg-danger bg-opacity-10 text-danger mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-      <i class="fa-solid fa-triangle-exclamation fs-2"></i>
+<div class="modal fade" id="solicitudErrorModal" tabindex="-1" aria-labelledby="solicitudErrorTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content feedback-modal-content border-0 shadow">
+            <div class="modal-body text-center p-4 p-md-5">
+                <div class="text-danger display-5 mb-3"><i class="bi bi-exclamation-circle-fill" aria-hidden="true"></i></div>
+                <h2 class="h4" id="solicitudErrorTitle">No pudimos enviar tu consulta</h2>
+                <p id="solicitudErrorMensaje" class="text-muted mb-4">Revisa los datos y vuelve a intentarlo.</p>
+                <button class="btn btn-outline-brand rounded-pill px-4" type="button" data-bs-dismiss="modal">Entendido</button>
+            </div>
+        </div>
     </div>
-    <div id="mensajeError"></div>
-    <button id="btnAceptarError" class="btn btn-danger px-4 mt-3">Aceptar</button>
-  </div>
 </div>
 {% endblock %}

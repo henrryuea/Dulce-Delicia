@@ -1,203 +1,581 @@
 {% extends "base.html" %}
 
-<!-- ==============================================================================
-     PROYECTO: Dulce Delicia - Sistema de Gestión de Pastelería Artesanal
-     PLANTILLA: templates/productos.html
-     ASIGNATURA: Desarrollo de Aplicaciones Web
-     UNIVERSIDAD: Universidad Estatal Amazónica (UEA)
-     AVANCE: Semana 12 - Proyecto Integrador U3 (12/16)
-     TEMA: Visualización de datos persistentes en SQLite con Modelo Normalizado (3FN)
-     ESTUDIANTE: Desarrollo Web 2026
-==============================================================================
-DESCRIPCIÓN DE LA PLANTILLA:
-Esta vista presenta el catálogo administrativo de productos recuperados
-directamente de la base de datos local SQLite (data/dulce_delicia.db).
-Muestra los campos normalizados en 3FN: Código único, Fotografía, Nombre,
-Categoría (JOIN con categorias_producto), Unidad de Medida (JOIN con unidades_medida),
-Precio de Venta, Stock Actual y Mínimo, y Acciones (Editar y Eliminar).
-
-Todos los textos y botones cuentan con contraste optimizado (AAA) para máxima
-legibilidad sin elementos invisibles.
-============================================================================== -->
-
-{% block title %}Catálogo de Productos - Dulce Delicia | Persistencia SQLite 3FN{% endblock %}
+{% block titulo %}Productos artesanales - Dulce Delicia{% endblock %}
 
 {% block content %}
-<!-- Contenedor principal con fondo crema artesanal y espaciado vertical -->
-<section class="py-5" style="background-color: var(--c-crema); min-height: 85vh;">
-  <div class="container">
-
-    <!-- ==============================================================================
-         1. ENCABEZADO DEL MÓDULO Y ACCIONES PRINCIPALES
-          título con contraste nítido y botón para registrar nuevo postre
-    ============================================================================== -->
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
-      <div>
-        <!-- navegación jerárquica -->
-        <nav aria-label="breadcrumb">
-          <ol class="breadcrumb small mb-1">
-            <li class="breadcrumb-item"><a href="{{ url_for('panel') }}" class="text-decoration-none text-muted">Panel</a></li>
-            <li class="breadcrumb-item active text-dark fw-semibold" aria-current="page">Productos</li>
-          </ol>
-        </nav>
-        <!-- Título del módulo de alta visibilidad -->
-        <h1 class="h2 mb-0 fw-bold text-dark">Gestión de Productos y Repostería</h1>
+<!-- ==============================================================================
+     ENCABEZADO DE PÁGINA: CATÁLOGO DE PRODUCTOS
+     ============================================================================== -->
+<section class="page-header py-5 text-white">
+    <div class="container text-center">
+        <span class="badge bg-emerald mb-2 px-3 py-2 text-uppercase fw-semibold tracking-wider">Pastelería artesanal</span>
+        <h1 class="display-5 fw-bold mb-2">Nuestros postres</h1>
+        <p class="lead text-light-emerald mx-auto mb-4" style="max-width: 680px;">
+            Explora nuestros productos disponibles y encuentra algo delicioso para compartir.
+            {% if puede_ver_futuros %}Como cliente con sesión iniciada, también puedes descubrir próximos lanzamientos.{% endif %}
         </p>
-      </div>
-      
-      <!-- Contador de productos y botón para abrir el formulario de nuevo registro -->
-      <div class="d-flex gap-2 align-items-center flex-wrap">
-        <span class="badge badge-artesanal badge-moka fs-6 px-3 py-2 fw-semibold">
-          <i class="fa-solid fa-cookie-bite me-1"></i> {{ productos|length }} en catálogo
-        </span>
-        <a href="{{ url_for('nuevo_producto') }}" class="btn btn-caramelo text-white d-flex align-items-center gap-2 shadow-sm">
-          <i class="fa-solid fa-circle-plus"></i>
-          <span>Nuevo Producto</span>
-        </a>
-      </div>
+        <div>
+            {% if current_user.is_authenticated and current_user.has_role('Administrador', 'Encargado') %}
+            <a href="{{ url_for('nuevo_producto') }}" class="btn btn-verde btn-lg shadow-sm">
+                <i class="bi bi-plus-circle me-2"></i>Registrar nuevo producto
+            </a>
+            {% endif %}
+        </div>
     </div>
-
-    <!-- ==============================================================================
-         2. TARJETA PRINCIPAL Y TABLA DE PRODUCTOS (Requisito Semana 12)
-         Estructura con cabecera en crema, bordes suaves y tabla responsiva
-    ============================================================================== -->
-    <div class="card card-artesanal border-0 shadow-sm">
-      
-      <!-- Cabecera de la tarjeta con contraste óptimo -->
-      <div class="card-header-artesanal d-flex justify-content-between align-items-center flex-wrap gap-2 py-3">
-        <div class="d-flex align-items-center gap-2">
-          <i class="fa-solid fa-table-list text-caramelo fs-5"></i>
-          <h2 class="h5 mb-0 fw-bold text-dark">Inventario y Precios de Venta </h2>
-        </div>
-        <span class="badge badge-artesanal badge-moka small fw-semibold">
-          <i class="fa-solid fa-database me-1"></i>categorias y unidades
-        </span>
-      </div>
-
-      <!-- Tabla HTML responsiva con clases Bootstrap y estilo artesanal -->
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table-artesanal align-middle mb-0">
-            <thead>
-              <tr>
-                <th style="width: 90px;" class="text-center text-dark">Código</th>
-                <th style="width: 75px;" class="text-dark">Foto</th>
-                <th class="text-dark">Postre / Especialidad</th>
-                <th class="text-dark">Categoría</th>
-                <th class="text-dark">Unidad</th>
-                <th class="text-dark">Precio Venta</th>
-                <th class="text-dark">Stock Actual / Mín</th>
-                <th class="text-end text-dark" style="width: 130px;">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              <!-- Iteración sobre cada producto recuperado de la base de datos local SQLite -->
-              {% for producto in productos %}
-              <tr>
-                <!-- Código único del producto (Columna 3FN: codigo) -->
-                <td class="text-center">
-                  <span class="badge bg-dark font-monospace text-white px-2 py-1">{{ producto.codigo }}</span>
-                </td>
-                
-                <!-- Fotografía representativa del postre -->
-                <td>
-                  <img src="{{ url_for('static', filename=producto.imagen) }}" alt="{{ producto.nombre }}" class="rounded-3 border shadow-sm" style="width: 48px; height: 48px; object-fit: cover;">
-                </td>
-                
-                <!-- Nombre y descripción breve del producto -->
-                <td>
-                  <span class="fw-bold text-dark d-block">{{ producto.nombre }}</span>
-                  <small class="text-secondary d-inline-block text-truncate" style="max-width: 250px;" title="{{ producto.descripcion }}">
-                    {{ producto.descripcion }}
-                  </small>
-                </td>
-                
-                <!-- Categoría vinculada desde la tabla 'categorias_producto' -->
-                <td>
-                  <span class="badge badge-artesanal badge-moka">
-                    {{ producto.categoria }}
-                  </span>
-                </td>
-                
-                <!-- Unidad de medida vinculada desde la tabla 'unidades_medida' -->
-                <td>
-                  <span class="badge bg-light text-dark border font-monospace">
-                    {{ producto.unidad if producto.unidad else 'UND' }}
-                  </span>
-                </td>
-                
-                <!-- Precio de venta formateado con Jinja2 en formato moneda USD -->
-                <td>
-                  <span class="fw-bold text-dark fs-6">${{ "%.2f"|format(producto.precio_venta) }}</span>
-                </td>
-                
-                <!-- Stock actual y control de stock mínimo con badges informativos -->
-                <td>
-                  {% if producto.stock_actual > producto.stock_minimo %}
-                    <span class="badge badge-artesanal badge-exito">
-                      <i class="fa-solid fa-box-open me-1"></i> {{ producto.stock_actual }}
-                    </span>
-                  {% elif producto.stock_actual > 0 %}
-                    <span class="badge badge-artesanal badge-alerta" title="Stock cercano al mínimo permitido">
-                      <i class="fa-solid fa-triangle-exclamation me-1"></i> {{ producto.stock_actual }} (Bajo)
-                    </span>
-                  {% else %}
-                    <span class="badge badge-artesanal badge-peligro">
-                      <i class="fa-solid fa-circle-xmark me-1"></i> Agotado
-                    </span>
-                  {% endif %}
-                  <small class="text-secondary d-block mt-1">Mín: {{ producto.stock_minimo }}</small>
-                </td>
-                
-                <!-- Acciones seguras: Botón Editar y Formulario POST para Eliminar -->
-                <td class="text-end">
-                  <div class="btn-group" role="group" aria-label="Acciones de producto">
-                    <!-- Botón para modificar el producto con ProductoForm -->
-                    <a href="{{ url_for('editar_producto', id=producto.id_producto) }}" class="btn btn-sm btn-outline-caramelo shadow-sm" title="Editar este producto">
-                      <i class="fa-solid fa-pen-to-square"></i>
-                    </a>
-                    <!-- Formulario POST con confirmación para evitar borrados accidentales por GET -->
-                    <form action="{{ url_for('eliminar_producto', id=producto.id_producto) }}" method="POST" class="d-inline" onsubmit="return confirm('¿Está seguro de eliminar \'{{ producto.nombre }}\' ({{ producto.codigo }}) del catálogo?');">
-                      <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm" title="Eliminar producto">
-                        <i class="fa-solid fa-trash-can"></i>
-                      </button>
-                    </form>
-                  </div>
-                </td>
-              </tr>
-              {% else %}
-              <!-- Mensaje visual si la tabla productos estuviese vacía -->
-              <tr>
-                <td colspan="8" class="text-center py-5">
-                  <div class="py-4">
-                    <i class="fa-solid fa-cookie fs-1 text-secondary mb-3 d-block"></i>
-                    <h3 class="h5 text-dark fw-bold">No hay productos registrados en la base de datos</h3>
-                    <p class="text-secondary small mb-3">Haga clic en el botón para agregar el primer postre con Flask-WTF.</p>
-                    <a href="{{ url_for('nuevo_producto') }}" class="btn btn-caramelo text-white shadow-sm">
-                      <i class="fa-solid fa-circle-plus me-1"></i> Registrar Primer Producto
-                    </a>
-                  </div>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      
-      <!-- Pie de tarjeta con metadata técnica de la base de datos -->
-      <div class="card-footer bg-white py-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
-      <div class="d-flex gap-2">
-          <a href="{{ url_for('inicio') }}" class="btn btn-sm btn-outline-secondary" target="_blank" title="Ver cómo lo ven los clientes">
-            <i class="fa-solid fa-eye me-1"></i> Catálogo de Clientes
-          </a>
-          <a href="{{ url_for('nuevo_producto') }}" class="btn btn-sm btn-caramelo text-white shadow-sm">
-            <i class="fa-solid fa-plus me-1"></i> Agregar Nuevo Postre
-          </a>
-        </div>
-      </div>
-    </div>
-
-  </div>
 </section>
+
+<!-- ==============================================================================
+     LISTADO PRINCIPAL DE PRODUCTOS (TARJETAS RESPONSIVAS CON BUSCADOR)
+     ============================================================================== -->
+<section class="py-5">
+    <div class="container">
+        <!-- Barra de Control del Listado -->
+        <div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom flex-wrap gap-2">
+            <div>
+                <h2 class="h4 fw-bold text-navy mb-0">Catálogo de postres</h2>
+                <p class="text-muted small mb-0">Filtra por categoría y encuentra algo delicioso para compartir.</p>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-navy text-white px-3 py-2 rounded-pill">
+                    <i class="bi bi-grid-fill me-1"></i><span id="badgeTotalProductos">{{ productos|length }}</span> productos
+                </span>
+                {% if current_user.is_authenticated and current_user.has_role('Administrador', 'Encargado') %}
+                <a href="{{ url_for('nuevo_producto') }}" class="btn btn-outline-brand btn-sm">
+                    <i class="bi bi-plus-lg me-1"></i>Nuevo producto
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- ==============================================================================
+             PANEL DEL BUSCADOR Y FILTROS MULTICRITERIO
+             ============================================================================== -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4 p-3 p-md-4 bg-white" style="border: 1px solid var(--border-color) !important;">
+            <div class="row g-3 align-items-center">
+                <!-- Buscador de texto libre con ícono y botón para borrar -->
+                <div class="col-lg-5 col-md-6">
+                    <label for="buscadorProductos" class="form-label small fw-semibold text-navy mb-1">
+                        <i class="bi bi-search text-emerald me-1"></i>Buscar producto
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted rounded-start-pill ps-3">
+                            <i class="bi bi-search"></i>
+                        </span>
+                        <input type="text" id="buscadorProductos" class="form-control bg-light border-start-0 border-end-0 py-2"
+                               placeholder="Ej. Cheesecake, mousse, tarta..."
+                               value="{{ query_busqueda or '' }}"
+                               autocomplete="off">
+                        <button class="btn btn-light border-start-0 rounded-end-pill pe-3 text-muted" type="button" id="btnLimpiarBusqueda" title="Borrar búsqueda">
+                            <i class="bi bi-x-circle"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filtro por categoría de producto -->
+                <div class="col-lg-3 col-md-3 col-sm-6">
+                    <label for="filtroCategoria" class="form-label small fw-semibold text-navy mb-1">
+                        <i class="bi bi-folder2-open text-primary me-1"></i>Categoría
+                    </label>
+                    <select id="filtroCategoria" class="form-select rounded-pill py-2 bg-light">
+                        <option value="">Todas las categorías</option>
+                        {% for cat in categorias_producto %}
+                        <option value="{{ cat.nombre }}" {% if tipo_seleccionado == cat.nombre %}selected{% endif %}>{{ cat.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Filtro por Estado / Disponibilidad -->
+                <div class="col-lg-2 col-md-3 col-sm-6">
+                    <label for="filtroDisponibilidad" class="form-label small fw-semibold text-navy mb-1">
+                        <i class="bi bi-toggle-on text-success me-1"></i>Disponibilidad
+                    </label>
+                    <select id="filtroDisponibilidad" class="form-select rounded-pill py-2 bg-light">
+                        <option value="">Todos los estados</option>
+                        <option value="1">Solo disponibles</option>
+                        {% if puede_ver_futuros %}
+                        <option value="0">Próximamente</option>
+                        {% endif %}
+                    </select>
+                </div>
+
+                <!-- Ordenar por precio / nombre -->
+                <div class="col-lg-2 col-md-12">
+                    <label for="ordenarProductos" class="form-label small fw-semibold text-navy mb-1">
+                        <i class="bi bi-arrow-down-up text-secondary me-1"></i>Ordenar por
+                    </label>
+                    <select id="ordenarProductos" class="form-select rounded-pill py-2 bg-light">
+                        <option value="relevancia">Relevancia</option>
+                        <option value="precio-asc">Precio: menor a mayor</option>
+                        <option value="precio-desc">Precio: mayor a menor</option>
+                        <option value="nombre-asc">Nombre: A - Z</option>
+                    </select>
+                </div>
+            </div>
+
+        </div>
+
+        {% if not base_datos_disponible %}
+        <div class="alert alert-warning border d-flex align-items-start gap-2" role="alert">
+            <i class="bi bi-database-exclamation fs-5"></i>
+            <div>
+                <strong>El catálogo no está disponible temporalmente.</strong>
+                <div>Los productos aparecerán aquí cuando se restablezca la conexión.</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Indicador de Conteo y Filtros Activos -->
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div class="small text-muted">
+                Mostrando <strong id="contadorVisibles" class="text-navy">{{ productos|length }}</strong> de <strong id="contadorTotal">{{ productos|length }}</strong> productos
+                <span id="filtroActivoBadge" class="badge bg-emerald-subtle text-emerald-text ms-2 d-none"></span>
+            </div>
+            <div id="btnRestablecerContenedor" class="d-none">
+                <button type="button" id="btnRestablecerFiltros" class="btn btn-link btn-sm text-decoration-none text-muted p-0">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Limpiar todos los filtros
+                </button>
+            </div>
+        </div>
+
+        {% if productos %}
+        <!-- Cuadrícula de productos -->
+        <div class="row g-4" id="contenedorProductos">
+            {% for producto in productos %}
+            <div class="col-md-6 col-lg-4 product-col"
+                 data-nombre="{{ (producto.nombre or '')|lower }}"
+                 data-descripcion="{{ (producto.descripcion or '')|lower }}"
+                 data-tipo="{{ (producto.categoria_nombre or '')|lower }}"
+                 data-tipo-exacto="{{ producto.categoria_nombre or '' }}"
+                 data-disponible="{{ '1' if producto.disponible else '0' }}"
+                 data-precio="{{ producto.precio_base or 0 }}">
+                <div class="card h-100 product-card shadow-sm border-0 d-flex flex-column">
+                    <!-- Imagen del producto y precio -->
+                    <div class="card-img-wrapper">
+                        <img src="{{ url_for('imagen_producto', producto_id=producto.id) }}" alt="{{ producto.nombre }}" loading="lazy">
+                        
+                        <div class="price-tag">
+                            ${{ "%.2f"|format(producto.precio_base or 0.0) }} <span>USD</span>
+                        </div>
+                    </div>
+
+                    <!-- Cuerpo de la Tarjeta -->
+                    <div class="card-body p-4 d-flex flex-column flex-grow-1">
+                        <div class="d-flex justify-content-end align-items-center mb-2 gap-1">
+                            {% if producto.es_insumo %}
+                                <span class="badge bg-info-subtle text-info-emphasis px-2 py-1 fw-bold shadow-sm">
+                                    <i class="bi bi-basket2-fill me-1"></i>Insumo
+                                </span>
+                            {% endif %}
+                            {% if producto.disponible %}
+                                <span class="badge badge-disponible">
+                                    <i class="bi bi-check-circle-fill me-1"></i>Disponible
+                                </span>
+                            {% elif puede_ver_futuros %}
+                                <span class="badge bg-warning text-dark px-2 py-1 fw-bold shadow-sm">
+                                    <i class="bi bi-stars me-1"></i>Próximamente
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <span class="badge bg-light text-navy border px-2 py-1 mb-2 align-self-start badge-categoria-tarjeta">
+                            <i class="bi bi-collection me-1"></i>{{ producto.categoria_nombre }}
+                        </span>
+
+                        {% if producto.total_resenas %}
+                        <div class="resena-resumen">
+                            <i class="bi bi-star-fill"></i>
+                            <strong>{{ producto.promedio_calificacion }}</strong>
+                            <span>({{ producto.total_resenas }} {% if producto.total_resenas == 1 %}reseña{% else %}reseñas{% endif %})</span>
+                        </div>
+                        {% elif not producto.es_insumo %}
+                        <div class="resena-resumen text-muted">
+                            <i class="bi bi-star"></i>
+                            <span>Sin reseñas todavía</span>
+                        </div>
+                        {% endif %}
+
+                        <h3 class="h5 card-title fw-bold text-navy my-2 titulo-producto">
+                            {{ producto.nombre }}
+                        </h3>
+
+                        <p class="card-text text-muted small flex-grow-1 mb-4 descripcion-producto">
+                            {{ producto.descripcion }}
+                        </p>
+
+                        {% if current_user.is_authenticated and current_user.has_role('Cliente') and not producto.es_insumo and producto.id in productos_comprados_cliente %}
+                        <button type="button" class="btn btn-outline-brand btn-sm rounded-pill mb-3 align-self-start"
+                                data-bs-toggle="modal" data-bs-target="#modalResena{{ producto.id }}">
+                            <i class="bi bi-pencil-square me-1"></i>
+                            {% if producto.id in resenas_cliente %}Editar tu reseña{% else %}Calificar producto{% endif %}
+                        </button>
+                        {% endif %}
+
+                        <!-- Botones de Acción (Cotizar/Información, Editar, Eliminar) -->
+                        <div class="pt-3 border-top mt-auto d-flex justify-content-between align-items-center gap-2">
+                            {% if producto.es_insumo %}
+                                {% if current_user.is_authenticated and current_user.has_role('Administrador', 'Encargado', 'Repostero') %}
+                                <a href="{{ url_for('kardex_producto', producto_id=producto.id) }}" class="btn btn-outline-primary btn-sm rounded-pill flex-grow-1">
+                                    <i class="bi bi-journal-text me-1"></i>Ver kardex
+                                </a>
+                                {% else %}
+                                <span class="btn btn-outline-secondary btn-sm rounded-pill disabled flex-grow-1" title="Los insumos no se venden">
+                                    <i class="bi bi-basket2 me-1"></i>Solo inventario
+                                </span>
+                                {% endif %}
+                            {% elif current_user.is_authenticated and current_user.has_role('Administrador', 'Encargado', 'Vendedor') %}
+                            <a href="{{ url_for('nueva_factura', producto_id=producto.id, tipo='Cotizacion') }}" class="btn btn-verde btn-sm rounded-pill flex-grow-1">
+                                <i class="bi bi-receipt me-1"></i>Cotizar
+                            </a>
+                            {% else %}
+                            <a href="{{ url_for('inicio') }}#contacto" class="btn btn-outline-brand btn-sm rounded-pill flex-grow-1">
+                                <i class="bi bi-envelope me-1"></i>Consultar o pedir
+                            </a>
+                            {% endif %}
+
+                            {% if current_user.is_authenticated and current_user.has_permission('productos.editar') %}
+                            <a href="{{ url_for('editar_producto', id=producto.id) }}" class="btn btn-outline-primary btn-sm rounded-pill" title="Editar producto">
+                                <i class="bi bi-pencil-square"></i>
+                            </a>
+                            {% endif %}
+
+                            {% if current_user.is_authenticated and current_user.is_admin() %}
+                            {% if producto.detalles_relacionados|int > 0 %}
+                            <span class="btn btn-outline-secondary btn-sm rounded-pill disabled"
+                                  title="No se puede borrar: el producto está relacionado con facturas o cotizaciones"
+                                  aria-label="Producto relacionado, no se puede borrar">
+                                <i class="bi bi-lock-fill"></i>
+                            </span>
+                            {% else %}
+                            <form method="POST" action="{{ url_for('eliminar_producto', id=producto.id) }}" onsubmit="return confirm('¿Deseas eliminar este producto?');" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill" title="Eliminar producto">
+                                    <i class="bi bi-trash-fill"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                {% if current_user.is_authenticated and current_user.has_role('Cliente') and not producto.es_insumo and producto.id in productos_comprados_cliente %}
+                <div class="modal fade" id="modalResena{{ producto.id }}" tabindex="-1" aria-labelledby="tituloModalResena{{ producto.id }}" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content rounded-4 border-0 shadow">
+                            <form method="POST" action="{{ url_for('calificar_producto', producto_id=producto.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <div class="modal-header">
+                                    <h2 class="modal-title h5 fw-bold text-navy" id="tituloModalResena{{ producto.id }}">
+                                        Calificar {{ producto.nombre }}
+                                    </h2>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                                </div>
+                                <div class="modal-body">
+                                    {% set resena_previa = resenas_cliente.get(producto.id) %}
+                                    <label class="form-label d-block">Tu calificación</label>
+                                    <div class="star-rating mb-3">
+                                        {% for valor in [5, 4, 3, 2, 1] %}
+                                        <input type="radio" id="star{{ valor }}-{{ producto.id }}" name="calificacion" value="{{ valor }}"
+                                               {% if resena_previa and resena_previa.calificacion == valor %}checked{% endif %} required>
+                                        <label for="star{{ valor }}-{{ producto.id }}"><i class="bi bi-star-fill"></i></label>
+                                        {% endfor %}
+                                    </div>
+                                    <label for="comentarioResena{{ producto.id }}" class="form-label">Comentario (opcional)</label>
+                                    <textarea id="comentarioResena{{ producto.id }}" name="comentario" class="form-control" rows="3" maxlength="500"
+                                              placeholder="Cuéntanos qué te pareció este producto">{{ resena_previa.comentario if resena_previa else '' }}</textarea>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Cancelar</button>
+                                    <button type="submit" class="btn btn-verde rounded-pill"><i class="bi bi-check2 me-1"></i>Enviar reseña</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Paginación del catálogo (12 por página) -->
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 pt-4 border-top mt-4" id="contenedorPaginacionProductos">
+            <small class="text-muted">
+                Mostrando <span id="contadorPaginacionProductosTexto" class="fw-semibold text-navy">1 - {{ 12 if productos|length > 12 else productos|length }}</span> de <span id="totalProductosPaginacion" class="fw-semibold text-navy">{{ productos|length }}</span> productos
+            </small>
+            <nav aria-label="Navegación de productos">
+                <ul class="pagination pagination-sm mb-0 gap-1" id="listaBotonesPaginacionProductos">
+                    <!-- Botones generados dinámicamente -->
+                </ul>
+            </nav>
+        </div>
+
+        <!-- Estado "Sin Resultados" cuando el buscador no encuentra coincidencias -->
+        <div id="sinResultados" class="card p-5 text-center shadow-sm border-0 rounded-4 mt-4 d-none bg-white">
+            <div class="mb-3 text-muted">
+                <i class="bi bi-search display-3 text-emerald"></i>
+            </div>
+            <h4 class="text-navy fw-bold mb-2">No se encontraron productos que coincidan</h4>
+            <p class="text-muted mb-4" id="sinResultadosDetalle">
+                Intenta ajustando los términos de búsqueda o seleccionando otra categoría.
+            </p>
+            <div>
+                <button type="button" id="btnRestablecerSinResultados" class="btn btn-verde rounded-pill px-4">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>Ver todos los productos
+                </button>
+            </div>
+        </div>
+
+        {% elif base_datos_disponible %}
+        <!-- Estado vacío cuando no hay productos registrados -->
+        <div class="card p-5 text-center shadow-sm border-0 rounded-4">
+            <h4 class="text-navy fw-bold">Aún no hay productos en el catálogo</h4>
+            <p class="text-muted">Cuando agregues postres al catálogo, aparecerán aquí.</p>
+            {% if current_user.is_authenticated and current_user.has_role('Administrador', 'Encargado') %}
+            <div class="mt-3">
+                <a href="{{ url_for('nuevo_producto') }}" class="btn btn-verde">
+                    <i class="bi bi-plus-circle me-1"></i>Registrar producto
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if not puede_ver_futuros and not current_user.is_authenticated %}
+        <aside class="catalog-inquiry mt-5" aria-label="Acceso para clientes">
+            <div class="catalog-inquiry__icon" aria-hidden="true">
+                <i class="bi bi-stars"></i>
+            </div>
+            <div class="catalog-inquiry__copy">
+                <h2 class="h5 mb-1">Descubre lo que estamos preparando</h2>
+                <p class="mb-0">Inicia sesión como cliente para conocer los próximos lanzamientos. Los productos disponibles están a la vista de todos.</p>
+            </div>
+            <a href="{{ url_for('login') }}" class="catalog-inquiry__button">
+                <i class="bi bi-person-circle me-2" aria-hidden="true"></i>Ingresar como cliente
+            </a>
+        </aside>
+        {% endif %}
+    </div>
+</section>
+
+<!-- ==============================================================================
+     SCRIPT DE BÚSQUEDA INTERACTIVA Y FILTRADO EN TIEMPO REAL
+     ============================================================================== -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const inputBuscador = document.getElementById("buscadorProductos");
+    const btnLimpiar = document.getElementById("btnLimpiarBusqueda");
+    const selectCategoria = document.getElementById("filtroCategoria");
+    const selectDisponibilidad = document.getElementById("filtroDisponibilidad");
+    const selectOrdenar = document.getElementById("ordenarProductos");
+    const contenedor = document.getElementById("contenedorProductos");
+    const cards = Array.from(document.querySelectorAll(".product-col"));
+    const sinResultados = document.getElementById("sinResultados");
+    const sinResultadosDetalle = document.getElementById("sinResultadosDetalle");
+    const contadorVisibles = document.getElementById("contadorVisibles");
+    const contadorTotal = document.getElementById("contadorTotal");
+    const filtroActivoBadge = document.getElementById("filtroActivoBadge");
+    const btnRestablecerContenedor = document.getElementById("btnRestablecerContenedor");
+    const btnRestablecer = document.getElementById("btnRestablecerFiltros");
+    const btnRestablecerSinRes = document.getElementById("btnRestablecerSinResultados");
+
+    const contadorPaginacionTexto = document.getElementById("contadorPaginacionProductosTexto");
+    const totalProductosPaginacion = document.getElementById("totalProductosPaginacion");
+    const listaBotones = document.getElementById("listaBotonesPaginacionProductos");
+    const contenedorPaginacion = document.getElementById("contenedorPaginacionProductos");
+
+    const REGISTROS_POR_PAGINA = 12;
+    let paginaActual = 1;
+    let cardsFiltradas = [...cards];
+
+    if (!cards.length) return;
+
+    function normalizar(texto) {
+        return (texto || "")
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .trim();
+    }
+
+    function filtrarYPaginar(irAPagina = 1) {
+        const query = normalizar(inputBuscador.value);
+        const categoria = normalizar(selectCategoria.value);
+        const disponibilidad = selectDisponibilidad.value;
+
+        cardsFiltradas = cards.filter(card => {
+            const nombre = normalizar(card.dataset.nombre);
+            const descripcion = normalizar(card.dataset.descripcion);
+            const tipo = normalizar(card.dataset.tipo);
+            const disp = card.dataset.disponible;
+
+            const coincideTexto = !query || nombre.includes(query) || descripcion.includes(query) || tipo.includes(query);
+            const coincideCategoria = !categoria || tipo === categoria;
+            const coincideDisp = !disponibilidad || disp === disponibilidad;
+
+            return coincideTexto && coincideCategoria && coincideDisp;
+        });
+
+        // Ordenar cardsFiltradas según criterio
+        const criterio = selectOrdenar.value;
+        cardsFiltradas.sort((a, b) => {
+            const precioA = parseFloat(a.dataset.precio || 0);
+            const precioB = parseFloat(b.dataset.precio || 0);
+            const nombreA = a.dataset.nombre || "";
+            const nombreB = b.dataset.nombre || "";
+
+            if (criterio === "precio-asc") return precioA - precioB;
+            if (criterio === "precio-desc") return precioB - precioA;
+            if (criterio === "nombre-asc") return nombreA.localeCompare(nombreB);
+            return 0;
+        });
+
+        // Reordenar en el DOM
+        if (contenedor) {
+            cardsFiltradas.forEach(card => contenedor.appendChild(card));
+        }
+
+        const totalRegistros = cardsFiltradas.length;
+        const totalPaginas = Math.max(1, Math.ceil(totalRegistros / REGISTROS_POR_PAGINA));
+        paginaActual = Math.min(Math.max(1, irAPagina), totalPaginas);
+
+        cards.forEach(card => card.classList.add("d-none"));
+
+        const inicio = (paginaActual - 1) * REGISTROS_POR_PAGINA;
+        const fin = Math.min(inicio + REGISTROS_POR_PAGINA, totalRegistros);
+
+        for (let i = inicio; i < fin; i++) {
+            cardsFiltradas[i].classList.remove("d-none");
+        }
+
+        // Actualizar contadores
+        if (contadorVisibles) contadorVisibles.textContent = totalRegistros;
+        if (contadorTotal) contadorTotal.textContent = cards.length;
+        if (totalProductosPaginacion) totalProductosPaginacion.textContent = totalRegistros;
+        if (contadorPaginacionTexto) {
+            contadorPaginacionTexto.textContent = totalRegistros > 0 ? `${inicio + 1} - ${fin}` : "0 - 0";
+        }
+
+        // Actualizar badge de filtros activos
+        const filtrosActivos = [];
+        if (query) filtrosActivos.push(`"${inputBuscador.value.trim()}"`);
+        if (selectCategoria.value) filtrosActivos.push(selectCategoria.value);
+        if (disponibilidad === "1") filtrosActivos.push("Disponibles");
+        if (disponibilidad === "0") filtrosActivos.push("Próximamente");
+
+        if (filtrosActivos.length > 0) {
+            filtroActivoBadge.textContent = "Filtro: " + filtrosActivos.join(" | ");
+            filtroActivoBadge.classList.remove("d-none");
+            btnRestablecerContenedor.classList.remove("d-none");
+        } else {
+            filtroActivoBadge.classList.add("d-none");
+            btnRestablecerContenedor.classList.add("d-none");
+        }
+
+        // Mostrar u ocultar estado sin resultados
+        if (totalRegistros === 0) {
+            sinResultados.classList.remove("d-none");
+            if (query) {
+                sinResultadosDetalle.textContent = `No encontramos productos que coincidan con "${inputBuscador.value.trim()}". Intenta con otra palabra clave o restablece los filtros.`;
+            } else {
+                sinResultadosDetalle.textContent = "No hay productos que cumplan con la combinación de filtros seleccionada.";
+            }
+            if (contenedorPaginacion) contenedorPaginacion.classList.add("d-none");
+        } else {
+            sinResultados.classList.add("d-none");
+            if (contenedorPaginacion) contenedorPaginacion.classList.toggle("d-none", totalRegistros <= 10);
+        }
+
+        renderizarBotones(totalPaginas);
+    }
+
+    function renderizarBotones(totalPaginas) {
+        if (!listaBotones) return;
+        listaBotones.innerHTML = "";
+
+        if (totalPaginas <= 1) {
+            if (contenedorPaginacion) contenedorPaginacion.classList.toggle("d-none", cardsFiltradas.length <= 10);
+            return;
+        }
+        if (contenedorPaginacion) contenedorPaginacion.classList.remove("d-none");
+
+        const crearItem = (texto, pag, activo = false, deshabilitado = false) => {
+            const li = document.createElement("li");
+            li.className = `page-item ${activo ? 'active' : ''} ${deshabilitado ? 'disabled' : ''}`;
+            li.innerHTML = `<button class="page-link" type="button">${texto}</button>`;
+            if (!deshabilitado && !activo) {
+                li.addEventListener("click", () => filtrarYPaginar(pag));
+            }
+            return li;
+        };
+
+        // Anterior
+        listaBotones.appendChild(crearItem("&laquo; Anterior", paginaActual - 1, false, paginaActual === 1));
+
+        if (totalPaginas <= 7) {
+            for (let p = 1; p <= totalPaginas; p++) {
+                listaBotones.appendChild(crearItem(p, p, p === paginaActual));
+            }
+        } else {
+            listaBotones.appendChild(crearItem(1, 1, paginaActual === 1));
+
+            let start = Math.max(2, paginaActual - 1);
+            let end = Math.min(totalPaginas - 1, paginaActual + 1);
+
+            if (start > 2) {
+                const liDots = document.createElement("li");
+                liDots.className = "page-item disabled";
+                liDots.innerHTML = `<span class="page-link">...</span>`;
+                listaBotones.appendChild(liDots);
+            }
+
+            for (let p = start; p <= end; p++) {
+                listaBotones.appendChild(crearItem(p, p, p === paginaActual));
+            }
+
+            if (end < totalPaginas - 1) {
+                const liDots = document.createElement("li");
+                liDots.className = "page-item disabled";
+                liDots.innerHTML = `<span class="page-link">...</span>`;
+                listaBotones.appendChild(liDots);
+            }
+
+            listaBotones.appendChild(crearItem(totalPaginas, totalPaginas, paginaActual === totalPaginas));
+        }
+
+        // Siguiente
+        listaBotones.appendChild(crearItem("Siguiente &raquo;", paginaActual + 1, false, paginaActual === totalPaginas));
+    }
+
+    function resetearFiltros() {
+        inputBuscador.value = "";
+        selectCategoria.value = "";
+        selectDisponibilidad.value = "";
+        selectOrdenar.value = "relevancia";
+
+        filtrarYPaginar(1);
+        inputBuscador.focus();
+    }
+
+    // Event listeners
+    inputBuscador.addEventListener("input", () => filtrarYPaginar(1));
+    btnLimpiar.addEventListener("click", function () {
+        inputBuscador.value = "";
+        filtrarYPaginar(1);
+        inputBuscador.focus();
+    });
+
+    selectCategoria.addEventListener("change", function () {
+        filtrarYPaginar(1);
+    });
+
+    selectDisponibilidad.addEventListener("change", () => filtrarYPaginar(1));
+    selectOrdenar.addEventListener("change", () => filtrarYPaginar(1));
+
+    if (btnRestablecer) btnRestablecer.addEventListener("click", resetearFiltros);
+    if (btnRestablecerSinRes) btnRestablecerSinRes.addEventListener("click", resetearFiltros);
+
+    // Inicialización al cargar la página
+    filtrarYPaginar(1);
+});
+</script>
 {% endblock %}

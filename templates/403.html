@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block titulo %}403 - Acceso restringido | Dulce Delicia{% endblock %}
+
+{% block content %}
+<section class="error-page" aria-labelledby="error403Titulo">
+    <div class="container">
+        <div class="error-card text-center mx-auto">
+            <div class="error-icon" aria-hidden="true">
+                <i class="bi bi-shield-lock"></i>
+            </div>
+            <p class="error-code mb-2">403 · Acceso reservado</p>
+            <h1 id="error403Titulo" class="h2 mb-3">Esta sección es solo para el equipo autorizado</h1>
+            <p class="text-muted lead mb-4">
+                Esta parte no está disponible para tu perfil. Si necesitas entrar para realizar tu trabajo, solicita acceso a la persona administradora.
+            </p>
+            <div class="d-flex flex-column flex-sm-row gap-2 justify-content-center">
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('dashboard') }}" class="btn btn-verde px-4 py-2">
+                    <i class="bi bi-speedometer2 me-2" aria-hidden="true"></i>Volver al panel
+                </a>
+                {% else %}
+                <a href="{{ url_for('login') }}" class="btn btn-verde px-4 py-2">
+                    <i class="bi bi-box-arrow-in-right me-2" aria-hidden="true"></i>Acceder a mi cuenta
+                </a>
+                {% endif %}
+                <a href="{{ url_for('inicio') }}" class="btn btn-outline-brand px-4 py-2">
+                    <i class="bi bi-house-door me-2" aria-hidden="true"></i>Ir a la pastelería
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
